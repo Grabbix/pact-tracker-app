@@ -1,0 +1,79 @@
+import { Contract } from "@/types/contract";
+import { Card } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { Clock, AlertCircle, CheckCircle } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+
+interface ContractCardProps {
+  contract: Contract;
+}
+
+export const ContractCard = ({ contract }: ContractCardProps) => {
+  const navigate = useNavigate();
+  const percentage = (contract.usedHours / contract.totalHours) * 100;
+  const remainingHours = contract.totalHours - contract.usedHours;
+
+  const getStatusIcon = () => {
+    if (contract.status === "near-expiry") {
+      return <AlertCircle className="h-5 w-5 text-warning" />;
+    }
+    return <CheckCircle className="h-5 w-5 text-success" />;
+  };
+
+  const getStatusColor = () => {
+    if (percentage >= 90) return "text-destructive";
+    if (percentage >= 70) return "text-warning";
+    return "text-success";
+  };
+
+  return (
+    <Card 
+      className="p-6 hover:shadow-lg transition-all cursor-pointer border-2 hover:border-primary/20"
+      onClick={() => navigate(`/contract/${contract.id}`)}
+    >
+      <div className="flex items-start justify-between mb-4">
+        <div>
+          <h3 className="text-xl font-semibold text-card-foreground mb-1">
+            {contract.clientName}
+          </h3>
+          <p className="text-sm text-muted-foreground">
+            Contrat #{contract.id}
+          </p>
+        </div>
+        {getStatusIcon()}
+      </div>
+
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <Clock className="h-4 w-4" />
+            <span className="text-sm">Heures restantes</span>
+          </div>
+          <span className={`text-2xl font-bold ${getStatusColor()}`}>
+            {remainingHours.toFixed(1)}h
+          </span>
+        </div>
+
+        <div className="space-y-2">
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">Progression</span>
+            <span className="font-medium text-foreground">
+              {contract.usedHours}h / {contract.totalHours}h
+            </span>
+          </div>
+          <Progress value={percentage} className="h-2" />
+          <p className="text-xs text-muted-foreground text-right">
+            {percentage.toFixed(0)}% utilisé
+          </p>
+        </div>
+
+        <div className="pt-2 border-t border-border">
+          <div className="flex justify-between text-xs text-muted-foreground">
+            <span>Début: {new Date(contract.startDate).toLocaleDateString('fr-FR')}</span>
+            <span>Fin: {new Date(contract.endDate).toLocaleDateString('fr-FR')}</span>
+          </div>
+        </div>
+      </div>
+    </Card>
+  );
+};

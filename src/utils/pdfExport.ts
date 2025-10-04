@@ -1,0 +1,74 @@
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import { Contract } from "@/types/contract";
+
+export const exportContractToPDF = (contract: Contract) => {
+  const doc = new jsPDF();
+
+  // Header
+  doc.setFontSize(20);
+  doc.setTextColor(59, 130, 246); // primary color
+  doc.text("Détail du contrat de maintenance", 14, 20);
+
+  // Client info
+  doc.setFontSize(12);
+  doc.setTextColor(0, 0, 0);
+  doc.text(`Client: ${contract.clientName}`, 14, 35);
+  doc.text(`Contrat N°: ${contract.id}`, 14, 42);
+  doc.text(`Période: ${new Date(contract.startDate).toLocaleDateString('fr-FR')} - ${new Date(contract.endDate).toLocaleDateString('fr-FR')}`, 14, 49);
+
+  // Hours summary
+  doc.setFontSize(11);
+  doc.text(`Total d'heures: ${contract.totalHours}h`, 14, 60);
+  doc.text(`Heures utilisées: ${contract.usedHours}h`, 14, 67);
+  doc.text(`Heures restantes: ${(contract.totalHours - contract.usedHours).toFixed(1)}h`, 14, 74);
+  
+  const percentage = ((contract.usedHours / contract.totalHours) * 100).toFixed(1);
+  doc.text(`Progression: ${percentage}%`, 14, 81);
+
+  // Interventions table
+  const tableData = contract.interventions.map(intervention => [
+    new Date(intervention.date).toLocaleDateString('fr-FR'),
+    intervention.description,
+    intervention.technician,
+    `${intervention.hoursUsed}h`
+  ]);
+
+  autoTable(doc, {
+    startY: 90,
+    head: [['Date', 'Description', 'Technicien', 'Heures']],
+    body: tableData,
+    theme: 'striped',
+    headStyles: {
+      fillColor: [59, 130, 246], // primary color
+      textColor: [255, 255, 255],
+      fontStyle: 'bold'
+    },
+    styles: {
+      fontSize: 10,
+      cellPadding: 5
+    },
+    columnStyles: {
+      0: { cellWidth: 30 },
+      1: { cellWidth: 80 },
+      2: { cellWidth: 40 },
+      3: { cellWidth: 25 }
+    }
+  });
+
+  // Footer
+  const pageCount = doc.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFontSize(8);
+    doc.setTextColor(150);
+    doc.text(
+      `Page ${i} sur ${pageCount} - Généré le ${new Date().toLocaleDateString('fr-FR')}`,
+      14,
+      doc.internal.pageSize.height - 10
+    );
+  }
+
+  // Save the PDF
+  doc.save(`contrat-${contract.clientName.replace(/\s+/g, '-')}-${contract.id}.pdf`);
+};
