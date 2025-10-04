@@ -130,10 +130,9 @@ const ContractDetail = () => {
         <Card className="p-6 mb-8">
           <h2 className="text-lg font-semibold mb-4 text-foreground">Avancement du contrat</h2>
           <Progress value={percentage} className="h-3 mb-2" />
-          <div className="flex justify-between text-sm text-muted-foreground">
-            <span>Début: {new Date(contract.startDate).toLocaleDateString('fr-FR')}</span>
-            <span>Fin: {new Date(contract.endDate).toLocaleDateString('fr-FR')}</span>
-          </div>
+          <p className="text-sm text-muted-foreground">
+            Créé le {new Date(contract.createdDate).toLocaleDateString('fr-FR')}
+          </p>
         </Card>
 
         {/* Interventions List */}

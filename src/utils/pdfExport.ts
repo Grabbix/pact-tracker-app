@@ -15,7 +15,7 @@ export const exportContractToPDF = (contract: Contract) => {
   doc.setTextColor(0, 0, 0);
   doc.text(`Client: ${contract.clientName}`, 14, 35);
   doc.text(`Contrat N°: ${contract.id}`, 14, 42);
-  doc.text(`Période: ${new Date(contract.startDate).toLocaleDateString('fr-FR')} - ${new Date(contract.endDate).toLocaleDateString('fr-FR')}`, 14, 49);
+  doc.text(`Créé le: ${new Date(contract.createdDate).toLocaleDateString('fr-FR')}`, 14, 49);
 
   // Hours summary
   doc.setFontSize(11);

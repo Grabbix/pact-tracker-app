@@ -1,30 +1,52 @@
 import { useState } from "react";
 import { ContractCard } from "@/components/ContractCard";
+import { AddContractDialog } from "@/components/AddContractDialog";
 import { mockContracts } from "@/data/mockContracts";
 import { Input } from "@/components/ui/input";
 import { Search, FileText } from "lucide-react";
+import { Contract } from "@/types/contract";
 
 const Contracts = () => {
+  const [contracts, setContracts] = useState<Contract[]>(mockContracts);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const filteredContracts = mockContracts.filter(contract =>
+  const filteredContracts = contracts.filter(contract =>
     contract.clientName.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const handleAddContract = (newContract: { clientName: string; totalHours: number }) => {
+    const contract: Contract = {
+      id: (contracts.length + 1).toString(),
+      clientName: newContract.clientName,
+      totalHours: newContract.totalHours,
+      usedHours: 0,
+      createdDate: new Date().toISOString().split('T')[0],
+      status: "active",
+      interventions: [],
+    };
+
+    setContracts([contract, ...contracts]);
+  };
 
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
-          <div className="flex items-center gap-3 mb-2">
-            <FileText className="h-8 w-8 text-primary" />
-            <h1 className="text-4xl font-bold text-foreground">
-              Contrats de maintenance
-            </h1>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-3 mb-2">
+                <FileText className="h-8 w-8 text-primary" />
+                <h1 className="text-4xl font-bold text-foreground">
+                  Contrats de maintenance
+                </h1>
+              </div>
+              <p className="text-muted-foreground text-lg">
+                Gérez vos contrats et suivez les interventions
+              </p>
+            </div>
+            <AddContractDialog onAdd={handleAddContract} />
           </div>
-          <p className="text-muted-foreground text-lg">
-            Gérez vos contrats et suivez les interventions
-          </p>
         </div>
 
         {/* Search */}
@@ -43,18 +65,18 @@ const Contracts = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
           <div className="bg-card p-4 rounded-lg border border-border">
             <p className="text-sm text-muted-foreground mb-1">Total contrats</p>
-            <p className="text-3xl font-bold text-foreground">{mockContracts.length}</p>
+            <p className="text-3xl font-bold text-foreground">{contracts.length}</p>
           </div>
           <div className="bg-card p-4 rounded-lg border border-border">
             <p className="text-sm text-muted-foreground mb-1">Contrats actifs</p>
             <p className="text-3xl font-bold text-success">
-              {mockContracts.filter(c => c.status === "active").length}
+              {contracts.filter(c => c.status === "active").length}
             </p>
           </div>
           <div className="bg-card p-4 rounded-lg border border-border">
             <p className="text-sm text-muted-foreground mb-1">Proche expiration</p>
             <p className="text-3xl font-bold text-warning">
-              {mockContracts.filter(c => c.status === "near-expiry").length}
+              {contracts.filter(c => c.status === "near-expiry").length}
             </p>
           </div>
         </div>

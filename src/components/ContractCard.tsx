@@ -68,10 +68,9 @@ export const ContractCard = ({ contract }: ContractCardProps) => {
         </div>
 
         <div className="pt-2 border-t border-border">
-          <div className="flex justify-between text-xs text-muted-foreground">
-            <span>Début: {new Date(contract.startDate).toLocaleDateString('fr-FR')}</span>
-            <span>Fin: {new Date(contract.endDate).toLocaleDateString('fr-FR')}</span>
-          </div>
+          <p className="text-xs text-muted-foreground">
+            Créé le {new Date(contract.createdDate).toLocaleDateString('fr-FR')}
+          </p>
         </div>
       </div>
     </Card>

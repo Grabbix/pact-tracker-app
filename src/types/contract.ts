@@ -11,8 +11,7 @@ export interface Contract {
   clientName: string;
   totalHours: number;
   usedHours: number;
-  startDate: string;
-  endDate: string;
+  createdDate: string;
   status: "active" | "expired" | "near-expiry";
   interventions: Intervention[];
 }

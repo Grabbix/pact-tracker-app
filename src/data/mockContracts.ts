@@ -6,8 +6,7 @@ export const mockContracts: Contract[] = [
     clientName: "Entreprise Martin SARL",
     totalHours: 50,
     usedHours: 32.5,
-    startDate: "2024-01-15",
-    endDate: "2025-01-15",
+    createdDate: "2024-01-15",
     status: "active",
     interventions: [
       {
@@ -52,8 +51,7 @@ export const mockContracts: Contract[] = [
     clientName: "Société Durand & Fils",
     totalHours: 30,
     usedHours: 8,
-    startDate: "2024-03-01",
-    endDate: "2025-03-01",
+    createdDate: "2024-03-01",
     status: "active",
     interventions: [
       {
@@ -77,8 +75,7 @@ export const mockContracts: Contract[] = [
     clientName: "Cabinet Lefebvre",
     totalHours: 40,
     usedHours: 38,
-    startDate: "2024-02-10",
-    endDate: "2025-02-10",
+    createdDate: "2024-02-10",
     status: "near-expiry",
     interventions: [
       {
@@ -116,8 +113,7 @@ export const mockContracts: Contract[] = [
     clientName: "Industrie Bernard SA",
     totalHours: 100,
     usedHours: 45,
-    startDate: "2023-12-01",
-    endDate: "2024-12-01",
+    createdDate: "2023-12-01",
     status: "active",
     interventions: [
       {
@@ -155,8 +151,7 @@ export const mockContracts: Contract[] = [
     clientName: "Restaurant Le Gourmet",
     totalHours: 20,
     usedHours: 15,
-    startDate: "2024-05-01",
-    endDate: "2025-05-01",
+    createdDate: "2024-05-01",
     status: "active",
     interventions: [
       {
