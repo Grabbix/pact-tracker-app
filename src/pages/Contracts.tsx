@@ -1,13 +1,12 @@
 import { useState } from "react";
 import { ContractCard } from "@/components/ContractCard";
 import { AddContractDialog } from "@/components/AddContractDialog";
-import { mockContracts } from "@/data/mockContracts";
 import { Input } from "@/components/ui/input";
 import { Search, FileText } from "lucide-react";
-import { Contract } from "@/types/contract";
+import { useContracts } from "@/hooks/useContracts";
 
 const Contracts = () => {
-  const [contracts, setContracts] = useState<Contract[]>(mockContracts);
+  const { contracts, addContract } = useContracts();
   const [searchQuery, setSearchQuery] = useState("");
 
   const filteredContracts = contracts.filter(contract =>
@@ -15,17 +14,7 @@ const Contracts = () => {
   );
 
   const handleAddContract = (newContract: { clientName: string; totalHours: number }) => {
-    const contract: Contract = {
-      id: (contracts.length + 1).toString(),
-      clientName: newContract.clientName,
-      totalHours: newContract.totalHours,
-      usedHours: 0,
-      createdDate: new Date().toISOString().split('T')[0],
-      status: "active",
-      interventions: [],
-    };
-
-    setContracts([contract, ...contracts]);
+    addContract(newContract);
   };
 
   return (

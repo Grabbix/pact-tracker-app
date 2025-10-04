@@ -1,6 +1,4 @@
-import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { mockContracts } from "@/data/mockContracts";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -15,14 +13,15 @@ import {
   TrendingUp 
 } from "lucide-react";
 import { toast } from "sonner";
-import { Contract, Intervention } from "@/types/contract";
+import { Intervention } from "@/types/contract";
+import { useContracts } from "@/hooks/useContracts";
 
 const ContractDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { getContract, addIntervention } = useContracts();
   
-  const initialContract = mockContracts.find((c) => c.id === id);
-  const [contract, setContract] = useState<Contract | undefined>(initialContract);
+  const contract = getContract(id || "");
 
   if (!contract) {
     return (
@@ -39,18 +38,9 @@ const ContractDetail = () => {
   const remainingHours = contract.totalHours - contract.usedHours;
 
   const handleAddIntervention = (newIntervention: Omit<Intervention, "id">) => {
-    const intervention: Intervention = {
-      ...newIntervention,
-      id: `i${Date.now()}`,
-    };
-
-    const updatedContract = {
-      ...contract,
-      usedHours: contract.usedHours + newIntervention.hoursUsed,
-      interventions: [intervention, ...contract.interventions],
-    };
-
-    setContract(updatedContract);
+    if (id) {
+      addIntervention(id, newIntervention);
+    }
   };
 
   const handleExportPDF = () => {
