@@ -14,7 +14,83 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      contracts: {
+        Row: {
+          archived_at: string | null
+          client_name: string
+          created_at: string
+          created_date: string
+          id: string
+          is_archived: boolean
+          status: string
+          total_hours: number
+          updated_at: string
+          used_hours: number
+        }
+        Insert: {
+          archived_at?: string | null
+          client_name: string
+          created_at?: string
+          created_date?: string
+          id?: string
+          is_archived?: boolean
+          status?: string
+          total_hours: number
+          updated_at?: string
+          used_hours?: number
+        }
+        Update: {
+          archived_at?: string | null
+          client_name?: string
+          created_at?: string
+          created_date?: string
+          id?: string
+          is_archived?: boolean
+          status?: string
+          total_hours?: number
+          updated_at?: string
+          used_hours?: number
+        }
+        Relationships: []
+      }
+      interventions: {
+        Row: {
+          contract_id: string
+          created_at: string
+          date: string
+          description: string
+          hours_used: number
+          id: string
+          technician: string
+        }
+        Insert: {
+          contract_id: string
+          created_at?: string
+          date: string
+          description: string
+          hours_used: number
+          id?: string
+          technician: string
+        }
+        Update: {
+          contract_id?: string
+          created_at?: string
+          date?: string
+          description?: string
+          hours_used?: number
+          id?: string
+          technician?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interventions_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

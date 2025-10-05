@@ -14,4 +14,5 @@ export interface Contract {
   createdDate: string;
   status: "active" | "expired" | "near-expiry";
   interventions: Intervention[];
+  isArchived?: boolean;
 }

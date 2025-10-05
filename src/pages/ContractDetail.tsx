@@ -19,9 +19,17 @@ import { useContracts } from "@/hooks/useContracts";
 const ContractDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { getContract, addIntervention } = useContracts();
+  const { getContract, addIntervention, loading } = useContracts(true);
   
   const contract = getContract(id || "");
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <p className="text-muted-foreground text-lg">Chargement...</p>
+      </div>
+    );
+  }
 
   if (!contract) {
     return (

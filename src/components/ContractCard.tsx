@@ -1,17 +1,30 @@
 import { Contract } from "@/types/contract";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Clock, AlertCircle, CheckCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Clock, AlertCircle, CheckCircle, Archive, ArchiveRestore } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useContracts } from "@/hooks/useContracts";
 
 interface ContractCardProps {
   contract: Contract;
+  isArchived?: boolean;
 }
 
-export const ContractCard = ({ contract }: ContractCardProps) => {
+export const ContractCard = ({ contract, isArchived = false }: ContractCardProps) => {
   const navigate = useNavigate();
+  const { archiveContract, unarchiveContract } = useContracts();
   const percentage = (contract.usedHours / contract.totalHours) * 100;
   const remainingHours = contract.totalHours - contract.usedHours;
+
+  const handleArchiveClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isArchived) {
+      unarchiveContract(contract.id);
+    } else {
+      archiveContract(contract.id);
+    }
+  };
 
   const getStatusIcon = () => {
     if (contract.status === "near-expiry") {
@@ -32,7 +45,7 @@ export const ContractCard = ({ contract }: ContractCardProps) => {
       onClick={() => navigate(`/contract/${contract.id}`)}
     >
       <div className="flex items-start justify-between mb-4">
-        <div>
+        <div className="flex-1">
           <h3 className="text-xl font-semibold text-card-foreground mb-1">
             {contract.clientName}
           </h3>
@@ -40,7 +53,21 @@ export const ContractCard = ({ contract }: ContractCardProps) => {
             Contrat #{contract.id}
           </p>
         </div>
-        {getStatusIcon()}
+        <div className="flex items-center gap-2">
+          {getStatusIcon()}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleArchiveClick}
+            className="h-8 w-8 p-0"
+          >
+            {isArchived ? (
+              <ArchiveRestore className="h-4 w-4" />
+            ) : (
+              <Archive className="h-4 w-4" />
+            )}
+          </Button>
+        </div>
       </div>
 
       <div className="space-y-4">
