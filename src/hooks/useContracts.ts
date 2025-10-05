@@ -154,6 +154,76 @@ export const useContracts = (includeArchived: boolean = false) => {
     }
   };
 
+  const updateIntervention = async (contractId: string, intervention: Intervention) => {
+    try {
+      const contract = contracts.find((c) => c.id === contractId);
+      if (!contract) return;
+
+      const oldIntervention = contract.interventions.find((i) => i.id === intervention.id);
+      if (!oldIntervention) return;
+
+      const { error: interventionError } = await supabase
+        .from("interventions")
+        .update({
+          date: intervention.date,
+          description: intervention.description,
+          hours_used: intervention.hoursUsed,
+          technician: intervention.technician,
+        })
+        .eq("id", intervention.id);
+
+      if (interventionError) throw interventionError;
+
+      const hoursDifference = intervention.hoursUsed - oldIntervention.hoursUsed;
+      const { error: updateError } = await supabase
+        .from("contracts")
+        .update({
+          used_hours: contract.usedHours + hoursDifference,
+        })
+        .eq("id", contractId);
+
+      if (updateError) throw updateError;
+
+      toast.success("Intervention modifiée avec succès");
+      await fetchContracts();
+    } catch (error: any) {
+      console.error("Error updating intervention:", error);
+      toast.error("Erreur lors de la modification de l'intervention");
+    }
+  };
+
+  const deleteIntervention = async (contractId: string, interventionId: string) => {
+    try {
+      const contract = contracts.find((c) => c.id === contractId);
+      if (!contract) return;
+
+      const intervention = contract.interventions.find((i) => i.id === interventionId);
+      if (!intervention) return;
+
+      const { error: deleteError } = await supabase
+        .from("interventions")
+        .delete()
+        .eq("id", interventionId);
+
+      if (deleteError) throw deleteError;
+
+      const { error: updateError } = await supabase
+        .from("contracts")
+        .update({
+          used_hours: contract.usedHours - intervention.hoursUsed,
+        })
+        .eq("id", contractId);
+
+      if (updateError) throw updateError;
+
+      toast.success("Intervention supprimée avec succès");
+      await fetchContracts();
+    } catch (error: any) {
+      console.error("Error deleting intervention:", error);
+      toast.error("Erreur lors de la suppression de l'intervention");
+    }
+  };
+
   const getContract = (id: string) => {
     return contracts.find((c) => c.id === id);
   };
@@ -163,6 +233,8 @@ export const useContracts = (includeArchived: boolean = false) => {
     loading,
     addContract,
     addIntervention,
+    updateIntervention,
+    deleteIntervention,
     archiveContract,
     unarchiveContract,
     getContract,

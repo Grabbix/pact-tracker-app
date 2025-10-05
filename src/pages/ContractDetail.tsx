@@ -1,8 +1,10 @@
 import { useParams, useNavigate } from "react-router-dom";
+import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { AddInterventionDialog } from "@/components/AddInterventionDialog";
+import { EditInterventionDialog } from "@/components/EditInterventionDialog";
 import { exportContractToPDF } from "@/utils/pdfExport";
 import { 
   ArrowLeft, 
@@ -10,16 +12,30 @@ import {
   Calendar, 
   Clock, 
   User,
-  TrendingUp 
+  TrendingUp,
+  Edit,
+  Trash2
 } from "lucide-react";
 import { toast } from "sonner";
 import { Intervention } from "@/types/contract";
 import { useContracts } from "@/hooks/useContracts";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const ContractDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { getContract, addIntervention, loading } = useContracts(true);
+  const { getContract, addIntervention, updateIntervention, deleteIntervention, loading } = useContracts(true);
+  const [editingIntervention, setEditingIntervention] = useState<Intervention | null>(null);
+  const [deletingInterventionId, setDeletingInterventionId] = useState<string | null>(null);
   
   const contract = getContract(id || "");
 
@@ -54,6 +70,19 @@ const ContractDetail = () => {
   const handleExportPDF = () => {
     exportContractToPDF(contract);
     toast.success("PDF exporté avec succès");
+  };
+
+  const handleEditIntervention = (intervention: Intervention) => {
+    if (id) {
+      updateIntervention(id, intervention);
+    }
+  };
+
+  const handleDeleteIntervention = () => {
+    if (id && deletingInterventionId) {
+      deleteIntervention(id, deletingInterventionId);
+      setDeletingInterventionId(null);
+    }
   };
 
   return (
@@ -170,6 +199,22 @@ const ContractDetail = () => {
                         {intervention.hoursUsed}h
                       </span>
                     </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setEditingIntervention(intervention)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setDeletingInterventionId(intervention.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
                 <p className="text-foreground">{intervention.description}</p>
@@ -184,6 +229,32 @@ const ContractDetail = () => {
           )}
         </Card>
       </div>
+
+      {editingIntervention && (
+        <EditInterventionDialog
+          intervention={editingIntervention}
+          open={!!editingIntervention}
+          onOpenChange={(open) => !open && setEditingIntervention(null)}
+          onEdit={handleEditIntervention}
+        />
+      )}
+
+      <AlertDialog open={!!deletingInterventionId} onOpenChange={(open) => !open && setDeletingInterventionId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer l'intervention</AlertDialogTitle>
+            <AlertDialogDescription>
+              Êtes-vous sûr de vouloir supprimer cette intervention ? Cette action est irréversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteIntervention}>
+              Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
