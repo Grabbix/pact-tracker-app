@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Contract, Intervention } from "@/types/contract";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { initDatabase, saveDatabase, generateId } from "@/lib/sqlite";
 
 export const useContracts = (includeArchived: boolean = false) => {
   const [contracts, setContracts] = useState<Contract[]>([]);
@@ -10,38 +10,68 @@ export const useContracts = (includeArchived: boolean = false) => {
   const fetchContracts = async () => {
     try {
       setLoading(true);
-      let query = supabase
-        .from("contracts")
-        .select(`
-          *,
-          interventions (*)
-        `)
-        .order("created_at", { ascending: false });
+      const db = await initDatabase();
+
+      let query = `
+        SELECT c.*, 
+          GROUP_CONCAT(
+            json_object(
+              'id', i.id,
+              'date', i.date,
+              'description', i.description,
+              'hours_used', i.hours_used,
+              'technician', i.technician
+            )
+          ) as interventions_json
+        FROM contracts c
+        LEFT JOIN interventions i ON c.id = i.contract_id
+      `;
 
       if (!includeArchived) {
-        query = query.eq("is_archived", false);
+        query += " WHERE c.is_archived = 0";
       }
 
-      const { data, error } = await query;
+      query += " GROUP BY c.id ORDER BY c.created_date DESC";
 
-      if (error) throw error;
+      const result = db.exec(query);
 
-      const formattedContracts: Contract[] = data.map((contract) => ({
-        id: contract.id,
-        clientName: contract.client_name,
-        totalHours: contract.total_hours,
-        usedHours: contract.used_hours,
-        createdDate: contract.created_date,
-        status: contract.status as "active" | "expired" | "near-expiry",
-        interventions: (contract.interventions || []).map((i: any) => ({
-          id: i.id,
-          date: i.date,
-          description: i.description,
-          hoursUsed: i.hours_used,
-          technician: i.technician,
-        })),
-        isArchived: contract.is_archived,
-      }));
+      if (result.length === 0) {
+        setContracts([]);
+        return;
+      }
+
+      const formattedContracts: Contract[] = result[0].values.map((row: any) => {
+        const interventionsJson = row[7];
+        let interventions: Intervention[] = [];
+        
+        if (interventionsJson) {
+          try {
+            const parsed = JSON.parse(`[${interventionsJson}]`);
+            interventions = parsed
+              .filter((i: any) => i.id !== null)
+              .map((i: any) => ({
+                id: i.id,
+                date: i.date,
+                description: i.description,
+                hoursUsed: i.hours_used,
+                technician: i.technician,
+              }));
+          } catch (e) {
+            console.error("Error parsing interventions:", e);
+          }
+        }
+
+        return {
+          id: row[0],
+          clientName: row[1],
+          totalHours: row[2],
+          usedHours: row[3],
+          createdDate: row[4],
+          status: row[5] as "active" | "expired" | "near-expiry",
+          isArchived: row[6] === 1,
+          interventions,
+        };
+      });
 
       setContracts(formattedContracts);
     } catch (error: any) {
@@ -58,22 +88,20 @@ export const useContracts = (includeArchived: boolean = false) => {
 
   const addContract = async (newContract: { clientName: string; totalHours: number }) => {
     try {
-      const { data, error } = await supabase
-        .from("contracts")
-        .insert({
-          client_name: newContract.clientName,
-          total_hours: newContract.totalHours,
-          used_hours: 0,
-          status: "active",
-        })
-        .select()
-        .single();
+      const db = await initDatabase();
+      const id = generateId();
+      const createdDate = new Date().toISOString();
 
-      if (error) throw error;
+      db.run(
+        `INSERT INTO contracts (id, client_name, total_hours, used_hours, created_date, status, is_archived)
+         VALUES (?, ?, ?, 0, ?, 'active', 0)`,
+        [id, newContract.clientName, newContract.totalHours, createdDate]
+      );
 
+      saveDatabase();
       toast.success("Contrat créé avec succès");
       await fetchContracts();
-      return data;
+      return { id };
     } catch (error: any) {
       console.error("Error adding contract:", error);
       toast.error("Erreur lors de la création du contrat");
@@ -82,30 +110,24 @@ export const useContracts = (includeArchived: boolean = false) => {
 
   const addIntervention = async (contractId: string, intervention: Omit<Intervention, "id">) => {
     try {
-      const { error: interventionError } = await supabase
-        .from("interventions")
-        .insert({
-          contract_id: contractId,
-          date: intervention.date,
-          description: intervention.description,
-          hours_used: intervention.hoursUsed,
-          technician: intervention.technician,
-        });
+      const db = await initDatabase();
+      const id = generateId();
 
-      if (interventionError) throw interventionError;
+      db.run(
+        `INSERT INTO interventions (id, contract_id, date, description, hours_used, technician)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [id, contractId, intervention.date, intervention.description, intervention.hoursUsed, intervention.technician]
+      );
 
       const contract = contracts.find((c) => c.id === contractId);
       if (contract) {
-        const { error: updateError } = await supabase
-          .from("contracts")
-          .update({
-            used_hours: contract.usedHours + intervention.hoursUsed,
-          })
-          .eq("id", contractId);
-
-        if (updateError) throw updateError;
+        db.run(
+          `UPDATE contracts SET used_hours = ? WHERE id = ?`,
+          [contract.usedHours + intervention.hoursUsed, contractId]
+        );
       }
 
+      saveDatabase();
       toast.success("Intervention ajoutée avec succès");
       await fetchContracts();
     } catch (error: any) {
@@ -116,16 +138,15 @@ export const useContracts = (includeArchived: boolean = false) => {
 
   const archiveContract = async (contractId: string) => {
     try {
-      const { error } = await supabase
-        .from("contracts")
-        .update({
-          is_archived: true,
-          archived_at: new Date().toISOString(),
-        })
-        .eq("id", contractId);
+      const db = await initDatabase();
+      const archivedAt = new Date().toISOString();
 
-      if (error) throw error;
+      db.run(
+        `UPDATE contracts SET is_archived = 1, archived_at = ? WHERE id = ?`,
+        [archivedAt, contractId]
+      );
 
+      saveDatabase();
       toast.success("Contrat archivé avec succès");
       await fetchContracts();
     } catch (error: any) {
@@ -136,16 +157,14 @@ export const useContracts = (includeArchived: boolean = false) => {
 
   const unarchiveContract = async (contractId: string) => {
     try {
-      const { error } = await supabase
-        .from("contracts")
-        .update({
-          is_archived: false,
-          archived_at: null,
-        })
-        .eq("id", contractId);
+      const db = await initDatabase();
 
-      if (error) throw error;
+      db.run(
+        `UPDATE contracts SET is_archived = 0, archived_at = NULL WHERE id = ?`,
+        [contractId]
+      );
 
+      saveDatabase();
       toast.success("Contrat désarchivé avec succès");
       await fetchContracts();
     } catch (error: any) {
@@ -156,34 +175,27 @@ export const useContracts = (includeArchived: boolean = false) => {
 
   const updateIntervention = async (contractId: string, intervention: Intervention) => {
     try {
+      const db = await initDatabase();
       const contract = contracts.find((c) => c.id === contractId);
       if (!contract) return;
 
       const oldIntervention = contract.interventions.find((i) => i.id === intervention.id);
       if (!oldIntervention) return;
 
-      const { error: interventionError } = await supabase
-        .from("interventions")
-        .update({
-          date: intervention.date,
-          description: intervention.description,
-          hours_used: intervention.hoursUsed,
-          technician: intervention.technician,
-        })
-        .eq("id", intervention.id);
-
-      if (interventionError) throw interventionError;
+      db.run(
+        `UPDATE interventions 
+         SET date = ?, description = ?, hours_used = ?, technician = ?
+         WHERE id = ?`,
+        [intervention.date, intervention.description, intervention.hoursUsed, intervention.technician, intervention.id]
+      );
 
       const hoursDifference = intervention.hoursUsed - oldIntervention.hoursUsed;
-      const { error: updateError } = await supabase
-        .from("contracts")
-        .update({
-          used_hours: contract.usedHours + hoursDifference,
-        })
-        .eq("id", contractId);
+      db.run(
+        `UPDATE contracts SET used_hours = ? WHERE id = ?`,
+        [contract.usedHours + hoursDifference, contractId]
+      );
 
-      if (updateError) throw updateError;
-
+      saveDatabase();
       toast.success("Intervention modifiée avec succès");
       await fetchContracts();
     } catch (error: any) {
@@ -194,28 +206,21 @@ export const useContracts = (includeArchived: boolean = false) => {
 
   const deleteIntervention = async (contractId: string, interventionId: string) => {
     try {
+      const db = await initDatabase();
       const contract = contracts.find((c) => c.id === contractId);
       if (!contract) return;
 
       const intervention = contract.interventions.find((i) => i.id === interventionId);
       if (!intervention) return;
 
-      const { error: deleteError } = await supabase
-        .from("interventions")
-        .delete()
-        .eq("id", interventionId);
+      db.run(`DELETE FROM interventions WHERE id = ?`, [interventionId]);
 
-      if (deleteError) throw deleteError;
+      db.run(
+        `UPDATE contracts SET used_hours = ? WHERE id = ?`,
+        [contract.usedHours - intervention.hoursUsed, contractId]
+      );
 
-      const { error: updateError } = await supabase
-        .from("contracts")
-        .update({
-          used_hours: contract.usedHours - intervention.hoursUsed,
-        })
-        .eq("id", contractId);
-
-      if (updateError) throw updateError;
-
+      saveDatabase();
       toast.success("Intervention supprimée avec succès");
       await fetchContracts();
     } catch (error: any) {
