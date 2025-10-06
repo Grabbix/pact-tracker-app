@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Contract, Intervention } from "@/types/contract";
 import { toast } from "sonner";
-import { initDatabase, saveDatabase, generateId } from "@/lib/sqlite";
+import { api } from "@/lib/api";
 
 export const useContracts = (includeArchived: boolean = false) => {
   const [contracts, setContracts] = useState<Contract[]>([]);
@@ -10,70 +10,8 @@ export const useContracts = (includeArchived: boolean = false) => {
   const fetchContracts = async () => {
     try {
       setLoading(true);
-      const db = await initDatabase();
-
-      let query = `
-        SELECT c.*, 
-          GROUP_CONCAT(
-            json_object(
-              'id', i.id,
-              'date', i.date,
-              'description', i.description,
-              'hours_used', i.hours_used,
-              'technician', i.technician
-            )
-          ) as interventions_json
-        FROM contracts c
-        LEFT JOIN interventions i ON c.id = i.contract_id
-      `;
-
-      if (!includeArchived) {
-        query += " WHERE c.is_archived = 0";
-      }
-
-      query += " GROUP BY c.id ORDER BY c.created_date DESC";
-
-      const result = db.exec(query);
-
-      if (result.length === 0) {
-        setContracts([]);
-        return;
-      }
-
-      const formattedContracts: Contract[] = result[0].values.map((row: any) => {
-        const interventionsJson = row[7];
-        let interventions: Intervention[] = [];
-        
-        if (interventionsJson) {
-          try {
-            const parsed = JSON.parse(`[${interventionsJson}]`);
-            interventions = parsed
-              .filter((i: any) => i.id !== null)
-              .map((i: any) => ({
-                id: i.id,
-                date: i.date,
-                description: i.description,
-                hoursUsed: i.hours_used,
-                technician: i.technician,
-              }));
-          } catch (e) {
-            console.error("Error parsing interventions:", e);
-          }
-        }
-
-        return {
-          id: row[0],
-          clientName: row[1],
-          totalHours: row[2],
-          usedHours: row[3],
-          createdDate: row[4],
-          status: row[5] as "active" | "expired" | "near-expiry",
-          isArchived: row[6] === 1,
-          interventions,
-        };
-      });
-
-      setContracts(formattedContracts);
+      const data = await api.getContracts(includeArchived);
+      setContracts(data);
     } catch (error: any) {
       console.error("Error fetching contracts:", error);
       toast.error("Erreur lors du chargement des contrats");
@@ -88,20 +26,10 @@ export const useContracts = (includeArchived: boolean = false) => {
 
   const addContract = async (newContract: { clientName: string; totalHours: number }) => {
     try {
-      const db = await initDatabase();
-      const id = generateId();
-      const createdDate = new Date().toISOString();
-
-      db.run(
-        `INSERT INTO contracts (id, client_name, total_hours, used_hours, created_date, status, is_archived)
-         VALUES (?, ?, ?, 0, ?, 'active', 0)`,
-        [id, newContract.clientName, newContract.totalHours, createdDate]
-      );
-
-      saveDatabase();
+      const data = await api.createContract(newContract);
       toast.success("Contrat créé avec succès");
       await fetchContracts();
-      return { id };
+      return data;
     } catch (error: any) {
       console.error("Error adding contract:", error);
       toast.error("Erreur lors de la création du contrat");
@@ -110,24 +38,13 @@ export const useContracts = (includeArchived: boolean = false) => {
 
   const addIntervention = async (contractId: string, intervention: Omit<Intervention, "id">) => {
     try {
-      const db = await initDatabase();
-      const id = generateId();
-
-      db.run(
-        `INSERT INTO interventions (id, contract_id, date, description, hours_used, technician)
-         VALUES (?, ?, ?, ?, ?, ?)`,
-        [id, contractId, intervention.date, intervention.description, intervention.hoursUsed, intervention.technician]
-      );
-
-      const contract = contracts.find((c) => c.id === contractId);
-      if (contract) {
-        db.run(
-          `UPDATE contracts SET used_hours = ? WHERE id = ?`,
-          [contract.usedHours + intervention.hoursUsed, contractId]
-        );
-      }
-
-      saveDatabase();
+      await api.createIntervention({
+        contractId,
+        date: intervention.date,
+        description: intervention.description,
+        hoursUsed: intervention.hoursUsed,
+        technician: intervention.technician,
+      });
       toast.success("Intervention ajoutée avec succès");
       await fetchContracts();
     } catch (error: any) {
@@ -138,15 +55,7 @@ export const useContracts = (includeArchived: boolean = false) => {
 
   const archiveContract = async (contractId: string) => {
     try {
-      const db = await initDatabase();
-      const archivedAt = new Date().toISOString();
-
-      db.run(
-        `UPDATE contracts SET is_archived = 1, archived_at = ? WHERE id = ?`,
-        [archivedAt, contractId]
-      );
-
-      saveDatabase();
+      await api.archiveContract(contractId);
       toast.success("Contrat archivé avec succès");
       await fetchContracts();
     } catch (error: any) {
@@ -157,14 +66,7 @@ export const useContracts = (includeArchived: boolean = false) => {
 
   const unarchiveContract = async (contractId: string) => {
     try {
-      const db = await initDatabase();
-
-      db.run(
-        `UPDATE contracts SET is_archived = 0, archived_at = NULL WHERE id = ?`,
-        [contractId]
-      );
-
-      saveDatabase();
+      await api.unarchiveContract(contractId);
       toast.success("Contrat désarchivé avec succès");
       await fetchContracts();
     } catch (error: any) {
@@ -175,27 +77,13 @@ export const useContracts = (includeArchived: boolean = false) => {
 
   const updateIntervention = async (contractId: string, intervention: Intervention) => {
     try {
-      const db = await initDatabase();
-      const contract = contracts.find((c) => c.id === contractId);
-      if (!contract) return;
-
-      const oldIntervention = contract.interventions.find((i) => i.id === intervention.id);
-      if (!oldIntervention) return;
-
-      db.run(
-        `UPDATE interventions 
-         SET date = ?, description = ?, hours_used = ?, technician = ?
-         WHERE id = ?`,
-        [intervention.date, intervention.description, intervention.hoursUsed, intervention.technician, intervention.id]
-      );
-
-      const hoursDifference = intervention.hoursUsed - oldIntervention.hoursUsed;
-      db.run(
-        `UPDATE contracts SET used_hours = ? WHERE id = ?`,
-        [contract.usedHours + hoursDifference, contractId]
-      );
-
-      saveDatabase();
+      await api.updateIntervention(intervention.id, {
+        contractId,
+        date: intervention.date,
+        description: intervention.description,
+        hoursUsed: intervention.hoursUsed,
+        technician: intervention.technician,
+      });
       toast.success("Intervention modifiée avec succès");
       await fetchContracts();
     } catch (error: any) {
@@ -206,21 +94,7 @@ export const useContracts = (includeArchived: boolean = false) => {
 
   const deleteIntervention = async (contractId: string, interventionId: string) => {
     try {
-      const db = await initDatabase();
-      const contract = contracts.find((c) => c.id === contractId);
-      if (!contract) return;
-
-      const intervention = contract.interventions.find((i) => i.id === interventionId);
-      if (!intervention) return;
-
-      db.run(`DELETE FROM interventions WHERE id = ?`, [interventionId]);
-
-      db.run(
-        `UPDATE contracts SET used_hours = ? WHERE id = ?`,
-        [contract.usedHours - intervention.hoursUsed, contractId]
-      );
-
-      saveDatabase();
+      await api.deleteIntervention(interventionId, contractId);
       toast.success("Intervention supprimée avec succès");
       await fetchContracts();
     } catch (error: any) {
