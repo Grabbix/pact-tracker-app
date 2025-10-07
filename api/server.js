@@ -234,6 +234,98 @@ app.delete('/api/interventions/:id', (req, res) => {
   }
 });
 
+// Renouveler un contrat
+app.post('/api/contracts/:id/renew', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { totalHours } = req.body;
+
+    // Récupérer le contrat actuel
+    const oldContract = db.prepare(`
+      SELECT c.*, 
+        GROUP_CONCAT(
+          json_object(
+            'id', i.id,
+            'date', i.date,
+            'description', i.description,
+            'hours_used', i.hours_used,
+            'technician', i.technician
+          )
+        ) as interventions_json
+      FROM contracts c
+      LEFT JOIN interventions i ON c.id = i.contract_id
+      WHERE c.id = ?
+      GROUP BY c.id
+    `).get(id);
+
+    if (!oldContract) {
+      return res.status(404).json({ error: 'Contrat non trouvé' });
+    }
+
+    // Archiver l'ancien contrat
+    const archivedAt = new Date().toISOString();
+    db.prepare('UPDATE contracts SET is_archived = 1, archived_at = ? WHERE id = ?')
+      .run(archivedAt, id);
+
+    // Créer le nouveau contrat
+    const newContractId = randomUUID();
+    const createdDate = new Date().toISOString();
+
+    db.prepare(`
+      INSERT INTO contracts (id, client_name, total_hours, used_hours, created_date, status, is_archived)
+      VALUES (?, ?, ?, 0, ?, 'active', 0)
+    `).run(newContractId, oldContract.client_name, totalHours, createdDate);
+
+    // Si dépassement, créer une intervention de report
+    const overage = oldContract.used_hours - oldContract.total_hours;
+    if (overage > 0) {
+      // Récupérer la dernière intervention pour le libellé
+      let lastDescription = "Heures supplémentaires";
+      
+      if (oldContract.interventions_json) {
+        try {
+          const interventions = JSON.parse(`[${oldContract.interventions_json}]`)
+            .filter(i => i.id !== null)
+            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+          
+          if (interventions.length > 0) {
+            lastDescription = interventions[0].description;
+          }
+        } catch (e) {
+          console.error("Error parsing interventions:", e);
+        }
+      }
+
+      const reportInterventionId = randomUUID();
+      db.prepare(`
+        INSERT INTO interventions (id, contract_id, date, description, hours_used, technician)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).run(
+        reportInterventionId,
+        newContractId,
+        createdDate,
+        `${lastDescription} (reporté)`,
+        overage,
+        "Système"
+      );
+
+      // Mettre à jour les heures utilisées du nouveau contrat
+      db.prepare('UPDATE contracts SET used_hours = ? WHERE id = ?')
+        .run(overage, newContractId);
+    }
+
+    res.json({ 
+      id: newContractId, 
+      clientName: oldContract.client_name, 
+      totalHours, 
+      createdDate 
+    });
+  } catch (error) {
+    console.error('Error renewing contract:', error);
+    res.status(500).json({ error: 'Erreur lors du renouvellement du contrat' });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`API running on http://localhost:${PORT}`);
 });

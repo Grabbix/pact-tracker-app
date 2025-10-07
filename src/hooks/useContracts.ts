@@ -103,6 +103,17 @@ export const useContracts = (includeArchived: boolean = false) => {
     }
   };
 
+  const renewContract = async (contractId: string, totalHours: number) => {
+    try {
+      await api.renewContract(contractId, totalHours);
+      toast.success("Contrat renouvelé avec succès");
+      await fetchContracts();
+    } catch (error: any) {
+      console.error("Error renewing contract:", error);
+      toast.error("Erreur lors du renouvellement du contrat");
+    }
+  };
+
   const getContract = (id: string) => {
     return contracts.find((c) => c.id === id);
   };
@@ -116,6 +127,7 @@ export const useContracts = (includeArchived: boolean = false) => {
     deleteIntervention,
     archiveContract,
     unarchiveContract,
+    renewContract,
     getContract,
     refetch: fetchContracts,
   };

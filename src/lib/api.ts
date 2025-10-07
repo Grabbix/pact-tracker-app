@@ -78,4 +78,14 @@ export const api = {
     if (!response.ok) throw new Error('Failed to delete intervention');
     return response.json();
   },
+
+  async renewContract(id: string, totalHours: number) {
+    const response = await fetch(`${API_BASE_URL}/api/contracts/${id}/renew`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ totalHours }),
+    });
+    if (!response.ok) throw new Error('Failed to renew contract');
+    return response.json();
+  },
 };

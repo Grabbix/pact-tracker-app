@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { AddInterventionDialog } from "@/components/AddInterventionDialog";
 import { EditInterventionDialog } from "@/components/EditInterventionDialog";
+import { RenewContractDialog } from "@/components/RenewContractDialog";
 import { exportContractToPDF } from "@/utils/pdfExport";
 import { 
   ArrowLeft, 
@@ -33,7 +34,7 @@ import {
 const ContractDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { getContract, addIntervention, updateIntervention, deleteIntervention, loading } = useContracts(true);
+  const { getContract, addIntervention, updateIntervention, deleteIntervention, renewContract, loading } = useContracts(true);
   const [editingIntervention, setEditingIntervention] = useState<Intervention | null>(null);
   const [deletingInterventionId, setDeletingInterventionId] = useState<string | null>(null);
   
@@ -85,6 +86,13 @@ const ContractDetail = () => {
     }
   };
 
+  const handleRenewContract = (totalHours: number) => {
+    if (id) {
+      renewContract(id, totalHours);
+      navigate("/");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -110,6 +118,9 @@ const ContractDetail = () => {
             </div>
             <div className="flex gap-3">
               <AddInterventionDialog onAdd={handleAddIntervention} />
+              {!contract.isArchived && (
+                <RenewContractDialog onRenew={handleRenewContract} />
+              )}
               <Button variant="outline" onClick={handleExportPDF} className="gap-2">
                 <Download className="h-4 w-4" />
                 Exporter PDF
