@@ -88,4 +88,20 @@ export const api = {
     if (!response.ok) throw new Error('Failed to renew contract');
     return response.json();
   },
+
+  async getClients(): Promise<string[]> {
+    const response = await fetch(`${API_BASE_URL}/api/clients`);
+    if (!response.ok) throw new Error('Failed to fetch clients');
+    return response.json();
+  },
+
+  async updateClientName(contractId: string, clientName: string) {
+    const response = await fetch(`${API_BASE_URL}/api/contracts/${contractId}/client-name`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ clientName }),
+    });
+    if (!response.ok) throw new Error('Failed to update client name');
+    return response.json();
+  },
 };

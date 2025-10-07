@@ -1,10 +1,12 @@
+import { useState } from "react";
 import { Contract } from "@/types/contract";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { Clock, AlertCircle, CheckCircle, Archive, ArchiveRestore } from "lucide-react";
+import { Clock, AlertCircle, CheckCircle, Archive, ArchiveRestore, Pencil } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useContracts } from "@/hooks/useContracts";
+import { EditClientNameDialog } from "./EditClientNameDialog";
 
 interface ContractCardProps {
   contract: Contract;
@@ -13,7 +15,8 @@ interface ContractCardProps {
 
 export const ContractCard = ({ contract, isArchived = false }: ContractCardProps) => {
   const navigate = useNavigate();
-  const { archiveContract, unarchiveContract } = useContracts();
+  const { archiveContract, unarchiveContract, refetch } = useContracts();
+  const [editingName, setEditingName] = useState(false);
   const percentage = (contract.usedHours / contract.totalHours) * 100;
   const remainingHours = contract.totalHours - contract.usedHours;
 
@@ -24,6 +27,11 @@ export const ContractCard = ({ contract, isArchived = false }: ContractCardProps
     } else {
       archiveContract(contract.id);
     }
+  };
+
+  const handleEditClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingName(true);
   };
 
   const getStatusIcon = () => {
@@ -46,9 +54,19 @@ export const ContractCard = ({ contract, isArchived = false }: ContractCardProps
     >
       <div className="flex items-start justify-between mb-4">
         <div className="flex-1">
-          <h3 className="text-xl font-semibold text-card-foreground mb-1">
-            {contract.clientName}
-          </h3>
+          <div className="flex items-center gap-2">
+            <h3 className="text-xl font-semibold text-card-foreground mb-1">
+              {contract.clientName}
+            </h3>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleEditClick}
+              className="h-6 w-6 p-0"
+            >
+              <Pencil className="h-3 w-3" />
+            </Button>
+          </div>
           <p className="text-sm text-muted-foreground">
             Contrat #{contract.id}
           </p>
@@ -100,6 +118,14 @@ export const ContractCard = ({ contract, isArchived = false }: ContractCardProps
           </p>
         </div>
       </div>
+
+      <EditClientNameDialog
+        contractId={contract.id}
+        currentName={contract.clientName}
+        open={editingName}
+        onOpenChange={setEditingName}
+        onUpdate={refetch}
+      />
     </Card>
   );
 };

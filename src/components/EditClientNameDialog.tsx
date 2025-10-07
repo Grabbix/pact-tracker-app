@@ -6,10 +6,8 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Command,
@@ -24,26 +22,29 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Plus, Check, ChevronsUpDown } from "lucide-react";
+import { Check, ChevronsUpDown } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
-interface AddContractDialogProps {
-  onAdd: (contract: {
-    clientName: string;
-    totalHours: number;
-  }) => void;
+interface EditClientNameDialogProps {
+  contractId: string;
+  currentName: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onUpdate: () => void;
 }
 
-export const AddContractDialog = ({ onAdd }: AddContractDialogProps) => {
-  const [open, setOpen] = useState(false);
+export const EditClientNameDialog = ({
+  contractId,
+  currentName,
+  open,
+  onOpenChange,
+  onUpdate,
+}: EditClientNameDialogProps) => {
   const [comboOpen, setComboOpen] = useState(false);
   const [clients, setClients] = useState<string[]>([]);
-  const [formData, setFormData] = useState({
-    clientName: "",
-    totalHours: "",
-  });
+  const [clientName, setClientName] = useState(currentName);
 
   useEffect(() => {
     const fetchClients = async () => {
@@ -54,43 +55,38 @@ export const AddContractDialog = ({ onAdd }: AddContractDialogProps) => {
         console.error("Error fetching clients:", error);
       }
     };
-    fetchClients();
-  }, []);
+    if (open) {
+      fetchClients();
+      setClientName(currentName);
+    }
+  }, [open, currentName]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!formData.clientName || !formData.totalHours) {
-      toast.error("Veuillez remplir tous les champs");
+
+    if (!clientName.trim()) {
+      toast.error("Le nom du client ne peut pas être vide");
       return;
     }
 
-    onAdd({
-      clientName: formData.clientName,
-      totalHours: parseFloat(formData.totalHours),
-    });
-
-    toast.success("Contrat créé avec succès");
-    setFormData({
-      clientName: "",
-      totalHours: "",
-    });
-    setOpen(false);
+    try {
+      await api.updateClientName(contractId, clientName);
+      toast.success("Nom du client modifié avec succès");
+      onUpdate();
+      onOpenChange(false);
+    } catch (error) {
+      console.error("Error updating client name:", error);
+      toast.error("Erreur lors de la modification du nom");
+    }
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button className="gap-2">
-          <Plus className="h-4 w-4" />
-          Nouveau contrat
-        </Button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Nouveau contrat de maintenance</DialogTitle>
+          <DialogTitle>Modifier le nom du client</DialogTitle>
           <DialogDescription>
-            Créez un nouveau contrat pour un client
+            Changez le nom du client pour ce contrat
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
@@ -105,41 +101,41 @@ export const AddContractDialog = ({ onAdd }: AddContractDialogProps) => {
                     aria-expanded={comboOpen}
                     className="w-full justify-between"
                   >
-                    {formData.clientName || "Sélectionner un client..."}
+                    {clientName || "Sélectionner un client..."}
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-full p-0">
                   <Command>
-                    <CommandInput 
-                      placeholder="Rechercher ou taper un nouveau nom..." 
-                      value={formData.clientName}
-                      onValueChange={(value) => setFormData({ ...formData, clientName: value })}
+                    <CommandInput
+                      placeholder="Rechercher ou taper un nouveau nom..."
+                      value={clientName}
+                      onValueChange={setClientName}
                     />
                     <CommandList>
                       <CommandEmpty>
                         <div className="text-sm text-muted-foreground p-2">
-                          Appuyez sur Entrée pour créer "{formData.clientName}"
+                          Appuyez sur Entrée pour utiliser "{clientName}"
                         </div>
                       </CommandEmpty>
                       <CommandGroup>
                         {clients
                           .filter((client) =>
-                            client.toLowerCase().includes(formData.clientName.toLowerCase())
+                            client.toLowerCase().includes(clientName.toLowerCase())
                           )
                           .map((client) => (
                             <CommandItem
                               key={client}
                               value={client}
                               onSelect={() => {
-                                setFormData({ ...formData, clientName: client });
+                                setClientName(client);
                                 setComboOpen(false);
                               }}
                             >
                               <Check
                                 className={cn(
                                   "mr-2 h-4 w-4",
-                                  formData.clientName === client ? "opacity-100" : "opacity-0"
+                                  clientName === client ? "opacity-100" : "opacity-0"
                                 )}
                               />
                               {client}
@@ -151,26 +147,12 @@ export const AddContractDialog = ({ onAdd }: AddContractDialogProps) => {
                 </PopoverContent>
               </Popover>
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="totalHours">Nombre d'heures total</Label>
-              <Input
-                id="totalHours"
-                type="number"
-                step="1"
-                min="1"
-                placeholder="Ex: 50"
-                value={formData.totalHours}
-                onChange={(e) =>
-                  setFormData({ ...formData, totalHours: e.target.value })
-                }
-              />
-            </div>
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Annuler
             </Button>
-            <Button type="submit">Créer le contrat</Button>
+            <Button type="submit">Enregistrer</Button>
           </DialogFooter>
         </form>
       </DialogContent>

@@ -5,26 +5,32 @@ import { Contract } from "@/types/contract";
 export const exportContractToPDF = (contract: Contract) => {
   const doc = new jsPDF();
 
+  // Logo - Placez votre fichier gigapro.png dans le dossier public/
+  // Ensuite décommentez ces lignes:
+  // const logo = new Image();
+  // logo.src = '/gigapro.png';
+  // doc.addImage(logo, 'PNG', 14, 10, 30, 10);
+
   // Header
   doc.setFontSize(20);
   doc.setTextColor(59, 130, 246); // primary color
-  doc.text("Détail du contrat de maintenance", 14, 20);
+  doc.text("Détail du contrat de maintenance", 14, 30);
 
   // Client info
   doc.setFontSize(12);
   doc.setTextColor(0, 0, 0);
-  doc.text(`Client: ${contract.clientName}`, 14, 35);
-  doc.text(`Contrat N°: ${contract.id}`, 14, 42);
-  doc.text(`Créé le: ${new Date(contract.createdDate).toLocaleDateString('fr-FR')}`, 14, 49);
+  doc.text(`Client: ${contract.clientName}`, 14, 45);
+  doc.text(`Contrat N°: ${contract.id}`, 14, 52);
+  doc.text(`Créé le: ${new Date(contract.createdDate).toLocaleDateString('fr-FR')}`, 14, 59);
 
   // Hours summary
   doc.setFontSize(11);
-  doc.text(`Total d'heures: ${contract.totalHours}h`, 14, 60);
-  doc.text(`Heures utilisées: ${contract.usedHours}h`, 14, 67);
-  doc.text(`Heures restantes: ${(contract.totalHours - contract.usedHours).toFixed(1)}h`, 14, 74);
+  doc.text(`Total d'heures: ${contract.totalHours}h`, 14, 70);
+  doc.text(`Heures utilisées: ${contract.usedHours}h`, 14, 77);
+  doc.text(`Heures restantes: ${(contract.totalHours - contract.usedHours).toFixed(1)}h`, 14, 84);
   
   const percentage = ((contract.usedHours / contract.totalHours) * 100).toFixed(1);
-  doc.text(`Progression: ${percentage}%`, 14, 81);
+  doc.text(`Progression: ${percentage}%`, 14, 91);
 
   // Interventions table
   const tableData = contract.interventions.map(intervention => [
@@ -35,7 +41,7 @@ export const exportContractToPDF = (contract: Contract) => {
   ]);
 
   autoTable(doc, {
-    startY: 90,
+    startY: 100,
     head: [['Date', 'Description', 'Technicien', 'Heures']],
     body: tableData,
     theme: 'striped',

@@ -139,6 +139,34 @@ app.patch('/api/contracts/:id/unarchive', (req, res) => {
   }
 });
 
+// Récupérer la liste des noms de clients
+app.get('/api/clients', (req, res) => {
+  try {
+    const rows = db.prepare('SELECT DISTINCT client_name FROM contracts ORDER BY client_name ASC').all();
+    const clientNames = rows.map(row => row.client_name);
+    res.json(clientNames);
+  } catch (error) {
+    console.error('Error fetching clients:', error);
+    res.status(500).json({ error: 'Erreur lors du chargement des clients' });
+  }
+});
+
+// Mettre à jour le nom du client d'un contrat
+app.patch('/api/contracts/:id/client-name', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { clientName } = req.body;
+
+    const stmt = db.prepare('UPDATE contracts SET client_name = ? WHERE id = ?');
+    stmt.run(clientName, id);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error updating client name:', error);
+    res.status(500).json({ error: 'Erreur lors de la mise à jour du nom du client' });
+  }
+});
+
 // Routes pour les interventions
 app.post('/api/interventions', (req, res) => {
   try {

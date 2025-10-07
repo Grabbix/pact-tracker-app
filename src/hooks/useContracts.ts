@@ -114,6 +114,17 @@ export const useContracts = (includeArchived: boolean = false) => {
     }
   };
 
+  const updateClientName = async (contractId: string, clientName: string) => {
+    try {
+      await api.updateClientName(contractId, clientName);
+      toast.success("Nom du client modifié avec succès");
+      await fetchContracts();
+    } catch (error: any) {
+      console.error("Error updating client name:", error);
+      toast.error("Erreur lors de la modification du nom");
+    }
+  };
+
   const getContract = (id: string) => {
     return contracts.find((c) => c.id === id);
   };
@@ -128,6 +139,7 @@ export const useContracts = (includeArchived: boolean = false) => {
     archiveContract,
     unarchiveContract,
     renewContract,
+    updateClientName,
     getContract,
     refetch: fetchContracts,
   };

@@ -6,6 +6,7 @@ import { Progress } from "@/components/ui/progress";
 import { AddInterventionDialog } from "@/components/AddInterventionDialog";
 import { EditInterventionDialog } from "@/components/EditInterventionDialog";
 import { RenewContractDialog } from "@/components/RenewContractDialog";
+import { EditClientNameDialog } from "@/components/EditClientNameDialog";
 import { exportContractToPDF } from "@/utils/pdfExport";
 import { 
   ArrowLeft, 
@@ -15,7 +16,8 @@ import {
   User,
   TrendingUp,
   Edit,
-  Trash2
+  Trash2,
+  Pencil
 } from "lucide-react";
 import { toast } from "sonner";
 import { Intervention } from "@/types/contract";
@@ -34,9 +36,10 @@ import {
 const ContractDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { getContract, addIntervention, updateIntervention, deleteIntervention, renewContract, loading } = useContracts(true);
+  const { getContract, addIntervention, updateIntervention, deleteIntervention, renewContract, refetch, loading } = useContracts(true);
   const [editingIntervention, setEditingIntervention] = useState<Intervention | null>(null);
   const [deletingInterventionId, setDeletingInterventionId] = useState<string | null>(null);
+  const [editingClientName, setEditingClientName] = useState(false);
   
   const contract = getContract(id || "");
 
@@ -109,9 +112,19 @@ const ContractDetail = () => {
           
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
-              <h1 className="text-4xl font-bold text-foreground mb-2">
-                {contract.clientName}
-              </h1>
+              <div className="flex items-center gap-3 mb-2">
+                <h1 className="text-4xl font-bold text-foreground">
+                  {contract.clientName}
+                </h1>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setEditingClientName(true)}
+                  className="h-8 w-8 p-0"
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+              </div>
               <p className="text-muted-foreground text-lg">
                 Contrat #{contract.id}
               </p>
@@ -266,6 +279,14 @@ const ContractDetail = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <EditClientNameDialog
+        contractId={contract.id}
+        currentName={contract.clientName}
+        open={editingClientName}
+        onOpenChange={setEditingClientName}
+        onUpdate={refetch}
+      />
     </div>
   );
 };
