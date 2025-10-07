@@ -7,9 +7,9 @@ export const exportContractToPDF = (contract: Contract) => {
 
   // Logo - Placez votre fichier gigapro.png dans le dossier public/
   // Ensuite décommentez ces lignes:
-  // const logo = new Image();
-  // logo.src = '/gigapro.png';
-  // doc.addImage(logo, 'PNG', 14, 10, 30, 10);
+  const logo = new Image();
+  logo.src = '/gigapro.png';
+  doc.addImage(logo, 'PNG', 14, 10, 30, 10);
 
   // Header
   doc.setFontSize(20);
