@@ -44,6 +44,8 @@ export const useContracts = (includeArchived: boolean = false) => {
         description: intervention.description,
         hoursUsed: intervention.hoursUsed,
         technician: intervention.technician,
+        isBillable: intervention.isBillable,
+        location: intervention.location,
       });
       toast.success("Intervention ajoutée avec succès");
       await fetchContracts();
@@ -83,6 +85,8 @@ export const useContracts = (includeArchived: boolean = false) => {
         description: intervention.description,
         hoursUsed: intervention.hoursUsed,
         technician: intervention.technician,
+        isBillable: intervention.isBillable,
+        location: intervention.location,
       });
       toast.success("Intervention modifiée avec succès");
       await fetchContracts();

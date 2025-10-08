@@ -30,7 +30,9 @@ app.get('/api/contracts', (req, res) => {
             'date', i.date,
             'description', i.description,
             'hours_used', i.hours_used,
-            'technician', i.technician
+            'technician', i.technician,
+            'is_billable', i.is_billable,
+            'location', i.location
           )
         ) as interventions_json
       FROM contracts c
@@ -59,6 +61,8 @@ app.get('/api/contracts', (req, res) => {
               description: i.description,
               hoursUsed: i.hours_used,
               technician: i.technician,
+              isBillable: i.is_billable === 1,
+              location: i.location,
             }));
         } catch (e) {
           console.error("Error parsing interventions:", e);
@@ -170,23 +174,26 @@ app.patch('/api/contracts/:id/client-name', (req, res) => {
 // Routes pour les interventions
 app.post('/api/interventions', (req, res) => {
   try {
-    const { contractId, date, description, hoursUsed, technician } = req.body;
+    const { contractId, date, description, hoursUsed, technician, isBillable, location } = req.body;
     const id = randomUUID();
 
     const insertStmt = db.prepare(`
-      INSERT INTO interventions (id, contract_id, date, description, hours_used, technician)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO interventions (id, contract_id, date, description, hours_used, technician, is_billable, location)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
-    insertStmt.run(id, contractId, date, description, hoursUsed, technician);
+    insertStmt.run(id, contractId, date, description, hoursUsed, technician, isBillable ? 1 : 0, location);
 
-    const contract = db.prepare('SELECT used_hours FROM contracts WHERE id = ?').get(contractId);
-    
-    if (contract) {
-      const updateStmt = db.prepare(`
-        UPDATE contracts SET used_hours = ? WHERE id = ?
-      `);
-      updateStmt.run(contract.used_hours + hoursUsed, contractId);
+    // Only update used_hours if intervention is billable
+    if (isBillable) {
+      const contract = db.prepare('SELECT used_hours FROM contracts WHERE id = ?').get(contractId);
+      
+      if (contract) {
+        const updateStmt = db.prepare(`
+          UPDATE contracts SET used_hours = ? WHERE id = ?
+        `);
+        updateStmt.run(contract.used_hours + hoursUsed, contractId);
+      }
     }
 
     res.json({ id });
@@ -199,9 +206,9 @@ app.post('/api/interventions', (req, res) => {
 app.put('/api/interventions/:id', (req, res) => {
   try {
     const { id } = req.params;
-    const { contractId, date, description, hoursUsed, technician } = req.body;
+    const { contractId, date, description, hoursUsed, technician, isBillable, location } = req.body;
 
-    const oldIntervention = db.prepare('SELECT hours_used FROM interventions WHERE id = ?').get(id);
+    const oldIntervention = db.prepare('SELECT hours_used, is_billable FROM interventions WHERE id = ?').get(id);
     
     if (!oldIntervention) {
       return res.status(404).json({ error: 'Intervention non trouvée' });
@@ -209,20 +216,38 @@ app.put('/api/interventions/:id', (req, res) => {
 
     const updateStmt = db.prepare(`
       UPDATE interventions 
-      SET date = ?, description = ?, hours_used = ?, technician = ?
+      SET date = ?, description = ?, hours_used = ?, technician = ?, is_billable = ?, location = ?
       WHERE id = ?
     `);
 
-    updateStmt.run(date, description, hoursUsed, technician, id);
+    updateStmt.run(date, description, hoursUsed, technician, isBillable ? 1 : 0, location, id);
 
-    const hoursDifference = hoursUsed - oldIntervention.hours_used;
+    // Update contract hours only if billable status is involved
     const contract = db.prepare('SELECT used_hours FROM contracts WHERE id = ?').get(contractId);
-
+    
     if (contract) {
-      const updateContractStmt = db.prepare(`
-        UPDATE contracts SET used_hours = ? WHERE id = ?
-      `);
-      updateContractStmt.run(contract.used_hours + hoursDifference, contractId);
+      let hoursDifference = 0;
+      const wasBillable = oldIntervention.is_billable === 1;
+      const nowBillable = isBillable;
+
+      if (wasBillable && nowBillable) {
+        // Both billable: normal difference
+        hoursDifference = hoursUsed - oldIntervention.hours_used;
+      } else if (wasBillable && !nowBillable) {
+        // Was billable, now not: subtract old hours
+        hoursDifference = -oldIntervention.hours_used;
+      } else if (!wasBillable && nowBillable) {
+        // Was not billable, now is: add new hours
+        hoursDifference = hoursUsed;
+      }
+      // If both non-billable, no change needed
+
+      if (hoursDifference !== 0) {
+        const updateContractStmt = db.prepare(`
+          UPDATE contracts SET used_hours = ? WHERE id = ?
+        `);
+        updateContractStmt.run(contract.used_hours + hoursDifference, contractId);
+      }
     }
 
     res.json({ success: true });
@@ -237,7 +262,7 @@ app.delete('/api/interventions/:id', (req, res) => {
     const { id } = req.params;
     const { contractId } = req.query;
 
-    const intervention = db.prepare('SELECT hours_used FROM interventions WHERE id = ?').get(id);
+    const intervention = db.prepare('SELECT hours_used, is_billable FROM interventions WHERE id = ?').get(id);
     
     if (!intervention) {
       return res.status(404).json({ error: 'Intervention non trouvée' });
@@ -246,13 +271,16 @@ app.delete('/api/interventions/:id', (req, res) => {
     const deleteStmt = db.prepare('DELETE FROM interventions WHERE id = ?');
     deleteStmt.run(id);
 
-    const contract = db.prepare('SELECT used_hours FROM contracts WHERE id = ?').get(contractId);
+    // Only update contract hours if intervention was billable
+    if (intervention.is_billable === 1) {
+      const contract = db.prepare('SELECT used_hours FROM contracts WHERE id = ?').get(contractId);
 
-    if (contract) {
-      const updateStmt = db.prepare(`
-        UPDATE contracts SET used_hours = ? WHERE id = ?
-      `);
-      updateStmt.run(contract.used_hours - intervention.hours_used, contractId);
+      if (contract) {
+        const updateStmt = db.prepare(`
+          UPDATE contracts SET used_hours = ? WHERE id = ?
+        `);
+        updateStmt.run(contract.used_hours - intervention.hours_used, contractId);
+      }
     }
 
     res.json({ success: true });
@@ -277,7 +305,9 @@ app.post('/api/contracts/:id/renew', (req, res) => {
             'date', i.date,
             'description', i.description,
             'hours_used', i.hours_used,
-            'technician', i.technician
+            'technician', i.technician,
+            'is_billable', i.is_billable,
+            'location', i.location
           )
         ) as interventions_json
       FROM contracts c
@@ -326,15 +356,17 @@ app.post('/api/contracts/:id/renew', (req, res) => {
 
       const reportInterventionId = randomUUID();
       db.prepare(`
-        INSERT INTO interventions (id, contract_id, date, description, hours_used, technician)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO interventions (id, contract_id, date, description, hours_used, technician, is_billable, location)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         reportInterventionId,
         newContractId,
         createdDate,
         `${lastDescription} (reporté)`,
         overage,
-        "Système"
+        "Système",
+        1,
+        null
       );
 
       // Mettre à jour les heures utilisées du nouveau contrat

@@ -3,9 +3,12 @@ import { ContractCard } from "@/components/ContractCard";
 import { AddContractDialog } from "@/components/AddContractDialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, FileText, Archive } from "lucide-react";
+import { Search, FileText, Archive, Download } from "lucide-react";
 import { useContracts } from "@/hooks/useContracts";
 import { useNavigate } from "react-router-dom";
+import { exportContractToPDF } from "@/utils/pdfExport";
+import { exportAllContractsToExcel } from "@/utils/excelExport";
+import { toast } from "sonner";
 
 const Contracts = () => {
   const { contracts, addContract, loading } = useContracts();
@@ -18,6 +21,18 @@ const Contracts = () => {
 
   const handleAddContract = (newContract: { clientName: string; totalHours: number }) => {
     addContract(newContract);
+  };
+
+  const handleExportAllPDF = () => {
+    contracts.forEach(contract => {
+      exportContractToPDF(contract);
+    });
+    toast.success(`${contracts.length} PDF(s) exporté(s) avec succès`);
+  };
+
+  const handleExportAllExcel = () => {
+    exportAllContractsToExcel(contracts);
+    toast.success("Fichier Excel de backup créé avec succès");
   };
 
   return (
@@ -45,6 +60,22 @@ const Contracts = () => {
               >
                 <Archive className="h-4 w-4" />
                 Archives
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleExportAllPDF}
+                className="gap-2"
+              >
+                <Download className="h-4 w-4" />
+                Tout exporter (PDF)
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleExportAllExcel}
+                className="gap-2"
+              >
+                <Download className="h-4 w-4" />
+                Backup Excel
               </Button>
               <AddContractDialog onAdd={handleAddContract} />
             </div>

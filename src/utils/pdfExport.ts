@@ -32,21 +32,23 @@ export const exportContractToPDF = (contract: Contract) => {
   const percentage = ((contract.usedHours / contract.totalHours) * 100).toFixed(1);
   doc.text(`Progression: ${percentage}%`, 14, 91);
 
-  // Interventions table
-  const tableData = contract.interventions.map(intervention => [
+  // Billable interventions table
+  const billableInterventions = contract.interventions.filter(i => i.isBillable !== false);
+  const tableData = billableInterventions.map(intervention => [
     new Date(intervention.date).toLocaleDateString('fr-FR'),
     intervention.description,
     intervention.technician,
+    intervention.location || 'N/A',
     `${intervention.hoursUsed}h`
   ]);
 
   autoTable(doc, {
     startY: 100,
-    head: [['Date', 'Description', 'Technicien', 'Heures']],
+    head: [['Date', 'Description', 'Technicien', 'Lieu', 'Heures']],
     body: tableData,
     theme: 'striped',
     headStyles: {
-      fillColor: [59, 130, 246], // primary color
+      fillColor: [59, 130, 246],
       textColor: [255, 255, 255],
       fontStyle: 'bold'
     },
@@ -55,12 +57,55 @@ export const exportContractToPDF = (contract: Contract) => {
       cellPadding: 5
     },
     columnStyles: {
-      0: { cellWidth: 30 },
-      1: { cellWidth: 80 },
-      2: { cellWidth: 40 },
-      3: { cellWidth: 25 }
+      0: { cellWidth: 28 },
+      1: { cellWidth: 65 },
+      2: { cellWidth: 35 },
+      3: { cellWidth: 25 },
+      4: { cellWidth: 22 }
     }
   });
+
+  // Non-billable interventions section
+  const nonBillableInterventions = contract.interventions.filter(i => i.isBillable === false);
+  if (nonBillableInterventions.length > 0) {
+    const finalY = (doc as any).lastAutoTable.finalY || 100;
+    
+    doc.setFontSize(12);
+    doc.setTextColor(0, 0, 0);
+    doc.text('Interventions non comptabilisées', 14, finalY + 15);
+    
+    const nonBillableData = nonBillableInterventions.map(intervention => [
+      new Date(intervention.date).toLocaleDateString('fr-FR'),
+      intervention.description,
+      intervention.technician,
+      intervention.location || 'N/A',
+      `${Math.round(intervention.hoursUsed * 60)} min`
+    ]);
+
+    autoTable(doc, {
+      startY: finalY + 20,
+      head: [['Date', 'Description', 'Technicien', 'Lieu', 'Durée']],
+      body: nonBillableData,
+      theme: 'grid',
+      headStyles: {
+        fillColor: [150, 150, 150],
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+        fontSize: 8
+      },
+      styles: {
+        fontSize: 8,
+        cellPadding: 3
+      },
+      columnStyles: {
+        0: { cellWidth: 28 },
+        1: { cellWidth: 65 },
+        2: { cellWidth: 35 },
+        3: { cellWidth: 25 },
+        4: { cellWidth: 22 }
+      }
+    });
+  }
 
   // Footer
   const pageCount = doc.getNumberOfPages();

@@ -4,6 +4,8 @@ export interface Intervention {
   description: string;
   hoursUsed: number;
   technician: string;
+  isBillable?: boolean;
+  location?: string;
 }
 
 export interface Contract {

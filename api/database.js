@@ -23,6 +23,9 @@ db.exec(`
     description TEXT NOT NULL,
     hours_used REAL NOT NULL,
     technician TEXT NOT NULL,
+    is_billable INTEGER DEFAULT 1,
+    location TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
     FOREIGN KEY (contract_id) REFERENCES contracts(id) ON DELETE CASCADE
   );
 `);

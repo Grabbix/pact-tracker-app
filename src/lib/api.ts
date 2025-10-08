@@ -41,6 +41,8 @@ export const api = {
     description: string;
     hoursUsed: number;
     technician: string;
+    isBillable?: boolean;
+    location?: string;
   }) {
     const response = await fetch(`${API_BASE_URL}/api/interventions`, {
       method: 'POST',
@@ -59,6 +61,8 @@ export const api = {
       description: string;
       hoursUsed: number;
       technician: string;
+      isBillable?: boolean;
+      location?: string;
     }
   ) {
     const response = await fetch(`${API_BASE_URL}/api/interventions/${id}`, {

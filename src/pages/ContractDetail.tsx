@@ -8,6 +8,7 @@ import { EditInterventionDialog } from "@/components/EditInterventionDialog";
 import { RenewContractDialog } from "@/components/RenewContractDialog";
 import { EditClientNameDialog } from "@/components/EditClientNameDialog";
 import { exportContractToPDF } from "@/utils/pdfExport";
+import { exportContractToExcel } from "@/utils/excelExport";
 import { 
   ArrowLeft, 
   Download, 
@@ -17,7 +18,8 @@ import {
   TrendingUp,
   Edit,
   Trash2,
-  Pencil
+  Pencil,
+  FileSpreadsheet
 } from "lucide-react";
 import { toast } from "sonner";
 import { Intervention } from "@/types/contract";
@@ -76,6 +78,11 @@ const ContractDetail = () => {
     toast.success("PDF exporté avec succès");
   };
 
+  const handleExportExcel = () => {
+    exportContractToExcel(contract);
+    toast.success("Excel exporté avec succès");
+  };
+
   const handleEditIntervention = (intervention: Intervention) => {
     if (id) {
       updateIntervention(id, intervention);
@@ -130,13 +137,18 @@ const ContractDetail = () => {
               </p>
             </div>
             <div className="flex gap-3">
-              <AddInterventionDialog onAdd={handleAddIntervention} />
+              <AddInterventionDialog onAdd={handleAddIntervention} variant="billable" />
+              <AddInterventionDialog onAdd={handleAddIntervention} variant="non-billable" />
               {!contract.isArchived && (
                 <RenewContractDialog onRenew={handleRenewContract} />
               )}
               <Button variant="outline" onClick={handleExportPDF} className="gap-2">
                 <Download className="h-4 w-4" />
-                Exporter PDF
+                PDF
+              </Button>
+              <Button variant="outline" onClick={handleExportExcel} className="gap-2">
+                <FileSpreadsheet className="h-4 w-4" />
+                Excel
               </Button>
             </div>
           </div>
@@ -220,9 +232,19 @@ const ContractDetail = () => {
                     <div className="flex items-center gap-2">
                       <Clock className="h-4 w-4 text-primary" />
                       <span className="font-semibold text-primary">
-                        {intervention.hoursUsed}h
+                        {intervention.isBillable === false 
+                          ? `${Math.round(intervention.hoursUsed * 60)} min` 
+                          : `${intervention.hoursUsed}h`}
                       </span>
+                      {intervention.isBillable === false && (
+                        <span className="text-xs text-muted-foreground">(non compté)</span>
+                      )}
                     </div>
+                    {intervention.location && (
+                      <div className="text-sm text-muted-foreground">
+                        {intervention.location}
+                      </div>
+                    )}
                     <div className="flex items-center gap-2">
                       <Button
                         variant="ghost"
