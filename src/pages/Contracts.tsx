@@ -7,7 +7,7 @@ import { Search, FileText, Archive, Download } from "lucide-react";
 import { useContracts } from "@/hooks/useContracts";
 import { useNavigate } from "react-router-dom";
 import { exportContractToPDF } from "@/utils/pdfExport";
-import { exportAllContractsToExcel } from "@/utils/excelExport";
+import { exportAllContractsToExcelBackup } from "@/utils/excelExport";
 import { toast } from "sonner";
 
 const Contracts = () => {
@@ -30,9 +30,13 @@ const Contracts = () => {
     toast.success(`${contracts.length} PDF(s) exporté(s) avec succès`);
   };
 
-  const handleExportAllExcel = () => {
-    exportAllContractsToExcel(contracts);
-    toast.success("Fichier Excel de backup créé avec succès");
+  const handleExportAllExcel = async () => {
+    try {
+      const result = await exportAllContractsToExcelBackup();
+      toast.success(`${result.count} fichier(s) Excel créé(s) dans le dossier backup`);
+    } catch (error) {
+      toast.error("Erreur lors de l'export Excel");
+    }
   };
 
   return (

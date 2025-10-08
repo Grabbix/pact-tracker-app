@@ -58,22 +58,16 @@ export const exportContractToExcel = (contract: Contract) => {
   XLSX.writeFile(wb, `contrat-${contract.clientName.replace(/\s+/g, '-')}-${contract.id}.xlsx`);
 };
 
-export const exportAllContractsToExcel = (contracts: Contract[]) => {
-  const allData = contracts.map(contract => ({
-    'Contrat N°': contract.id,
-    Client: contract.clientName,
-    'Heures totales': contract.totalHours,
-    'Heures utilisées': contract.usedHours,
-    'Heures restantes': (contract.totalHours - contract.usedHours).toFixed(1),
-    Statut: contract.status,
-    Archivé: contract.isArchived ? 'Oui' : 'Non',
-    'Date de création': new Date(contract.createdDate).toLocaleDateString('fr-FR')
-  }));
-
-  const wb = XLSX.utils.book_new();
-  const ws = XLSX.utils.json_to_sheet(allData);
-  XLSX.utils.book_append_sheet(wb, ws, 'Tous les contrats');
-
-  const timestamp = new Date().toISOString().split('T')[0];
-  XLSX.writeFile(wb, `backup-contrats-${timestamp}.xlsx`);
+export const exportAllContractsToExcelBackup = async () => {
+  const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+  
+  const response = await fetch(`${API_BASE_URL}/api/contracts/export-all-excel`, {
+    method: 'POST',
+  });
+  
+  if (!response.ok) {
+    throw new Error('Failed to export contracts to Excel');
+  }
+  
+  return response.json();
 };
