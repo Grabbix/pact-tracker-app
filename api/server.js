@@ -5,6 +5,7 @@ const db = require('./database');
 const fs = require('fs');
 const path = require('path');
 const XLSX = require('xlsx');
+const cron = require('node-cron');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -527,6 +528,127 @@ app.post('/api/contracts/export-all-excel', (req, res) => {
   }
 });
 
+// Cron job pour l'export quotidien à minuit
+cron.schedule('0 0 * * *', () => {
+  console.log('Starting daily Excel backup at midnight...');
+  try {
+    const query = `
+      SELECT c.*, 
+        GROUP_CONCAT(
+          json_object(
+            'id', i.id,
+            'date', i.date,
+            'description', i.description,
+            'hours_used', i.hours_used,
+            'technician', i.technician,
+            'is_billable', i.is_billable,
+            'location', i.location
+          )
+        ) as interventions_json
+      FROM contracts c
+      LEFT JOIN interventions i ON c.id = i.contract_id
+      GROUP BY c.id
+      ORDER BY c.created_date DESC
+    `;
+
+    const rows = db.prepare(query).all();
+
+    const contracts = rows.map(row => {
+      let interventions = [];
+      
+      if (row.interventions_json) {
+        try {
+          const parsed = JSON.parse(`[${row.interventions_json}]`);
+          interventions = parsed
+            .filter(i => i.id !== null)
+            .map(i => ({
+              id: i.id,
+              date: i.date,
+              description: i.description,
+              hoursUsed: i.hours_used,
+              technician: i.technician,
+              isBillable: i.is_billable === 1,
+              location: i.location,
+            }));
+        } catch (e) {
+          console.error("Error parsing interventions:", e);
+        }
+      }
+
+      return {
+        id: row.id,
+        clientName: row.client_name,
+        totalHours: row.total_hours,
+        usedHours: row.used_hours,
+        createdDate: row.created_date,
+        status: row.status,
+        isArchived: row.is_archived === 1,
+        interventions,
+      };
+    });
+
+    let exportedCount = 0;
+    const timestamp = new Date().toISOString().split('T')[0];
+
+    contracts.forEach(contract => {
+      const billableInterventions = contract.interventions
+        .filter(i => i.isBillable !== false)
+        .map(intervention => ({
+          Date: new Date(intervention.date).toLocaleDateString('fr-FR'),
+          Description: intervention.description,
+          Technicien: intervention.technician,
+          Heures: intervention.hoursUsed,
+          Localisation: intervention.location || 'Non spécifié'
+        }));
+
+      const nonBillableInterventions = contract.interventions
+        .filter(i => i.isBillable === false)
+        .map(intervention => ({
+          Date: new Date(intervention.date).toLocaleDateString('fr-FR'),
+          Description: intervention.description,
+          Technicien: intervention.technician,
+          Minutes: Math.round(intervention.hoursUsed * 60),
+          Localisation: intervention.location || 'Non spécifié'
+        }));
+
+      const summary = [
+        ['Client', contract.clientName],
+        ['Contrat N°', contract.id],
+        ['Date de création', new Date(contract.createdDate).toLocaleDateString('fr-FR')],
+        ['Heures totales', contract.totalHours],
+        ['Heures utilisées', contract.usedHours],
+        ['Heures restantes', (contract.totalHours - contract.usedHours).toFixed(1)],
+        ['Progression', `${((contract.usedHours / contract.totalHours) * 100).toFixed(1)}%`],
+        ['Statut', contract.isArchived ? 'Archivé' : contract.status]
+      ];
+
+      const wb = XLSX.utils.book_new();
+      const summaryWs = XLSX.utils.aoa_to_sheet(summary);
+      XLSX.utils.book_append_sheet(wb, summaryWs, 'Résumé');
+
+      if (billableInterventions.length > 0) {
+        const billableWs = XLSX.utils.json_to_sheet(billableInterventions);
+        XLSX.utils.book_append_sheet(wb, billableWs, 'Interventions comptées');
+      }
+
+      if (nonBillableInterventions.length > 0) {
+        const nonBillableWs = XLSX.utils.json_to_sheet(nonBillableInterventions);
+        XLSX.utils.book_append_sheet(wb, nonBillableWs, 'Interventions non comptées');
+      }
+
+      const fileName = `${contract.clientName.replace(/\s+/g, '-')}_${contract.id}_${timestamp}.xlsx`;
+      const filePath = path.join(backupDir, fileName);
+      XLSX.writeFile(wb, filePath);
+      exportedCount++;
+    });
+
+    console.log(`Daily backup completed: ${exportedCount} contracts exported to ${backupDir}`);
+  } catch (error) {
+    console.error('Error during daily backup:', error);
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`API running on http://localhost:${PORT}`);
+  console.log('Daily Excel backup scheduled at midnight (0 0 * * *)');
 });
