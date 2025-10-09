@@ -340,16 +340,16 @@ app.post('/api/contracts/:id/renew', (req, res) => {
       VALUES (?, ?, ?, 0, ?, 'active', 0)
     `).run(newContractId, oldContract.client_name, totalHours, createdDate);
 
-    // Si dépassement, créer une intervention de report
+    // Si dépassement, créer une intervention de report basée sur les dernières interventions
     const overage = oldContract.used_hours - oldContract.total_hours;
     if (overage > 0) {
-      // Récupérer la dernière intervention pour le libellé
+      // Récupérer les dernières interventions billables pour le libellé
       let lastDescription = "Heures supplémentaires";
       
       if (oldContract.interventions_json) {
         try {
           const interventions = JSON.parse(`[${oldContract.interventions_json}]`)
-            .filter(i => i.id !== null)
+            .filter(i => i.id !== null && i.is_billable === 1)
             .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
           
           if (interventions.length > 0) {

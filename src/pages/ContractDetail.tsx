@@ -205,7 +205,9 @@ const ContractDetail = () => {
           </h2>
           
           <div className="space-y-4">
-            {contract.interventions.map((intervention) => (
+            {[...contract.interventions]
+              .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+              .map((intervention) => (
               <div
                 key={intervention.id}
                 className="border border-border rounded-lg p-5 hover:border-primary/30 transition-colors"
