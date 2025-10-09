@@ -52,6 +52,12 @@ export const exportContractToPDF = (contract: Contract) => {
       textColor: [255, 255, 255],
       fontStyle: 'bold'
     },
+    bodyStyles: {
+      fillColor: [255, 255, 255]
+    },
+    alternateRowStyles: {
+      fillColor: [245, 250, 255]
+    },
     styles: {
       fontSize: 10,
       cellPadding: 5
@@ -92,6 +98,10 @@ export const exportContractToPDF = (contract: Contract) => {
         textColor: [255, 255, 255],
         fontStyle: 'bold',
         fontSize: 8
+      },
+      bodyStyles: {
+        fillColor: [245, 245, 245],
+        textColor: [100, 100, 100]
       },
       styles: {
         fontSize: 8,

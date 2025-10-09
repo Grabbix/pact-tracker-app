@@ -13,11 +13,19 @@ import { toast } from "sonner";
 const Contracts = () => {
   const { contracts, addContract, loading } = useContracts();
   const [searchQuery, setSearchQuery] = useState("");
+  const [filterNearExpiry, setFilterNearExpiry] = useState(false);
   const navigate = useNavigate();
 
-  const filteredContracts = contracts.filter(contract =>
-    contract.clientName.toLowerCase().includes(searchQuery.toLowerCase())
+  // Contracts near expiry: used >= 90%
+  const nearExpiryContracts = contracts.filter(
+    c => (c.usedHours / c.totalHours) >= 0.9
   );
+
+  const filteredContracts = contracts.filter(contract => {
+    const matchesSearch = contract.clientName.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesFilter = !filterNearExpiry || (contract.usedHours / contract.totalHours) >= 0.9;
+    return matchesSearch && matchesFilter;
+  });
 
   const handleAddContract = (newContract: { clientName: string; totalHours: number }) => {
     addContract(newContract);
@@ -110,10 +118,15 @@ const Contracts = () => {
               {contracts.filter(c => c.status === "active").length}
             </p>
           </div>
-          <div className="bg-card p-4 rounded-lg border border-border">
-            <p className="text-sm text-muted-foreground mb-1">Proche expiration</p>
+          <div 
+            className="bg-card p-4 rounded-lg border border-border cursor-pointer hover:border-warning transition-colors"
+            onClick={() => setFilterNearExpiry(!filterNearExpiry)}
+          >
+            <p className="text-sm text-muted-foreground mb-1">
+              Proche expiration {filterNearExpiry && "(filtré)"}
+            </p>
             <p className="text-3xl font-bold text-warning">
-              {contracts.filter(c => c.status === "near-expiry").length}
+              {nearExpiryContracts.length}
             </p>
           </div>
         </div>

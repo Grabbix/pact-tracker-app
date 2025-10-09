@@ -210,7 +210,11 @@ const ContractDetail = () => {
               .map((intervention) => (
               <div
                 key={intervention.id}
-                className="border border-border rounded-lg p-5 hover:border-primary/30 transition-colors"
+                className={`border rounded-lg p-5 hover:border-primary/30 transition-colors ${
+                  intervention.isBillable === false 
+                    ? 'bg-muted/30 border-muted-foreground/20' 
+                    : 'border-border bg-card'
+                }`}
               >
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-3">
                   <div className="flex items-center gap-2">
