@@ -19,8 +19,15 @@ import {
   Edit,
   Trash2,
   Pencil,
-  FileSpreadsheet
+  FileSpreadsheet,
+  ChevronDown
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { Intervention } from "@/types/contract";
 import { useContracts } from "@/hooks/useContracts";
@@ -73,8 +80,8 @@ const ContractDetail = () => {
     }
   };
 
-  const handleExportPDF = () => {
-    exportContractToPDF(contract);
+  const handleExportPDF = (includeNonBillable: boolean = true) => {
+    exportContractToPDF(contract, includeNonBillable);
     toast.success("PDF exporté avec succès");
   };
 
@@ -142,10 +149,23 @@ const ContractDetail = () => {
               {!contract.isArchived && (
                 <RenewContractDialog onRenew={handleRenewContract} />
               )}
-              <Button variant="outline" onClick={handleExportPDF} className="gap-2">
-                <Download className="h-4 w-4" />
-                PDF
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="gap-2">
+                    <Download className="h-4 w-4" />
+                    PDF
+                    <ChevronDown className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => handleExportPDF(true)}>
+                    Export complet (tout)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleExportPDF(false)}>
+                    Interventions comptées seulement
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <Button variant="outline" onClick={handleExportExcel} className="gap-2">
                 <FileSpreadsheet className="h-4 w-4" />
                 Excel

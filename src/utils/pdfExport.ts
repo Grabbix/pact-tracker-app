@@ -2,7 +2,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { Contract } from "@/types/contract";
 
-export const exportContractToPDF = (contract: Contract) => {
+export const exportContractToPDF = (contract: Contract, includeNonBillable: boolean = true) => {
   const doc = new jsPDF();
 
   // Logo - Placez votre fichier gigapro.png dans le dossier public/
@@ -71,50 +71,52 @@ export const exportContractToPDF = (contract: Contract) => {
     }
   });
 
-  // Non-billable interventions section
-  const nonBillableInterventions = contract.interventions.filter(i => i.isBillable === false);
-  if (nonBillableInterventions.length > 0) {
-    const finalY = (doc as any).lastAutoTable.finalY || 100;
-    
-    doc.setFontSize(12);
-    doc.setTextColor(0, 0, 0);
-    doc.text('Interventions non comptabilisées', 14, finalY + 15);
-    
-    const nonBillableData = nonBillableInterventions.map(intervention => [
-      new Date(intervention.date).toLocaleDateString('fr-FR'),
-      intervention.description,
-      intervention.technician,
-      intervention.location || 'N/A',
-      `${Math.round(intervention.hoursUsed * 60)} min`
-    ]);
+  // Non-billable interventions section (only if includeNonBillable is true)
+  if (includeNonBillable) {
+    const nonBillableInterventions = contract.interventions.filter(i => i.isBillable === false);
+    if (nonBillableInterventions.length > 0) {
+      const finalY = (doc as any).lastAutoTable.finalY || 100;
+      
+      doc.setFontSize(12);
+      doc.setTextColor(0, 0, 0);
+      doc.text('Interventions non comptabilisées', 14, finalY + 15);
+      
+      const nonBillableData = nonBillableInterventions.map(intervention => [
+        new Date(intervention.date).toLocaleDateString('fr-FR'),
+        intervention.description,
+        intervention.technician,
+        intervention.location || 'N/A',
+        `${Math.round(intervention.hoursUsed * 60)} min`
+      ]);
 
-    autoTable(doc, {
-      startY: finalY + 20,
-      head: [['Date', 'Description', 'Technicien', 'Lieu', 'Durée']],
-      body: nonBillableData,
-      theme: 'grid',
-      headStyles: {
-        fillColor: [150, 150, 150],
-        textColor: [255, 255, 255],
-        fontStyle: 'bold',
-        fontSize: 8
-      },
-      bodyStyles: {
-        fillColor: [245, 245, 245],
-        textColor: [100, 100, 100]
-      },
-      styles: {
-        fontSize: 8,
-        cellPadding: 3
-      },
-      columnStyles: {
-        0: { cellWidth: 28 },
-        1: { cellWidth: 65 },
-        2: { cellWidth: 35 },
-        3: { cellWidth: 25 },
-        4: { cellWidth: 22 }
-      }
-    });
+      autoTable(doc, {
+        startY: finalY + 20,
+        head: [['Date', 'Description', 'Technicien', 'Lieu', 'Durée']],
+        body: nonBillableData,
+        theme: 'grid',
+        headStyles: {
+          fillColor: [150, 150, 150],
+          textColor: [255, 255, 255],
+          fontStyle: 'bold',
+          fontSize: 8
+        },
+        bodyStyles: {
+          fillColor: [245, 245, 245],
+          textColor: [100, 100, 100]
+        },
+        styles: {
+          fontSize: 8,
+          cellPadding: 3
+        },
+        columnStyles: {
+          0: { cellWidth: 28 },
+          1: { cellWidth: 65 },
+          2: { cellWidth: 35 },
+          3: { cellWidth: 25 },
+          4: { cellWidth: 22 }
+        }
+      });
+    }
   }
 
   // Footer
