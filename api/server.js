@@ -100,7 +100,7 @@ app.get('/api/contracts', (req, res) => {
 
 app.post('/api/contracts', (req, res) => {
   try {
-    const { clientName, totalHours, contractType } = req.body;
+    const { clientName, clientId, totalHours, contractType, internalNotes } = req.body;
     const id = randomUUID();
     const createdDate = new Date().toISOString();
     const type = contractType || 'signed';
@@ -111,11 +111,11 @@ app.post('/api/contracts', (req, res) => {
     const nextNumber = (maxNumberRow.max_number || 0) + 1;
 
     const stmt = db.prepare(`
-      INSERT INTO contracts (id, contract_number, client_name, total_hours, used_hours, created_date, status, is_archived, contract_type, signed_date)
-      VALUES (?, ?, ?, ?, 0, ?, 'active', 0, ?, ?)
+      INSERT INTO contracts (id, contract_number, client_name, client_id, total_hours, used_hours, created_date, status, is_archived, contract_type, signed_date, internal_notes)
+      VALUES (?, ?, ?, ?, ?, 0, ?, 'active', 0, ?, ?, ?)
     `);
 
-    stmt.run(id, nextNumber, clientName, totalHours, createdDate, type, signedDate);
+    stmt.run(id, nextNumber, clientName, clientId || null, totalHours, createdDate, type, signedDate, internalNotes || null);
 
     res.json({ id, contractNumber: nextNumber, clientName, totalHours, createdDate, contractType: type, signedDate });
   } catch (error) {
@@ -159,14 +159,153 @@ app.patch('/api/contracts/:id/unarchive', (req, res) => {
   }
 });
 
-// Récupérer la liste des noms de clients
+// Routes pour les clients
 app.get('/api/clients', (req, res) => {
   try {
-    const rows = db.prepare('SELECT DISTINCT client_name FROM contracts ORDER BY client_name ASC').all();
-    const clientNames = rows.map(row => row.client_name);
-    res.json(clientNames);
+    const clients = db.prepare(`
+      SELECT c.*,
+        (SELECT COUNT(*) FROM contracts WHERE client_id = c.id AND is_archived = 0) as active_contracts_count,
+        (SELECT COUNT(*) FROM contracts WHERE client_id = c.id AND is_archived = 1) as archived_contracts_count
+      FROM clients c
+      ORDER BY c.name ASC
+    `).all();
+    
+    const clientsWithContacts = clients.map(client => {
+      const contacts = db.prepare('SELECT * FROM contact_persons WHERE client_id = ? ORDER BY name ASC').all(client.id);
+      return {
+        id: client.id,
+        name: client.name,
+        address: client.address,
+        phoneStandard: client.phone_standard,
+        internalNotes: client.internal_notes,
+        createdAt: client.created_at,
+        updatedAt: client.updated_at,
+        activeContractsCount: client.active_contracts_count,
+        archivedContractsCount: client.archived_contracts_count,
+        contacts: contacts.map(c => ({
+          id: c.id,
+          name: c.name,
+          email: c.email,
+          phone: c.phone,
+          createdAt: c.created_at
+        }))
+      };
+    });
+    
+    res.json(clientsWithContacts);
   } catch (error) {
     console.error('Error fetching clients:', error);
+    res.status(500).json({ error: 'Erreur lors du chargement des clients' });
+  }
+});
+
+app.get('/api/clients/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const client = db.prepare('SELECT * FROM clients WHERE id = ?').get(id);
+    
+    if (!client) {
+      return res.status(404).json({ error: 'Client non trouvé' });
+    }
+    
+    const contacts = db.prepare('SELECT * FROM contact_persons WHERE client_id = ? ORDER BY name ASC').all(id);
+    const activeContracts = db.prepare('SELECT COUNT(*) as count FROM contracts WHERE client_id = ? AND is_archived = 0').get(id);
+    const archivedContracts = db.prepare('SELECT COUNT(*) as count FROM contracts WHERE client_id = ? AND is_archived = 1').get(id);
+    
+    res.json({
+      id: client.id,
+      name: client.name,
+      address: client.address,
+      phoneStandard: client.phone_standard,
+      internalNotes: client.internal_notes,
+      createdAt: client.created_at,
+      updatedAt: client.updated_at,
+      activeContractsCount: activeContracts.count,
+      archivedContractsCount: archivedContracts.count,
+      contacts: contacts.map(c => ({
+        id: c.id,
+        name: c.name,
+        email: c.email,
+        phone: c.phone,
+        createdAt: c.created_at
+      }))
+    });
+  } catch (error) {
+    console.error('Error fetching client:', error);
+    res.status(500).json({ error: 'Erreur lors du chargement du client' });
+  }
+});
+
+app.post('/api/clients', (req, res) => {
+  try {
+    const { name, address, phoneStandard, internalNotes, contacts } = req.body;
+    const id = randomUUID();
+    const createdAt = new Date().toISOString();
+    
+    db.prepare(`
+      INSERT INTO clients (id, name, address, phone_standard, internal_notes, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(id, name, address || null, phoneStandard || null, internalNotes || null, createdAt, createdAt);
+    
+    // Ajouter les contacts
+    if (contacts && contacts.length > 0) {
+      const insertContact = db.prepare(`
+        INSERT INTO contact_persons (id, client_id, name, email, phone, created_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `);
+      
+      contacts.forEach(contact => {
+        insertContact.run(randomUUID(), id, contact.name, contact.email || null, contact.phone || null, createdAt);
+      });
+    }
+    
+    res.json({ id, name });
+  } catch (error) {
+    console.error('Error creating client:', error);
+    res.status(500).json({ error: 'Erreur lors de la création du client' });
+  }
+});
+
+app.patch('/api/clients/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, address, phoneStandard, internalNotes, contacts } = req.body;
+    const updatedAt = new Date().toISOString();
+    
+    db.prepare(`
+      UPDATE clients 
+      SET name = ?, address = ?, phone_standard = ?, internal_notes = ?, updated_at = ?
+      WHERE id = ?
+    `).run(name, address || null, phoneStandard || null, internalNotes || null, updatedAt, id);
+    
+    // Supprimer les anciens contacts et ajouter les nouveaux
+    db.prepare('DELETE FROM contact_persons WHERE client_id = ?').run(id);
+    
+    if (contacts && contacts.length > 0) {
+      const insertContact = db.prepare(`
+        INSERT INTO contact_persons (id, client_id, name, email, phone, created_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `);
+      
+      const createdAt = new Date().toISOString();
+      contacts.forEach(contact => {
+        insertContact.run(randomUUID(), id, contact.name, contact.email || null, contact.phone || null, createdAt);
+      });
+    }
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error updating client:', error);
+    res.status(500).json({ error: 'Erreur lors de la mise à jour du client' });
+  }
+});
+
+app.get('/api/clients-list', (req, res) => {
+  try {
+    const clients = db.prepare('SELECT id, name FROM clients ORDER BY name ASC').all();
+    res.json(clients);
+  } catch (error) {
+    console.error('Error fetching clients list:', error);
     res.status(500).json({ error: 'Erreur lors du chargement des clients' });
   }
 });

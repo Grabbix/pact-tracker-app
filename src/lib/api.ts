@@ -93,9 +93,53 @@ export const api = {
     return response.json();
   },
 
-  async getClients(): Promise<string[]> {
+  async getClients() {
     const response = await fetch(`${API_BASE_URL}/api/clients`);
     if (!response.ok) throw new Error('Failed to fetch clients');
+    return response.json();
+  },
+
+  async getClientsList(): Promise<{ id: string; name: string }[]> {
+    const response = await fetch(`${API_BASE_URL}/api/clients-list`);
+    if (!response.ok) throw new Error('Failed to fetch clients list');
+    return response.json();
+  },
+
+  async getClient(id: string) {
+    const response = await fetch(`${API_BASE_URL}/api/clients/${id}`);
+    if (!response.ok) throw new Error('Failed to fetch client');
+    return response.json();
+  },
+
+  async createClient(data: {
+    name: string;
+    address?: string;
+    phoneStandard?: string;
+    internalNotes?: string;
+    contacts?: { name: string; email?: string; phone?: string }[];
+  }) {
+    const response = await fetch(`${API_BASE_URL}/api/clients`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) throw new Error('Failed to create client');
+    return response.json();
+  },
+
+  async updateClient(id: string, data: {
+    name: string;
+    address?: string;
+    phoneStandard?: string;
+    internalNotes?: string;
+    contacts?: { name: string; email?: string; phone?: string }[];
+  }) {
+    const response = await fetch(`${API_BASE_URL}/api/clients/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) throw new Error('Failed to update client');
     return response.json();
   },
 
