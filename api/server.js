@@ -30,7 +30,7 @@ app.get('/api/contracts', (req, res) => {
     const includeArchived = req.query.includeArchived === 'true';
     
     let query = `
-      SELECT c.*, cl.internal_notes as client_internal_notes
+      SELECT c.*, cl.internal_notes as client_internal_notes,
         GROUP_CONCAT(
           json_object(
             'id', i.id,
