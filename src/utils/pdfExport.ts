@@ -5,11 +5,10 @@ import { Contract } from "@/types/contract";
 export const exportContractToPDF = (contract: Contract, includeNonBillable: boolean = true) => {
   const doc = new jsPDF();
 
-  // Logo - Placez votre fichier gigapro.png dans le dossier public/
-  // Ensuite décommentez ces lignes:
+  // Logo
   const logo = new Image();
   logo.src = '/gigapro.png';
-  doc.addImage(logo, 'PNG', 14, 10, 30, 10);
+  doc.addImage(logo, 'PNG', 14, 10, 50, 20);
 
   // Header
   doc.setFontSize(20);
