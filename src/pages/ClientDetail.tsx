@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Building2, Phone, Mail, User, MapPin, Edit, Globe, Shield } from "lucide-react";
+import { ArrowLeft, Building2, Phone, Mail, User, MapPin, Edit, Globe, Shield, Clock, TrendingUp } from "lucide-react";
 import { api } from "@/lib/api";
 import { Client } from "@/types/client";
 import { Contract } from "@/types/contract";
@@ -27,12 +27,12 @@ const ClientDetail = () => {
   const fetchClientData = async () => {
     try {
       setLoading(true);
-      const [clientData, contractsData] = await Promise.all([
+      const [clientData, allContractsData] = await Promise.all([
         api.getClient(id!),
-        api.getContracts()
+        api.getContracts(true) // Include archived
       ]);
       setClient(clientData);
-      setContracts(contractsData.filter(c => c.clientId === id));
+      setContracts(allContractsData.filter(c => c.clientId === id));
     } catch (error) {
       console.error("Error fetching client data:", error);
       toast.error("Erreur lors du chargement des données");
@@ -56,8 +56,23 @@ const ClientDetail = () => {
     );
   }
 
-  const activeContracts = contracts.filter(c => !c.isArchived);
+  const activeContracts = contracts.filter(c => !c.isArchived && c.contractType !== "quote");
+  const quoteContracts = contracts.filter(c => !c.isArchived && c.contractType === "quote");
   const archivedContracts = contracts.filter(c => c.isArchived);
+
+  // Statistiques
+  const currentYear = new Date().getFullYear();
+  
+  // All time stats
+  const totalHoursSold = contracts.reduce((acc, c) => acc + c.totalHours, 0);
+  const totalHoursUsed = contracts.reduce((acc, c) => acc + c.usedHours, 0);
+  
+  // Current year stats
+  const currentYearContracts = contracts.filter(c => 
+    new Date(c.createdDate).getFullYear() === currentYear
+  );
+  const currentYearHoursSold = currentYearContracts.reduce((acc, c) => acc + c.totalHours, 0);
+  const currentYearHoursUsed = currentYearContracts.reduce((acc, c) => acc + c.usedHours, 0);
 
   return (
     <div className="min-h-screen bg-background">
@@ -199,14 +214,63 @@ const ClientDetail = () => {
           </Card>
         )}
 
+        {/* Statistiques */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Heures vendues (total)</CardTitle>
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{totalHoursSold}h</div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Heures utilisées (total)</CardTitle>
+              <Clock className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{totalHoursUsed}h</div>
+              <p className="text-xs text-muted-foreground">
+                {totalHoursSold > 0 ? Math.round((totalHoursUsed / totalHoursSold) * 100) : 0}% utilisé
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Heures vendues ({currentYear})</CardTitle>
+              <TrendingUp className="h-4 w-4 text-primary" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{currentYearHoursSold}h</div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Heures utilisées ({currentYear})</CardTitle>
+              <Clock className="h-4 w-4 text-primary" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{currentYearHoursUsed}h</div>
+              <p className="text-xs text-muted-foreground">
+                {currentYearHoursSold > 0 ? Math.round((currentYearHoursUsed / currentYearHoursSold) * 100) : 0}% utilisé
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+
         {/* Contrats actifs */}
         <Card className="mb-6">
           <CardHeader>
-            <CardTitle>Contrats actifs ({activeContracts.length})</CardTitle>
+            <CardTitle>Contrats signés ({activeContracts.length})</CardTitle>
           </CardHeader>
           <CardContent>
             {activeContracts.length === 0 ? (
-              <p className="text-muted-foreground text-center py-4">Aucun contrat actif</p>
+              <p className="text-muted-foreground text-center py-4">Aucun contrat signé</p>
             ) : (
               <div className="space-y-2">
                 {activeContracts.map((contract) => (
@@ -231,6 +295,37 @@ const ClientDetail = () => {
             )}
           </CardContent>
         </Card>
+
+        {/* Devis */}
+        {quoteContracts.length > 0 && (
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle>Devis ({quoteContracts.length})</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {quoteContracts.map((contract) => (
+                  <div
+                    key={contract.id}
+                    onClick={() => navigate(`/contracts/${contract.id}`)}
+                    className="p-4 border border-warning/50 rounded-lg hover:shadow-md transition-shadow cursor-pointer bg-warning/5"
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="font-medium">{contract.clientName}</h3>
+                      <Badge variant="outline" className="border-warning text-warning">
+                        Devis
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                      <span>Créé le {format(new Date(contract.createdDate), "dd MMMM yyyy", { locale: fr })}</span>
+                      <span>{contract.totalHours}h</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Contrats archivés */}
         {archivedContracts.length > 0 && (
