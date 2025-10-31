@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Building2, Search, ArrowLeft, Plus, Phone, Mail, User, MapPin } from "lucide-react";
+import { Building2, Search, ArrowLeft, Plus, Phone, Mail, User, MapPin, Edit } from "lucide-react";
 import { api } from "@/lib/api";
 import { Client } from "@/types/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -409,11 +409,23 @@ const Clients = () => {
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {filteredClients.map((client) => (
-              <Card key={client.id} className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => handleOpenDialog(client)}>
+              <Card key={client.id} className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => navigate(`/clients/${client.id}`)}>
                 <CardHeader>
                   <CardTitle className="flex items-center justify-between">
                     <span className="truncate">{client.name}</span>
-                    <Building2 className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenDialog(client);
+                        }}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Building2 className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                    </div>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
