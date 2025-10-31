@@ -4,7 +4,7 @@ import { AddContractDialog } from "@/components/AddContractDialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, FileText, Archive, Download, ArrowLeft, CheckCircle } from "lucide-react";
+import { Search, FileText, Archive, Download, ArrowLeft, CheckCircle, TrendingUp } from "lucide-react";
 import { useContracts } from "@/hooks/useContracts";
 import { useNavigate } from "react-router-dom";
 import { exportContractToPDF } from "@/utils/pdfExport";
@@ -88,6 +88,14 @@ const Contracts = () => {
               </p>
             </div>
             <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => navigate("/dashboard")}
+                className="gap-2"
+              >
+                <TrendingUp className="h-4 w-4" />
+                Dashboard
+              </Button>
               <Button
                 variant="outline"
                 onClick={() => navigate("/archives")}
