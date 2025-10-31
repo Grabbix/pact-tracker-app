@@ -73,6 +73,11 @@ const ContractDetail = () => {
 
   const percentage = (contract.usedHours / contract.totalHours) * 100;
   const remainingHours = contract.totalHours - contract.usedHours;
+  
+  // Calculate total non-billable minutes
+  const totalNonBillableMinutes = contract.interventions
+    .filter(i => i.isBillable === false)
+    .reduce((acc, i) => acc + (i.hoursUsed * 60), 0);
 
   const handleAddIntervention = (newIntervention: Omit<Intervention, "id">) => {
     if (id) {
@@ -175,7 +180,7 @@ const ContractDetail = () => {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
           <Card className="p-6">
             <div className="flex items-center justify-between mb-2">
               <p className="text-sm text-muted-foreground">Heures totales</p>
@@ -198,6 +203,14 @@ const ContractDetail = () => {
               <Clock className="h-5 w-5 text-success" />
             </div>
             <p className="text-3xl font-bold text-success">{remainingHours.toFixed(1)}h</p>
+          </Card>
+
+          <Card className="p-6">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm text-muted-foreground">Total non compté</p>
+              <Clock className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <p className="text-3xl font-bold text-muted-foreground">{totalNonBillableMinutes.toFixed(0)} min</p>
           </Card>
 
           <Card className="p-6">
