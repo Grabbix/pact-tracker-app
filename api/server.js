@@ -385,6 +385,17 @@ app.get('/api/clients-list', (req, res) => {
   }
 });
 
+// Get list of unique technicians
+app.get('/api/technicians-list', (req, res) => {
+  try {
+    const technicians = db.prepare('SELECT DISTINCT technician FROM interventions ORDER BY technician ASC').all();
+    res.json(technicians.map(t => t.technician));
+  } catch (error) {
+    console.error('Error fetching technicians list:', error);
+    res.status(500).json({ error: 'Erreur lors du chargement des techniciens' });
+  }
+});
+
 // Signer un devis (le transformer en contrat signé)
 app.patch('/api/contracts/:id/sign', (req, res) => {
   try {

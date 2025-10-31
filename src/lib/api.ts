@@ -178,4 +178,10 @@ export const api = {
     if (!response.ok) throw new Error('Failed to sign contract');
     return response.json();
   },
+
+  async getTechniciansList(): Promise<string[]> {
+    const response = await fetch(`${API_BASE_URL}/api/technicians-list`);
+    if (!response.ok) throw new Error('Failed to fetch technicians list');
+    return response.json();
+  },
 };
