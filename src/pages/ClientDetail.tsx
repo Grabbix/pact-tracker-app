@@ -10,6 +10,16 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 const ClientDetail = () => {
   const { id } = useParams();
@@ -17,6 +27,8 @@ const ClientDetail = () => {
   const [client, setClient] = useState<Client | null>(null);
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editedName, setEditedName] = useState("");
 
   useEffect(() => {
     if (id) {
@@ -38,6 +50,29 @@ const ClientDetail = () => {
       toast.error("Erreur lors du chargement des données");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleEditClick = () => {
+    setEditedName(client?.name || "");
+    setIsEditDialogOpen(true);
+  };
+
+  const handleSaveClientName = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editedName.trim() || !id) {
+      toast.error("Le nom du client ne peut pas être vide");
+      return;
+    }
+
+    try {
+      await api.updateClient(id, { ...client!, name: editedName });
+      toast.success("Nom du client modifié avec succès");
+      fetchClientData();
+      setIsEditDialogOpen(false);
+    } catch (error) {
+      console.error("Error updating client name:", error);
+      toast.error("Erreur lors de la modification du nom");
     }
   };
 
@@ -77,14 +112,20 @@ const ClientDetail = () => {
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto p-6 max-w-7xl">
-        <div className="flex items-center gap-4 mb-8">
-          <Button variant="ghost" onClick={() => navigate("/clients")}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <div className="flex items-center gap-2">
-            <Building2 className="h-8 w-8 text-primary" />
-            <h1 className="text-3xl font-bold">{client.name}</h1>
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" onClick={() => navigate("/clients")}>
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <div className="flex items-center gap-2">
+              <Building2 className="h-8 w-8 text-primary" />
+              <h1 className="text-3xl font-bold">{client.name}</h1>
+            </div>
           </div>
+          <Button variant="outline" onClick={handleEditClick}>
+            <Edit className="h-4 w-4 mr-2" />
+            Modifier
+          </Button>
         </div>
 
         <div className="grid gap-6 md:grid-cols-2 mb-6">
@@ -356,6 +397,36 @@ const ClientDetail = () => {
           </Card>
         )}
       </div>
+
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Modifier le nom du client</DialogTitle>
+            <DialogDescription>
+              Modifiez le nom du client
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSaveClientName}>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="name">Nom du client</Label>
+                <Input
+                  id="name"
+                  value={editedName}
+                  onChange={(e) => setEditedName(e.target.value)}
+                  placeholder="Nom du client"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                Annuler
+              </Button>
+              <Button type="submit">Enregistrer</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
