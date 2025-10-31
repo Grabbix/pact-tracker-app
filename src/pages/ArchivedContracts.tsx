@@ -35,11 +35,11 @@ const ArchivedContracts = () => {
             </div>
             <Button
               variant="outline"
-              onClick={() => navigate("/")}
+              onClick={() => navigate("/contracts")}
               className="gap-2"
             >
               <ArrowLeft className="h-4 w-4" />
-              Retour
+              Retour aux contrats
             </Button>
           </div>
         </div>

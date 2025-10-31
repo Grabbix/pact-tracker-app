@@ -33,6 +33,7 @@ interface AddContractDialogProps {
   onAdd: (contract: {
     clientName: string;
     totalHours: number;
+    contractType: "quote" | "signed";
   }) => void;
 }
 
@@ -40,6 +41,7 @@ export const AddContractDialog = ({ onAdd }: AddContractDialogProps) => {
   const [open, setOpen] = useState(false);
   const [comboOpen, setComboOpen] = useState(false);
   const [clients, setClients] = useState<string[]>([]);
+  const [contractType, setContractType] = useState<"quote" | "signed">("signed");
   const [formData, setFormData] = useState({
     clientName: "",
     totalHours: "",
@@ -68,13 +70,15 @@ export const AddContractDialog = ({ onAdd }: AddContractDialogProps) => {
     onAdd({
       clientName: formData.clientName,
       totalHours: parseFloat(formData.totalHours),
+      contractType,
     });
 
-    toast.success("Contrat créé avec succès");
+    toast.success(contractType === "quote" ? "Devis créé avec succès" : "Contrat créé avec succès");
     setFormData({
       clientName: "",
       totalHours: "",
     });
+    setContractType("signed");
     setOpen(false);
   };
 
@@ -90,11 +94,32 @@ export const AddContractDialog = ({ onAdd }: AddContractDialogProps) => {
         <DialogHeader>
           <DialogTitle>Nouveau contrat de maintenance</DialogTitle>
           <DialogDescription>
-            Créez un nouveau contrat pour un client
+            Créez un nouveau contrat ou devis pour un client
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
           <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label>Type</Label>
+              <div className="flex gap-4">
+                <Button
+                  type="button"
+                  variant={contractType === "signed" ? "default" : "outline"}
+                  onClick={() => setContractType("signed")}
+                  className="flex-1"
+                >
+                  Contrat signé
+                </Button>
+                <Button
+                  type="button"
+                  variant={contractType === "quote" ? "default" : "outline"}
+                  onClick={() => setContractType("quote")}
+                  className="flex-1"
+                >
+                  Devis
+                </Button>
+              </div>
+            </div>
             <div className="grid gap-2">
               <Label htmlFor="clientName">Nom du client</Label>
               <Popover open={comboOpen} onOpenChange={setComboOpen}>

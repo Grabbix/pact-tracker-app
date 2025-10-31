@@ -9,7 +9,7 @@ export const api = {
     return response.json();
   },
 
-  async createContract(data: { clientName: string; totalHours: number }) {
+  async createContract(data: { clientName: string; totalHours: number; contractType?: "quote" | "signed" }) {
     const response = await fetch(`${API_BASE_URL}/api/contracts`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -106,6 +106,14 @@ export const api = {
       body: JSON.stringify({ clientName }),
     });
     if (!response.ok) throw new Error('Failed to update client name');
+    return response.json();
+  },
+
+  async signContract(id: string) {
+    const response = await fetch(`${API_BASE_URL}/api/contracts/${id}/sign`, {
+      method: 'PATCH',
+    });
+    if (!response.ok) throw new Error('Failed to sign contract');
     return response.json();
   },
 };

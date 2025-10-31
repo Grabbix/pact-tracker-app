@@ -17,4 +17,6 @@ export interface Contract {
   status: "active" | "expired" | "near-expiry";
   interventions: Intervention[];
   isArchived?: boolean;
+  contractType?: "quote" | "signed";
+  signedDate?: string;
 }

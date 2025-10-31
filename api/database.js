@@ -13,7 +13,9 @@ db.exec(`
     created_date TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'active',
     is_archived INTEGER DEFAULT 0,
-    archived_at TEXT
+    archived_at TEXT,
+    contract_type TEXT NOT NULL DEFAULT 'signed',
+    signed_date TEXT
   );
 
   CREATE TABLE IF NOT EXISTS interventions (

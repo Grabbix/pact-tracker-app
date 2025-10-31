@@ -84,6 +84,8 @@ app.get('/api/contracts', (req, res) => {
         createdDate: row.created_date,
         status: row.status,
         isArchived: row.is_archived === 1,
+        contractType: row.contract_type || 'signed',
+        signedDate: row.signed_date,
         interventions,
       };
     });
@@ -97,18 +99,20 @@ app.get('/api/contracts', (req, res) => {
 
 app.post('/api/contracts', (req, res) => {
   try {
-    const { clientName, totalHours } = req.body;
+    const { clientName, totalHours, contractType } = req.body;
     const id = randomUUID();
     const createdDate = new Date().toISOString();
+    const type = contractType || 'signed';
+    const signedDate = type === 'signed' ? createdDate : null;
 
     const stmt = db.prepare(`
-      INSERT INTO contracts (id, client_name, total_hours, used_hours, created_date, status, is_archived)
-      VALUES (?, ?, ?, 0, ?, 'active', 0)
+      INSERT INTO contracts (id, client_name, total_hours, used_hours, created_date, status, is_archived, contract_type, signed_date)
+      VALUES (?, ?, ?, 0, ?, 'active', 0, ?, ?)
     `);
 
-    stmt.run(id, clientName, totalHours, createdDate);
+    stmt.run(id, clientName, totalHours, createdDate, type, signedDate);
 
-    res.json({ id, clientName, totalHours, createdDate });
+    res.json({ id, clientName, totalHours, createdDate, contractType: type, signedDate });
   } catch (error) {
     console.error('Error adding contract:', error);
     res.status(500).json({ error: 'Erreur lors de la création du contrat' });
@@ -159,6 +163,25 @@ app.get('/api/clients', (req, res) => {
   } catch (error) {
     console.error('Error fetching clients:', error);
     res.status(500).json({ error: 'Erreur lors du chargement des clients' });
+  }
+});
+
+// Signer un devis (le transformer en contrat signé)
+app.patch('/api/contracts/:id/sign', (req, res) => {
+  try {
+    const { id } = req.params;
+    const signedDate = new Date().toISOString();
+
+    const stmt = db.prepare(`
+      UPDATE contracts SET contract_type = 'signed', signed_date = ? WHERE id = ?
+    `);
+
+    stmt.run(signedDate, id);
+
+    res.json({ success: true, signedDate });
+  } catch (error) {
+    console.error('Error signing contract:', error);
+    res.status(500).json({ error: 'Erreur lors de la signature du contrat' });
   }
 });
 

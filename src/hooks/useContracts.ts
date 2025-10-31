@@ -24,10 +24,10 @@ export const useContracts = (includeArchived: boolean = false) => {
     fetchContracts();
   }, [includeArchived]);
 
-  const addContract = async (newContract: { clientName: string; totalHours: number }) => {
+  const addContract = async (newContract: { clientName: string; totalHours: number; contractType?: "quote" | "signed" }) => {
     try {
       const data = await api.createContract(newContract);
-      toast.success("Contrat créé avec succès");
+      toast.success(newContract.contractType === "quote" ? "Devis créé avec succès" : "Contrat créé avec succès");
       await fetchContracts();
       return data;
     } catch (error: any) {
@@ -129,6 +129,17 @@ export const useContracts = (includeArchived: boolean = false) => {
     }
   };
 
+  const signContract = async (contractId: string) => {
+    try {
+      await api.signContract(contractId);
+      toast.success("Devis signé avec succès");
+      await fetchContracts();
+    } catch (error: any) {
+      console.error("Error signing contract:", error);
+      toast.error("Erreur lors de la signature du devis");
+    }
+  };
+
   const getContract = (id: string) => {
     return contracts.find((c) => c.id === id);
   };
@@ -144,6 +155,7 @@ export const useContracts = (includeArchived: boolean = false) => {
     unarchiveContract,
     renewContract,
     updateClientName,
+    signContract,
     getContract,
     refetch: fetchContracts,
   };

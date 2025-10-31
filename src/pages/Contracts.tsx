@@ -3,7 +3,8 @@ import { ContractCard } from "@/components/ContractCard";
 import { AddContractDialog } from "@/components/AddContractDialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, FileText, Archive, Download } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Search, FileText, Archive, Download, ArrowLeft, CheckCircle } from "lucide-react";
 import { useContracts } from "@/hooks/useContracts";
 import { useNavigate } from "react-router-dom";
 import { exportContractToPDF } from "@/utils/pdfExport";
@@ -11,31 +12,44 @@ import { exportAllContractsToExcelBackup } from "@/utils/excelExport";
 import { toast } from "sonner";
 
 const Contracts = () => {
-  const { contracts, addContract, loading } = useContracts();
+  const { contracts, addContract, signContract, loading } = useContracts();
   const [searchQuery, setSearchQuery] = useState("");
   const [filterNearExpiry, setFilterNearExpiry] = useState(false);
   const navigate = useNavigate();
 
-  // Contracts near expiry: used >= 90%
-  const nearExpiryContracts = contracts.filter(
+  // Filter by contract type
+  const signedContracts = contracts.filter(c => c.contractType !== "quote");
+  const quoteContracts = contracts.filter(c => c.contractType === "quote");
+
+  // Contracts near expiry: used >= 90% (only signed contracts)
+  const nearExpiryContracts = signedContracts.filter(
     c => (c.usedHours / c.totalHours) >= 0.9
   );
 
-  const filteredContracts = contracts.filter(contract => {
-    const matchesSearch = contract.clientName.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesFilter = !filterNearExpiry || (contract.usedHours / contract.totalHours) >= 0.9;
-    return matchesSearch && matchesFilter;
-  });
+  const filterContractsBySearch = (contractList: typeof contracts) => {
+    return contractList.filter(contract => {
+      const matchesSearch = contract.clientName.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesFilter = !filterNearExpiry || (contract.usedHours / contract.totalHours) >= 0.9;
+      return matchesSearch && matchesFilter;
+    });
+  };
 
-  const handleAddContract = (newContract: { clientName: string; totalHours: number }) => {
+  const filteredSignedContracts = filterContractsBySearch(signedContracts);
+  const filteredQuoteContracts = filterContractsBySearch(quoteContracts);
+
+  const handleAddContract = (newContract: { clientName: string; totalHours: number; contractType: "quote" | "signed" }) => {
     addContract(newContract);
   };
 
+  const handleSignQuote = (quoteId: string) => {
+    signContract(quoteId);
+  };
+
   const handleExportAllPDF = () => {
-    contracts.forEach(contract => {
+    signedContracts.forEach(contract => {
       exportContractToPDF(contract);
     });
-    toast.success(`${contracts.length} PDF(s) exporté(s) avec succès`);
+    toast.success(`${signedContracts.length} PDF(s) exporté(s) avec succès`);
   };
 
   const handleExportAllExcel = async () => {
@@ -52,6 +66,15 @@ const Contracts = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
+          <Button
+            variant="ghost"
+            onClick={() => navigate("/")}
+            className="mb-4"
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Retour à l'accueil
+          </Button>
+          
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <div className="flex items-center gap-3 mb-2">
@@ -109,13 +132,13 @@ const Contracts = () => {
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
           <div className="bg-card p-4 rounded-lg border border-border">
-            <p className="text-sm text-muted-foreground mb-1">Total contrats</p>
-            <p className="text-3xl font-bold text-foreground">{contracts.length}</p>
+            <p className="text-sm text-muted-foreground mb-1">Total contrats signés</p>
+            <p className="text-3xl font-bold text-foreground">{signedContracts.length}</p>
           </div>
           <div className="bg-card p-4 rounded-lg border border-border">
             <p className="text-sm text-muted-foreground mb-1">Contrats actifs</p>
             <p className="text-3xl font-bold text-success">
-              {contracts.filter(c => c.status === "active").length}
+              {signedContracts.filter(c => c.status === "active").length}
             </p>
           </div>
           <div 
@@ -131,30 +154,79 @@ const Contracts = () => {
           </div>
         </div>
 
-        {/* Contracts Grid */}
-        {loading ? (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground text-lg">Chargement...</p>
-          </div>
-        ) : (
-          <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredContracts.map((contract) => (
-                <ContractCard key={contract.id} contract={contract} />
-              ))}
-            </div>
+        {/* Tabs for Contracts and Quotes */}
+        <Tabs defaultValue="contracts" className="w-full">
+          <TabsList>
+            <TabsTrigger value="contracts">
+              Contrats ({signedContracts.length})
+            </TabsTrigger>
+            <TabsTrigger value="quotes">
+              Devis ({quoteContracts.length})
+            </TabsTrigger>
+          </TabsList>
 
-            {filteredContracts.length === 0 && !loading && (
+          <TabsContent value="contracts">
+            {loading ? (
               <div className="text-center py-12">
-                <p className="text-muted-foreground text-lg">
-                  {searchQuery
-                    ? `Aucun contrat trouvé pour "${searchQuery}"`
-                    : "Aucun contrat actif"}
-                </p>
+                <p className="text-muted-foreground text-lg">Chargement...</p>
               </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
+                  {filteredSignedContracts.map((contract) => (
+                    <ContractCard key={contract.id} contract={contract} />
+                  ))}
+                </div>
+
+                {filteredSignedContracts.length === 0 && !loading && (
+                  <div className="text-center py-12">
+                    <p className="text-muted-foreground text-lg">
+                      {searchQuery
+                        ? `Aucun contrat trouvé pour "${searchQuery}"`
+                        : "Aucun contrat signé"}
+                    </p>
+                  </div>
+                )}
+              </>
             )}
-          </>
-        )}
+          </TabsContent>
+
+          <TabsContent value="quotes">
+            {loading ? (
+              <div className="text-center py-12">
+                <p className="text-muted-foreground text-lg">Chargement...</p>
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
+                  {filteredQuoteContracts.map((quote) => (
+                    <div key={quote.id} className="relative">
+                      <ContractCard contract={quote} />
+                      <Button
+                        onClick={() => handleSignQuote(quote.id)}
+                        className="absolute top-4 right-4 gap-2"
+                        size="sm"
+                      >
+                        <CheckCircle className="h-4 w-4" />
+                        Signer
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+
+                {filteredQuoteContracts.length === 0 && !loading && (
+                  <div className="text-center py-12">
+                    <p className="text-muted-foreground text-lg">
+                      {searchQuery
+                        ? `Aucun devis trouvé pour "${searchQuery}"`
+                        : "Aucun devis"}
+                    </p>
+                  </div>
+                )}
+              </>
+            )}
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
