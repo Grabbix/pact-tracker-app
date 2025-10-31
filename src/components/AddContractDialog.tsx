@@ -32,6 +32,7 @@ import { cn } from "@/lib/utils";
 interface AddContractDialogProps {
   onAdd: (contract: {
     clientName: string;
+    clientId?: string;
     totalHours: number;
     contractType: "quote" | "signed";
   }) => void;
@@ -40,10 +41,11 @@ interface AddContractDialogProps {
 export const AddContractDialog = ({ onAdd }: AddContractDialogProps) => {
   const [open, setOpen] = useState(false);
   const [comboOpen, setComboOpen] = useState(false);
-  const [clients, setClients] = useState<string[]>([]);
+  const [clients, setClients] = useState<{ id: string; name: string }[]>([]);
   const [contractType, setContractType] = useState<"quote" | "signed">("signed");
   const [formData, setFormData] = useState({
     clientName: "",
+    clientId: "",
     totalHours: "",
   });
 
@@ -51,7 +53,7 @@ export const AddContractDialog = ({ onAdd }: AddContractDialogProps) => {
     const fetchClients = async () => {
       try {
         const data = await api.getClientsList();
-        setClients(data.map(c => c.name));
+        setClients(data);
       } catch (error) {
         console.error("Error fetching clients:", error);
       }
@@ -69,6 +71,7 @@ export const AddContractDialog = ({ onAdd }: AddContractDialogProps) => {
 
     onAdd({
       clientName: formData.clientName,
+      clientId: formData.clientId || undefined,
       totalHours: parseFloat(formData.totalHours),
       contractType,
     });
@@ -76,6 +79,7 @@ export const AddContractDialog = ({ onAdd }: AddContractDialogProps) => {
     toast.success(contractType === "quote" ? "Devis créé avec succès" : "Contrat créé avec succès");
     setFormData({
       clientName: "",
+      clientId: "",
       totalHours: "",
     });
     setContractType("signed");
@@ -150,24 +154,24 @@ export const AddContractDialog = ({ onAdd }: AddContractDialogProps) => {
                       <CommandGroup>
                         {clients
                           .filter((client) =>
-                            client.toLowerCase().includes(formData.clientName.toLowerCase())
+                            client.name.toLowerCase().includes(formData.clientName.toLowerCase())
                           )
                           .map((client) => (
                             <CommandItem
-                              key={client}
-                              value={client}
+                              key={client.id}
+                              value={client.name}
                               onSelect={() => {
-                                setFormData({ ...formData, clientName: client });
+                                setFormData({ ...formData, clientName: client.name, clientId: client.id });
                                 setComboOpen(false);
                               }}
                             >
                               <Check
                                 className={cn(
                                   "mr-2 h-4 w-4",
-                                  formData.clientName === client ? "opacity-100" : "opacity-0"
+                                  formData.clientName === client.name ? "opacity-100" : "opacity-0"
                                 )}
                               />
-                              {client}
+                              {client.name}
                             </CommandItem>
                           ))}
                       </CommandGroup>

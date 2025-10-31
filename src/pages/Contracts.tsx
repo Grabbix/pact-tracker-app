@@ -37,7 +37,7 @@ const Contracts = () => {
   const filteredSignedContracts = filterContractsBySearch(signedContracts);
   const filteredQuoteContracts = filterContractsBySearch(quoteContracts);
 
-  const handleAddContract = (newContract: { clientName: string; totalHours: number; contractType: "quote" | "signed" }) => {
+  const handleAddContract = (newContract: { clientName: string; clientId?: string; totalHours: number; contractType: "quote" | "signed" }) => {
     addContract(newContract);
   };
 

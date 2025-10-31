@@ -24,7 +24,7 @@ export const useContracts = (includeArchived: boolean = false) => {
     fetchContracts();
   }, [includeArchived]);
 
-  const addContract = async (newContract: { clientName: string; totalHours: number; contractType?: "quote" | "signed" }) => {
+  const addContract = async (newContract: { clientName: string; clientId?: string; totalHours: number; contractType?: "quote" | "signed" }) => {
     try {
       const data = await api.createContract(newContract);
       toast.success(newContract.contractType === "quote" ? "Devis créé avec succès" : "Contrat créé avec succès");
