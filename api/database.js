@@ -7,6 +7,7 @@ const db = new Database(path.join(__dirname, 'data', 'app.db'));
 db.exec(`
   CREATE TABLE IF NOT EXISTS contracts (
     id TEXT PRIMARY KEY,
+    contract_number INTEGER,
     client_name TEXT NOT NULL,
     total_hours REAL NOT NULL,
     used_hours REAL NOT NULL DEFAULT 0,

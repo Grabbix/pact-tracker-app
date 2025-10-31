@@ -68,7 +68,7 @@ export const ContractCard = ({ contract, isArchived = false }: ContractCardProps
             </Button>
           </div>
           <p className="text-sm text-muted-foreground">
-            Contrat #{contract.id}
+            {contract.contractNumber ? `Contrat #CT-${String(contract.contractNumber).padStart(4, '0')}` : `Contrat #${contract.id}`}
           </p>
         </div>
         <div className="flex items-center gap-2">

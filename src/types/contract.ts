@@ -10,6 +10,7 @@ export interface Intervention {
 
 export interface Contract {
   id: string;
+  contractNumber?: number;
   clientName: string;
   totalHours: number;
   usedHours: number;

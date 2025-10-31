@@ -78,6 +78,7 @@ app.get('/api/contracts', (req, res) => {
 
       return {
         id: row.id,
+        contractNumber: row.contract_number,
         clientName: row.client_name,
         totalHours: row.total_hours,
         usedHours: row.used_hours,
@@ -105,14 +106,18 @@ app.post('/api/contracts', (req, res) => {
     const type = contractType || 'signed';
     const signedDate = type === 'signed' ? createdDate : null;
 
+    // Get the next contract number
+    const maxNumberRow = db.prepare('SELECT MAX(contract_number) as max_number FROM contracts').get();
+    const nextNumber = (maxNumberRow.max_number || 0) + 1;
+
     const stmt = db.prepare(`
-      INSERT INTO contracts (id, client_name, total_hours, used_hours, created_date, status, is_archived, contract_type, signed_date)
-      VALUES (?, ?, ?, 0, ?, 'active', 0, ?, ?)
+      INSERT INTO contracts (id, contract_number, client_name, total_hours, used_hours, created_date, status, is_archived, contract_type, signed_date)
+      VALUES (?, ?, ?, ?, 0, ?, 'active', 0, ?, ?)
     `);
 
-    stmt.run(id, clientName, totalHours, createdDate, type, signedDate);
+    stmt.run(id, nextNumber, clientName, totalHours, createdDate, type, signedDate);
 
-    res.json({ id, clientName, totalHours, createdDate, contractType: type, signedDate });
+    res.json({ id, contractNumber: nextNumber, clientName, totalHours, createdDate, contractType: type, signedDate });
   } catch (error) {
     console.error('Error adding contract:', error);
     res.status(500).json({ error: 'Erreur lors de la création du contrat' });

@@ -140,7 +140,7 @@ const ContractDetail = () => {
                 </Button>
               </div>
               <p className="text-muted-foreground text-lg">
-                Contrat #{contract.id}
+                {contract.contractNumber ? `Contrat #CT-${String(contract.contractNumber).padStart(4, '0')}` : `Contrat #${contract.id}`}
               </p>
             </div>
             <div className="flex gap-3">
