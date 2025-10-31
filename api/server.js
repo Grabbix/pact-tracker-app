@@ -110,6 +110,26 @@ app.post('/api/contracts', (req, res) => {
     const type = contractType || 'signed';
     const signedDate = type === 'signed' ? createdDate : null;
 
+    let finalClientId = clientId;
+
+    // Si pas de clientId fourni, chercher ou créer le client
+    if (!finalClientId && clientName) {
+      // Vérifier si un client avec ce nom existe déjà
+      const existingClient = db.prepare('SELECT id FROM clients WHERE name = ?').get(clientName);
+      
+      if (existingClient) {
+        finalClientId = existingClient.id;
+      } else {
+        // Créer un nouveau client
+        const newClientId = randomUUID();
+        db.prepare(`
+          INSERT INTO clients (id, name, created_at, updated_at)
+          VALUES (?, ?, ?, ?)
+        `).run(newClientId, clientName, createdDate, createdDate);
+        finalClientId = newClientId;
+      }
+    }
+
     // Get the next contract number
     const maxNumberRow = db.prepare('SELECT MAX(contract_number) as max_number FROM contracts').get();
     const nextNumber = (maxNumberRow.max_number || 0) + 1;
@@ -119,7 +139,7 @@ app.post('/api/contracts', (req, res) => {
       VALUES (?, ?, ?, ?, ?, 0, ?, 'active', 0, ?, ?, ?)
     `);
 
-    stmt.run(id, nextNumber, clientName, clientId || null, totalHours, createdDate, type, signedDate, internalNotes || null);
+    stmt.run(id, nextNumber, clientName, finalClientId || null, totalHours, createdDate, type, signedDate, internalNotes || null);
 
     res.json({ id, contractNumber: nextNumber, clientName, totalHours, createdDate, contractType: type, signedDate });
   } catch (error) {
