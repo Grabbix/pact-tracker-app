@@ -420,13 +420,27 @@ const Clients = () => {
                   {client.address && (
                     <div className="flex items-start gap-2 text-sm">
                       <MapPin className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-                      <span className="text-muted-foreground">{client.address}</span>
+                      <a 
+                        href={`https://maps.google.com/?q=${encodeURIComponent(client.address)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-muted-foreground hover:underline hover:text-foreground transition-colors"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {client.address}
+                      </a>
                     </div>
                   )}
                   {client.phoneStandard && (
                     <div className="flex items-center gap-2 text-sm">
                       <Phone className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                      <span className="text-muted-foreground">{client.phoneStandard}</span>
+                      <a 
+                        href={`tel:${client.phoneStandard}`}
+                        className="text-muted-foreground hover:underline hover:text-foreground transition-colors"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {client.phoneStandard}
+                      </a>
                     </div>
                   )}
                   {client.contacts.length > 0 && (
@@ -441,13 +455,25 @@ const Clients = () => {
                           {contact.email && (
                             <div className="flex items-center gap-2 text-xs ml-5">
                               <Mail className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                              <span className="truncate text-muted-foreground">{contact.email}</span>
+                              <a 
+                                href={`mailto:${contact.email}`}
+                                className="truncate text-muted-foreground hover:underline hover:text-foreground transition-colors"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                {contact.email}
+                              </a>
                             </div>
                           )}
                           {contact.phone && (
                             <div className="flex items-center gap-2 text-xs ml-5">
                               <Phone className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                              <span className="truncate text-muted-foreground">{contact.phone}</span>
+                              <a 
+                                href={`tel:${contact.phone}`}
+                                className="truncate text-muted-foreground hover:underline hover:text-foreground transition-colors"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                {contact.phone}
+                              </a>
                             </div>
                           )}
                         </div>
