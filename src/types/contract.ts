@@ -12,6 +12,7 @@ export interface Contract {
   id: string;
   contractNumber?: number;
   clientName: string;
+  clientId?: string;
   totalHours: number;
   usedHours: number;
   createdDate: string;
@@ -20,4 +21,6 @@ export interface Contract {
   isArchived?: boolean;
   contractType?: "quote" | "signed";
   signedDate?: string;
+  internalNotes?: string;
+  clientInternalNotes?: string;
 }

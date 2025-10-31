@@ -24,6 +24,15 @@ const Clients = () => {
     address: "",
     phoneStandard: "",
     internalNotes: "",
+    fai: "",
+    domains: [] as string[],
+    emailType: "",
+    mailinblack: false,
+    arx: false,
+    arxQuota: "",
+    eset: false,
+    esetVersion: "",
+    fortinet: false,
     contacts: [{ name: "", email: "", phone: "" } as { name: string; email?: string; phone?: string }]
   });
 
@@ -56,6 +65,15 @@ const Clients = () => {
         address: client.address || "",
         phoneStandard: client.phoneStandard || "",
         internalNotes: client.internalNotes || "",
+        fai: client.fai || "",
+        domains: client.domains || [],
+        emailType: client.emailType || "",
+        mailinblack: client.mailinblack || false,
+        arx: client.arx || false,
+        arxQuota: client.arxQuota || "",
+        eset: client.eset || false,
+        esetVersion: client.esetVersion || "",
+        fortinet: client.fortinet || false,
         contacts: client.contacts.length > 0 ? client.contacts.map(c => ({ name: c.name, email: c.email, phone: c.phone })) : [{ name: "", email: "", phone: "" }]
       });
     } else {
@@ -65,6 +83,15 @@ const Clients = () => {
         address: "",
         phoneStandard: "",
         internalNotes: "",
+        fai: "",
+        domains: [],
+        emailType: "",
+        mailinblack: false,
+        arx: false,
+        arxQuota: "",
+        eset: false,
+        esetVersion: "",
+        fortinet: false,
         contacts: [{ name: "", email: "", phone: "" }]
       });
     }
@@ -175,7 +202,138 @@ const Clients = () => {
                     rows={3}
                   />
                 </div>
-                <div>
+
+                <div className="border-t pt-4 space-y-4">
+                  <h3 className="font-semibold text-sm">Informations techniques</h3>
+                  
+                  <div>
+                    <Label htmlFor="fai">FAI</Label>
+                    <Input
+                      id="fai"
+                      value={formData.fai}
+                      onChange={(e) => setFormData({ ...formData, fai: e.target.value })}
+                      placeholder="Fournisseur d'accès internet"
+                    />
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <Label>Domaines</Label>
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => setFormData({ ...formData, domains: [...formData.domains, ""] })}
+                      >
+                        <Plus className="h-3 w-3 mr-1" />
+                        Ajouter
+                      </Button>
+                    </div>
+                    {formData.domains.map((domain, index) => (
+                      <div key={index} className="flex gap-2 mb-2">
+                        <Input
+                          placeholder="exemple.com"
+                          value={domain}
+                          onChange={(e) => {
+                            const newDomains = [...formData.domains];
+                            newDomains[index] = e.target.value;
+                            setFormData({ ...formData, domains: newDomains });
+                          }}
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setFormData({ ...formData, domains: formData.domains.filter((_, i) => i !== index) })}
+                        >
+                          Supprimer
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div>
+                    <Label htmlFor="emailType">Type de mails</Label>
+                    <Input
+                      id="emailType"
+                      value={formData.emailType}
+                      onChange={(e) => setFormData({ ...formData, emailType: e.target.value })}
+                      placeholder="OVH Exchange, 365, ou autre"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="mailinblack"
+                      checked={formData.mailinblack}
+                      onChange={(e) => setFormData({ ...formData, mailinblack: e.target.checked })}
+                      className="h-4 w-4"
+                    />
+                    <Label htmlFor="mailinblack">Mailinblack</Label>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="arx"
+                        checked={formData.arx}
+                        onChange={(e) => setFormData({ ...formData, arx: e.target.checked })}
+                        className="h-4 w-4"
+                      />
+                      <Label htmlFor="arx">ARX</Label>
+                    </div>
+                    {formData.arx && (
+                      <div className="ml-6">
+                        <Label htmlFor="arxQuota">Quota (Go)</Label>
+                        <Input
+                          id="arxQuota"
+                          value={formData.arxQuota}
+                          onChange={(e) => setFormData({ ...formData, arxQuota: e.target.value })}
+                          placeholder="Ex: 100"
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="eset"
+                        checked={formData.eset}
+                        onChange={(e) => setFormData({ ...formData, eset: e.target.checked })}
+                        className="h-4 w-4"
+                      />
+                      <Label htmlFor="eset">ESET</Label>
+                    </div>
+                    {formData.eset && (
+                      <div className="ml-6">
+                        <Label htmlFor="esetVersion">Version</Label>
+                        <Input
+                          id="esetVersion"
+                          value={formData.esetVersion}
+                          onChange={(e) => setFormData({ ...formData, esetVersion: e.target.value })}
+                          placeholder="Ex: v10.1"
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="fortinet"
+                      checked={formData.fortinet}
+                      onChange={(e) => setFormData({ ...formData, fortinet: e.target.checked })}
+                      className="h-4 w-4"
+                    />
+                    <Label htmlFor="fortinet">Fortinet</Label>
+                  </div>
+                </div>
+
+                <div className="border-t pt-4">
                   <div className="flex items-center justify-between mb-2">
                     <Label>Personnes à contacter</Label>
                     <Button type="button" variant="outline" size="sm" onClick={addContactField}>
@@ -272,12 +430,26 @@ const Clients = () => {
                     </div>
                   )}
                   {client.contacts.length > 0 && (
-                    <div className="space-y-1 pt-2 border-t">
+                    <div className="space-y-2 pt-2 border-t">
                       <div className="text-xs font-medium text-muted-foreground">Contacts:</div>
                       {client.contacts.slice(0, 2).map((contact) => (
-                        <div key={contact.id} className="flex items-center gap-2 text-sm">
-                          <User className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                          <span className="truncate">{contact.name}</span>
+                        <div key={contact.id} className="space-y-1">
+                          <div className="flex items-center gap-2 text-sm">
+                            <User className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                            <span className="truncate font-medium">{contact.name}</span>
+                          </div>
+                          {contact.email && (
+                            <div className="flex items-center gap-2 text-xs ml-5">
+                              <Mail className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                              <span className="truncate text-muted-foreground">{contact.email}</span>
+                            </div>
+                          )}
+                          {contact.phone && (
+                            <div className="flex items-center gap-2 text-xs ml-5">
+                              <Phone className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                              <span className="truncate text-muted-foreground">{contact.phone}</span>
+                            </div>
+                          )}
                         </div>
                       ))}
                       {client.contacts.length > 2 && (

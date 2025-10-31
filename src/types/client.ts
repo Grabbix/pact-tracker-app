@@ -12,6 +12,15 @@ export interface Client {
   address?: string;
   phoneStandard?: string;
   internalNotes?: string;
+  fai?: string;
+  domains?: string[];
+  emailType?: string;
+  mailinblack?: boolean;
+  arx?: boolean;
+  arxQuota?: string;
+  eset?: boolean;
+  esetVersion?: string;
+  fortinet?: boolean;
   createdAt?: string;
   updatedAt?: string;
   activeContractsCount?: number;

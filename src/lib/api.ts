@@ -116,6 +116,15 @@ export const api = {
     address?: string;
     phoneStandard?: string;
     internalNotes?: string;
+    fai?: string;
+    domains?: string[];
+    emailType?: string;
+    mailinblack?: boolean;
+    arx?: boolean;
+    arxQuota?: string;
+    eset?: boolean;
+    esetVersion?: string;
+    fortinet?: boolean;
     contacts?: { name: string; email?: string; phone?: string }[];
   }) {
     const response = await fetch(`${API_BASE_URL}/api/clients`, {
@@ -132,6 +141,15 @@ export const api = {
     address?: string;
     phoneStandard?: string;
     internalNotes?: string;
+    fai?: string;
+    domains?: string[];
+    emailType?: string;
+    mailinblack?: boolean;
+    arx?: boolean;
+    arxQuota?: string;
+    eset?: boolean;
+    esetVersion?: string;
+    fortinet?: boolean;
     contacts?: { name: string; email?: string; phone?: string }[];
   }) {
     const response = await fetch(`${API_BASE_URL}/api/clients/${id}`, {

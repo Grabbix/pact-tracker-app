@@ -11,6 +11,15 @@ db.exec(`
     address TEXT,
     phone_standard TEXT,
     internal_notes TEXT,
+    fai TEXT,
+    domains TEXT,
+    email_type TEXT,
+    mailinblack INTEGER DEFAULT 0,
+    arx INTEGER DEFAULT 0,
+    arx_quota TEXT,
+    eset INTEGER DEFAULT 0,
+    eset_version TEXT,
+    fortinet INTEGER DEFAULT 0,
     created_at TEXT DEFAULT (datetime('now')),
     updated_at TEXT DEFAULT (datetime('now'))
   );

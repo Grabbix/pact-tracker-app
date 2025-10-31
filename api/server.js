@@ -30,7 +30,7 @@ app.get('/api/contracts', (req, res) => {
     const includeArchived = req.query.includeArchived === 'true';
     
     let query = `
-      SELECT c.*, 
+      SELECT c.*, cl.internal_notes as client_internal_notes
         GROUP_CONCAT(
           json_object(
             'id', i.id,
@@ -44,6 +44,7 @@ app.get('/api/contracts', (req, res) => {
         ) as interventions_json
       FROM contracts c
       LEFT JOIN interventions i ON c.id = i.contract_id
+      LEFT JOIN clients cl ON c.client_id = cl.id
     `;
 
     if (!includeArchived) {
@@ -80,6 +81,7 @@ app.get('/api/contracts', (req, res) => {
         id: row.id,
         contractNumber: row.contract_number,
         clientName: row.client_name,
+        clientId: row.client_id,
         totalHours: row.total_hours,
         usedHours: row.used_hours,
         createdDate: row.created_date,
@@ -87,6 +89,8 @@ app.get('/api/contracts', (req, res) => {
         isArchived: row.is_archived === 1,
         contractType: row.contract_type || 'signed',
         signedDate: row.signed_date,
+        internalNotes: row.internal_notes,
+        clientInternalNotes: row.client_internal_notes,
         interventions,
       };
     });
@@ -178,6 +182,15 @@ app.get('/api/clients', (req, res) => {
         address: client.address,
         phoneStandard: client.phone_standard,
         internalNotes: client.internal_notes,
+        fai: client.fai,
+        domains: client.domains ? JSON.parse(client.domains) : [],
+        emailType: client.email_type,
+        mailinblack: client.mailinblack === 1,
+        arx: client.arx === 1,
+        arxQuota: client.arx_quota,
+        eset: client.eset === 1,
+        esetVersion: client.eset_version,
+        fortinet: client.fortinet === 1,
         createdAt: client.created_at,
         updatedAt: client.updated_at,
         activeContractsCount: client.active_contracts_count,
@@ -218,6 +231,15 @@ app.get('/api/clients/:id', (req, res) => {
       address: client.address,
       phoneStandard: client.phone_standard,
       internalNotes: client.internal_notes,
+      fai: client.fai,
+      domains: client.domains ? JSON.parse(client.domains) : [],
+      emailType: client.email_type,
+      mailinblack: client.mailinblack === 1,
+      arx: client.arx === 1,
+      arxQuota: client.arx_quota,
+      eset: client.eset === 1,
+      esetVersion: client.eset_version,
+      fortinet: client.fortinet === 1,
       createdAt: client.created_at,
       updatedAt: client.updated_at,
       activeContractsCount: activeContracts.count,
@@ -238,14 +260,31 @@ app.get('/api/clients/:id', (req, res) => {
 
 app.post('/api/clients', (req, res) => {
   try {
-    const { name, address, phoneStandard, internalNotes, contacts } = req.body;
+    const { name, address, phoneStandard, internalNotes, fai, domains, emailType, mailinblack, arx, arxQuota, eset, esetVersion, fortinet, contacts } = req.body;
     const id = randomUUID();
     const createdAt = new Date().toISOString();
     
     db.prepare(`
-      INSERT INTO clients (id, name, address, phone_standard, internal_notes, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(id, name, address || null, phoneStandard || null, internalNotes || null, createdAt, createdAt);
+      INSERT INTO clients (id, name, address, phone_standard, internal_notes, fai, domains, email_type, mailinblack, arx, arx_quota, eset, eset_version, fortinet, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      id, 
+      name, 
+      address || null, 
+      phoneStandard || null, 
+      internalNotes || null, 
+      fai || null,
+      domains ? JSON.stringify(domains) : null,
+      emailType || null,
+      mailinblack ? 1 : 0,
+      arx ? 1 : 0,
+      arxQuota || null,
+      eset ? 1 : 0,
+      esetVersion || null,
+      fortinet ? 1 : 0,
+      createdAt, 
+      createdAt
+    );
     
     // Ajouter les contacts
     if (contacts && contacts.length > 0) {
@@ -269,14 +308,30 @@ app.post('/api/clients', (req, res) => {
 app.patch('/api/clients/:id', (req, res) => {
   try {
     const { id } = req.params;
-    const { name, address, phoneStandard, internalNotes, contacts } = req.body;
+    const { name, address, phoneStandard, internalNotes, fai, domains, emailType, mailinblack, arx, arxQuota, eset, esetVersion, fortinet, contacts } = req.body;
     const updatedAt = new Date().toISOString();
     
     db.prepare(`
       UPDATE clients 
-      SET name = ?, address = ?, phone_standard = ?, internal_notes = ?, updated_at = ?
+      SET name = ?, address = ?, phone_standard = ?, internal_notes = ?, fai = ?, domains = ?, email_type = ?, mailinblack = ?, arx = ?, arx_quota = ?, eset = ?, eset_version = ?, fortinet = ?, updated_at = ?
       WHERE id = ?
-    `).run(name, address || null, phoneStandard || null, internalNotes || null, updatedAt, id);
+    `).run(
+      name, 
+      address || null, 
+      phoneStandard || null, 
+      internalNotes || null, 
+      fai || null,
+      domains ? JSON.stringify(domains) : null,
+      emailType || null,
+      mailinblack ? 1 : 0,
+      arx ? 1 : 0,
+      arxQuota || null,
+      eset ? 1 : 0,
+      esetVersion || null,
+      fortinet ? 1 : 0,
+      updatedAt, 
+      id
+    );
     
     // Supprimer les anciens contacts et ajouter les nouveaux
     db.prepare('DELETE FROM contact_persons WHERE client_id = ?').run(id);

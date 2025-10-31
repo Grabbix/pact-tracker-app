@@ -218,6 +218,27 @@ const ContractDetail = () => {
           </p>
         </Card>
 
+        {/* Notes internes */}
+        {(contract.internalNotes || contract.clientInternalNotes) && (
+          <Card className="p-6 mb-8">
+            <h2 className="text-lg font-semibold mb-4 text-foreground">Notes internes</h2>
+            <div className="space-y-4">
+              {contract.internalNotes && (
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground mb-2">Note du contrat</p>
+                  <p className="text-foreground whitespace-pre-wrap">{contract.internalNotes}</p>
+                </div>
+              )}
+              {contract.clientInternalNotes && (
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground mb-2">Note du client</p>
+                  <p className="text-foreground whitespace-pre-wrap">{contract.clientInternalNotes}</p>
+                </div>
+              )}
+            </div>
+          </Card>
+        )}
+
         {/* Interventions List */}
         <Card className="p-6">
           <h2 className="text-2xl font-bold mb-6 text-foreground">
