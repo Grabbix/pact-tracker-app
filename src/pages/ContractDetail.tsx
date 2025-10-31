@@ -65,7 +65,7 @@ const ContractDetail = () => {
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-bold mb-2">Contrat non trouvé</h1>
-          <Button onClick={() => navigate("/")}>Retour aux contrats</Button>
+          <Button onClick={() => navigate("/contracts")}>Retour aux contrats</Button>
         </div>
       </div>
     );
@@ -106,7 +106,7 @@ const ContractDetail = () => {
   const handleRenewContract = (totalHours: number) => {
     if (id) {
       renewContract(id, totalHours);
-      navigate("/");
+      navigate("/contracts");
     }
   };
 
@@ -117,7 +117,7 @@ const ContractDetail = () => {
         <div className="mb-8">
           <Button
             variant="ghost"
-            onClick={() => navigate("/")}
+            onClick={() => navigate("/contracts")}
             className="mb-4 gap-2"
           >
             <ArrowLeft className="h-4 w-4" />
