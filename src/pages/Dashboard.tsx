@@ -54,7 +54,11 @@ const Dashboard = () => {
   const totalClients = clients.length;
   const totalContracts = contracts.length;
   const activeContracts = contracts.filter(c => c.status === "active").length;
-  const nearExpiryContracts = contracts.filter(c => (c.usedHours / c.totalHours) >= 0.9).length;
+  const nearExpiryContracts = contracts.filter(c => {
+    const percentage = (c.usedHours / c.totalHours) * 100;
+    return percentage >= 90 && percentage < 100;
+  }).length;
+  const overageContracts = contracts.filter(c => c.usedHours > c.totalHours).length;
   
   const totalHours = contracts.reduce((acc, c) => acc + c.totalHours, 0);
   const usedHours = contracts.reduce((acc, c) => acc + c.usedHours, 0);
@@ -136,7 +140,7 @@ const Dashboard = () => {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">Total Clients</CardTitle>
@@ -165,7 +169,18 @@ const Dashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-warning">{nearExpiryContracts}</div>
-              <p className="text-xs text-muted-foreground">≥ 90% utilisés</p>
+              <p className="text-xs text-muted-foreground">90-99% utilisés</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Dépassements</CardTitle>
+              <AlertCircle className="h-4 w-4 text-destructive" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-destructive">{overageContracts}</div>
+              <p className="text-xs text-muted-foreground">&gt;100% utilisés</p>
             </CardContent>
           </Card>
 
