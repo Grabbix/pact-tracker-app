@@ -189,7 +189,7 @@ const ContractDetail = () => {
                 </Button>
               </div>
               <p className="text-muted-foreground text-lg">
-                {contract.contractNumber ? `Contrat #CT-${String(contract.contractNumber).padStart(4, '0')}` : `Contrat #${contract.id}`}
+                {contract.contractNumber ? `Contrat #${contract.contractNumber}` : `Contrat #${contract.id}`}
               </p>
             </div>
             <div className="flex gap-3">
@@ -363,7 +363,7 @@ const ContractDetail = () => {
                 key={intervention.id}
                 className={`border rounded-lg p-5 hover:border-primary/30 transition-colors ${
                   intervention.isBillable === false 
-                    ? 'bg-muted/30 border-muted-foreground/20' 
+                    ? 'bg-muted/50 border-muted-foreground/30 opacity-70' 
                     : 'border-border bg-card'
                 }`}
               >

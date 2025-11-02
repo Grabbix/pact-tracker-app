@@ -31,6 +31,25 @@ if (!fs.existsSync(backupDir)) {
 app.use(cors());
 app.use(express.json());
 
+// Helper function to generate contract number based on client name
+function generateContractNumber(clientName) {
+  // Get first 3 letters of client name, uppercase, remove special chars
+  const prefix = clientName
+    .substring(0, 3)
+    .toUpperCase()
+    .replace(/[^A-Z]/g, '')
+    .padEnd(3, 'X'); // Pad with X if less than 3 letters
+  
+  // Get the highest number for this prefix
+  const maxNumberRow = db.prepare(
+    'SELECT MAX(CAST(SUBSTR(contract_number, 4) AS INTEGER)) as max_number FROM contracts WHERE contract_number LIKE ?'
+  ).get(`${prefix}%`);
+  
+  const nextNumber = (maxNumberRow.max_number || 0) + 1;
+  
+  return `${prefix}${String(nextNumber).padStart(3, '0')}`;
+}
+
 // Routes pour les contrats
 app.get('/api/contracts', (req, res) => {
   try {
@@ -139,18 +158,17 @@ app.post('/api/contracts', (req, res) => {
       }
     }
 
-    // Get the next contract number
-    const maxNumberRow = db.prepare('SELECT MAX(contract_number) as max_number FROM contracts').get();
-    const nextNumber = (maxNumberRow.max_number || 0) + 1;
+    // Generate contract number based on client name
+    const contractNumber = generateContractNumber(clientName);
 
     const stmt = db.prepare(`
       INSERT INTO contracts (id, contract_number, client_name, client_id, total_hours, used_hours, created_date, status, is_archived, contract_type, signed_date, internal_notes)
       VALUES (?, ?, ?, ?, ?, 0, ?, 'active', 0, ?, ?, ?)
     `);
 
-    stmt.run(id, nextNumber, clientName, finalClientId || null, totalHours, createdDate, type, signedDate, internalNotes || null);
+    stmt.run(id, contractNumber, clientName, finalClientId || null, totalHours, createdDate, type, signedDate, internalNotes || null);
 
-    res.json({ id, contractNumber: nextNumber, clientName, totalHours, createdDate, contractType: type, signedDate });
+    res.json({ id, contractNumber, clientName, totalHours, createdDate, contractType: type, signedDate });
   } catch (error) {
     console.error('Error adding contract:', error);
     res.status(500).json({ error: 'Erreur lors de la création du contrat' });
@@ -483,14 +501,13 @@ app.post('/api/contracts/:id/renewal-quote', (req, res) => {
     const quoteId = randomUUID();
     const createdDate = new Date().toISOString();
 
-    // Get the next contract number
-    const maxNumberRow = db.prepare('SELECT MAX(contract_number) as max_number FROM contracts').get();
-    const nextNumber = (maxNumberRow.max_number || 0) + 1;
+    // Generate contract number based on client name
+    const contractNumber = generateContractNumber(oldContract.client_name);
 
     db.prepare(`
       INSERT INTO contracts (id, contract_number, client_name, client_id, total_hours, used_hours, created_date, status, is_archived, contract_type, signed_date, linked_contract_id)
       VALUES (?, ?, ?, ?, ?, 0, ?, 'active', 0, 'quote', NULL, ?)
-    `).run(quoteId, nextNumber, oldContract.client_name, oldContract.client_id, totalHours, createdDate, id);
+    `).run(quoteId, contractNumber, oldContract.client_name, oldContract.client_id, totalHours, createdDate, id);
 
     // Si dépassement, créer une intervention de report
     const overage = oldContract.used_hours - oldContract.total_hours;
@@ -732,14 +749,13 @@ app.post('/api/contracts/:id/renew', (req, res) => {
     const newContractId = randomUUID();
     const createdDate = new Date().toISOString();
 
-    // Get the next contract number
-    const maxNumberRow = db.prepare('SELECT MAX(contract_number) as max_number FROM contracts').get();
-    const nextNumber = (maxNumberRow.max_number || 0) + 1;
+    // Generate contract number based on client name
+    const contractNumber = generateContractNumber(oldContract.client_name);
 
     db.prepare(`
       INSERT INTO contracts (id, contract_number, client_name, client_id, total_hours, used_hours, created_date, status, is_archived, contract_type, signed_date)
       VALUES (?, ?, ?, ?, ?, 0, ?, 'active', 0, 'signed', ?)
-    `).run(newContractId, nextNumber, oldContract.client_name, oldContract.client_id, totalHours, createdDate, createdDate);
+    `).run(newContractId, contractNumber, oldContract.client_name, oldContract.client_id, totalHours, createdDate, createdDate);
 
     // Si dépassement, créer une intervention de report basée sur les dernières interventions
     const overage = oldContract.used_hours - oldContract.total_hours;

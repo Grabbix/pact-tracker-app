@@ -46,10 +46,13 @@ export const EditInterventionDialog = ({
 }: EditInterventionDialogProps) => {
   const [comboOpen, setComboOpen] = useState(false);
   const [technicians, setTechnicians] = useState<string[]>([]);
+  const isNonBillable = intervention.isBillable === false;
   const [formData, setFormData] = useState({
     date: intervention.date,
     description: intervention.description,
-    hoursUsed: intervention.hoursUsed.toString(),
+    hoursUsed: isNonBillable 
+      ? Math.round(intervention.hoursUsed * 60).toString() 
+      : intervention.hoursUsed.toString(),
     technician: intervention.technician,
     location: intervention.location === 'Sur site' ? 'sur-site' : 'a-distance',
   });
@@ -67,10 +70,13 @@ export const EditInterventionDialog = ({
   }, []);
 
   useEffect(() => {
+    const isNonBillable = intervention.isBillable === false;
     setFormData({
       date: intervention.date,
       description: intervention.description,
-      hoursUsed: intervention.hoursUsed.toString(),
+      hoursUsed: isNonBillable 
+        ? Math.round(intervention.hoursUsed * 60).toString() 
+        : intervention.hoursUsed.toString(),
       technician: intervention.technician,
       location: intervention.location === 'Sur site' ? 'sur-site' : 'a-distance',
     });
@@ -84,11 +90,17 @@ export const EditInterventionDialog = ({
       return;
     }
 
+    // Convert minutes to hours for non-billable interventions
+    let hoursValue = parseFloat(formData.hoursUsed);
+    if (isNonBillable) {
+      hoursValue = hoursValue / 60; // Convert minutes to hours
+    }
+
     onEdit({
       id: intervention.id,
       date: formData.date,
       description: formData.description,
-      hoursUsed: parseFloat(formData.hoursUsed),
+      hoursUsed: hoursValue,
       technician: formData.technician,
       isBillable: intervention.isBillable,
       location: formData.location === 'sur-site' ? 'Sur site' : 'À distance',
@@ -103,7 +115,9 @@ export const EditInterventionDialog = ({
         <DialogHeader>
           <DialogTitle>Modifier l'intervention</DialogTitle>
           <DialogDescription>
-            Modifiez les détails de l'intervention
+            {isNonBillable 
+              ? 'Modifiez les détails de l\'intervention non comptée (temps en minutes)'
+              : 'Modifiez les détails de l\'intervention'}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
@@ -132,18 +146,25 @@ export const EditInterventionDialog = ({
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="edit-hours">Heures utilisées</Label>
+              <Label htmlFor="edit-hours">
+                {isNonBillable ? 'Durée (en minutes)' : 'Heures utilisées'}
+              </Label>
               <Input
                 id="edit-hours"
                 type="number"
-                step="0.5"
+                step={isNonBillable ? '1' : '0.5'}
                 min="0"
-                placeholder="Ex: 2.5"
+                placeholder={isNonBillable ? 'Ex: 30' : 'Ex: 2.5'}
                 value={formData.hoursUsed}
                 onChange={(e) =>
                   setFormData({ ...formData, hoursUsed: e.target.value })
                 }
               />
+              {isNonBillable && formData.hoursUsed && (
+                <p className="text-xs text-muted-foreground">
+                  La durée sera convertie automatiquement ({(parseFloat(formData.hoursUsed) / 60).toFixed(2)}h)
+                </p>
+              )}
             </div>
             <div className="grid gap-2">
               <Label>Localisation</Label>
