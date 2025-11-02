@@ -54,6 +54,7 @@ const ContractDetail = () => {
   const [deletingInterventionId, setDeletingInterventionId] = useState<string | null>(null);
   const [editingClientName, setEditingClientName] = useState(false);
   const [isCreatingQuote, setIsCreatingQuote] = useState(false);
+  const [isSigningQuote, setIsSigningQuote] = useState(false);
   
   const contract = getContract(id || "");
 
@@ -221,12 +222,15 @@ const ContractDetail = () => {
                   />
                 </>
               )}
-              {!contract.isArchived && contract.renewalQuoteId && (
-                <RenewContractDialog 
-                  onRenew={handleRenewContract}
-                  buttonLabel="Signer Devis"
-                  dialogTitle="Signer le devis de renouvellement"
-                />
+              {!contract.isArchived && contract.renewalQuoteId && renewalQuote && (
+                <Button 
+                  variant="default" 
+                  className="gap-2 bg-success hover:bg-success/90"
+                  onClick={() => setIsSigningQuote(true)}
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  Signer Devis
+                </Button>
               )}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -485,6 +489,31 @@ const ContractDetail = () => {
         onOpenChange={setEditingClientName}
         onUpdate={refetch}
       />
+
+      {/* Sign Quote Confirmation Dialog */}
+      <AlertDialog open={isSigningQuote} onOpenChange={setIsSigningQuote}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Signer le devis de renouvellement</AlertDialogTitle>
+            <AlertDialogDescription>
+              Voulez-vous signer le devis de {renewalQuote?.totalHours}h créé le{" "}
+              {renewalQuote && new Date(renewalQuote.createdDate).toLocaleDateString('fr-FR')} ?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (contract.renewalQuoteId) {
+                  signContract(contract.renewalQuoteId).then(() => navigate("/contracts"));
+                }
+              }}
+            >
+              Confirmer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
