@@ -136,19 +136,6 @@ const Dashboard = () => {
     };
   });
 
-  // Technicians stats (ALL TIME)
-  const technicianStats = allContracts.reduce((acc, contract) => {
-    contract.interventions.forEach(intervention => {
-      if (!acc[intervention.technician]) {
-        acc[intervention.technician] = { name: intervention.technician, hours: 0 };
-      }
-      acc[intervention.technician].hours += intervention.hoursUsed;
-    });
-    return acc;
-  }, {} as Record<string, { name: string; hours: number }>);
-
-  const technicianData = Object.values(technicianStats).sort((a, b) => b.hours - a.hours);
-
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -319,28 +306,6 @@ const Dashboard = () => {
                   <Line type="monotone" dataKey="hours" stroke="hsl(var(--primary))" strokeWidth={2} name="Heures" />
                 </LineChart>
               </ResponsiveContainer>
-            </CardContent>
-          </Card>
-
-          {/* Technicians */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Activité par technicien (All Time)</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {technicianData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={technicianData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip />
-                    <Bar dataKey="hours" fill="hsl(var(--primary))" name="Heures" />
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : (
-                <p className="text-muted-foreground text-center py-12">Aucune intervention enregistrée</p>
-              )}
             </CardContent>
           </Card>
         </div>
