@@ -93,18 +93,20 @@ const Dashboard = () => {
     return { name: client.name, overage: totalOverage };
   }).filter(c => c.overage > 0).sort((a, b) => b.overage - a.overage).slice(0, 5);
 
-  // Distribution des contrats par statut
-  const validContracts = contracts.filter(c => {
+  // Distribution des contrats par statut (exclure les devis)
+  const activeSignedContracts = contracts.filter(c => c.contractType !== 'quote');
+  
+  const validContracts = activeSignedContracts.filter(c => {
     const percentage = (c.usedHours / c.totalHours) * 100;
     return percentage < 90;
   }).length;
   
-  const nearExpiryContractsCount = contracts.filter(c => {
+  const nearExpiryContractsCount = activeSignedContracts.filter(c => {
     const percentage = (c.usedHours / c.totalHours) * 100;
     return percentage >= 90 && percentage <= 100;
   }).length;
   
-  const overageContractsCount = contracts.filter(c => c.usedHours > c.totalHours).length;
+  const overageContractsCount = activeSignedContracts.filter(c => c.usedHours > c.totalHours).length;
   
   const statusData = [
     { name: "Valides", value: validContracts, color: "#10b981" },
