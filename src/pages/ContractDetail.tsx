@@ -74,6 +74,16 @@ const ContractDetail = () => {
   const percentage = (contract.usedHours / contract.totalHours) * 100;
   const remainingHours = contract.totalHours - contract.usedHours;
   
+  // Calculate cumulative hours for each intervention to detect overage
+  const interventionsWithOverage = contract.interventions
+    .filter(i => i.isBillable !== false)
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    .map((intervention, index, arr) => {
+      const cumulativeHours = arr.slice(0, index + 1).reduce((acc, i) => acc + i.hoursUsed, 0);
+      const isOverage = cumulativeHours > contract.totalHours;
+      return { ...intervention, isOverage };
+    });
+  
   // Calculate total non-billable minutes
   const totalNonBillableMinutes = contract.interventions
     .filter(i => i.isBillable === false)
@@ -203,9 +213,11 @@ const ContractDetail = () => {
           <Card className="p-6">
             <div className="flex items-center justify-between mb-2">
               <p className="text-sm text-muted-foreground">Heures restantes</p>
-              <Clock className="h-5 w-5 text-success" />
+              <Clock className={`h-5 w-5 ${remainingHours < 0 ? 'text-destructive' : 'text-success'}`} />
             </div>
-            <p className="text-3xl font-bold text-success">{remainingHours.toFixed(1)}h</p>
+            <p className={`text-3xl font-bold ${remainingHours < 0 ? 'text-destructive' : 'text-success'}`}>
+              {remainingHours.toFixed(1)}h
+            </p>
           </Card>
 
           <Card className="p-6">
@@ -221,7 +233,9 @@ const ContractDetail = () => {
               <p className="text-sm text-muted-foreground">Progression</p>
               <Calendar className="h-5 w-5 text-primary" />
             </div>
-            <p className="text-3xl font-bold text-foreground">{percentage.toFixed(0)}%</p>
+            <p className={`text-3xl font-bold ${percentage > 100 ? 'text-destructive' : 'text-foreground'}`}>
+              {percentage.toFixed(0)}%
+            </p>
           </Card>
         </div>
 
@@ -264,7 +278,11 @@ const ContractDetail = () => {
           <div className="space-y-4">
             {[...contract.interventions]
               .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-              .map((intervention) => (
+              .map((intervention) => {
+                const interventionWithOverage = interventionsWithOverage.find(i => i.id === intervention.id);
+                const isOverage = interventionWithOverage?.isOverage || false;
+                
+                return (
               <div
                 key={intervention.id}
                 className={`border rounded-lg p-5 hover:border-primary/30 transition-colors ${
@@ -293,14 +311,17 @@ const ContractDetail = () => {
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Clock className="h-4 w-4 text-primary" />
-                      <span className="font-semibold text-primary">
+                      <Clock className={`h-4 w-4 ${isOverage ? 'text-destructive' : 'text-primary'}`} />
+                      <span className={`font-semibold ${isOverage ? 'text-destructive' : 'text-primary'}`}>
                         {intervention.isBillable === false 
                           ? `${Math.round(intervention.hoursUsed * 60)} min` 
                           : `${intervention.hoursUsed}h`}
                       </span>
                       {intervention.isBillable === false && (
                         <span className="text-xs text-muted-foreground">(non compté)</span>
+                      )}
+                      {isOverage && (
+                        <span className="text-xs text-destructive font-medium">(dépassement)</span>
                       )}
                     </div>
                     {intervention.location && (
@@ -328,7 +349,7 @@ const ContractDetail = () => {
                 </div>
                 <p className="text-foreground">{intervention.description}</p>
               </div>
-            ))}
+            )})}
           </div>
 
           {contract.interventions.length === 0 && (
