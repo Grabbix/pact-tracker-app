@@ -641,7 +641,7 @@ app.patch('/api/contracts/:id/client-name', (req, res) => {
   }
 });
 
-// Helper function to sync overage to renewal quote
+// Helper function to sync overage interventions to renewal quote
 function syncOverageToRenewalQuote(contractId) {
   const contract = db.prepare('SELECT * FROM contracts WHERE id = ?').get(contractId);
   
@@ -649,67 +649,72 @@ function syncOverageToRenewalQuote(contractId) {
     return; // Pas de devis lié
   }
 
-  const overage = contract.used_hours - contract.total_hours;
-  const renewalQuote = db.prepare('SELECT * FROM contracts WHERE id = ?').get(contract.renewal_quote_id);
-  
-  if (!renewalQuote) {
-    return;
-  }
-
-  // Chercher l'intervention de report existante
-  const reportIntervention = db.prepare(`
+  // Récupérer toutes les interventions billables du contrat actif, triées par date
+  const interventions = db.prepare(`
     SELECT * FROM interventions 
+    WHERE contract_id = ? AND is_billable = 1
+    ORDER BY date ASC
+  `).all(contractId);
+
+  // Calculer quelles interventions sont en dépassement
+  let cumulativeHours = 0;
+  const overageInterventions = [];
+  
+  interventions.forEach(intervention => {
+    const hoursBefore = cumulativeHours;
+    cumulativeHours += intervention.hours_used;
+    
+    if (cumulativeHours > contract.total_hours) {
+      // Cette intervention est (au moins partiellement) en dépassement
+      if (hoursBefore >= contract.total_hours) {
+        // Entièrement en dépassement
+        overageInterventions.push({
+          ...intervention,
+          overageHours: intervention.hours_used
+        });
+      } else {
+        // Partiellement en dépassement
+        const overageHours = cumulativeHours - contract.total_hours;
+        overageInterventions.push({
+          ...intervention,
+          overageHours: overageHours
+        });
+      }
+    }
+  });
+
+  // Supprimer toutes les anciennes interventions reportées dans le devis
+  db.prepare(`
+    DELETE FROM interventions 
     WHERE contract_id = ? AND technician = 'Système' AND description LIKE '%(reporté)%'
-    ORDER BY date DESC LIMIT 1
-  `).get(contract.renewal_quote_id);
+  `).run(contract.renewal_quote_id);
 
-  if (overage > 0) {
-    // Récupérer la dernière description
-    const lastInterventionDesc = db.prepare(`
-      SELECT description FROM interventions 
-      WHERE contract_id = ? AND is_billable = 1 AND technician != 'Système'
-      ORDER BY date DESC LIMIT 1
-    `).get(contractId);
+  // Créer les nouvelles interventions reportées
+  let totalOverage = 0;
+  overageInterventions.forEach(intervention => {
+    const reportId = randomUUID();
+    const description = `${intervention.description} (reporté)`;
+    
+    db.prepare(`
+      INSERT INTO interventions (id, contract_id, date, description, hours_used, technician, is_billable, location)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      reportId,
+      contract.renewal_quote_id,
+      intervention.date,
+      description,
+      intervention.overageHours,
+      "Système",
+      1,
+      intervention.location
+    );
+    
+    totalOverage += intervention.overageHours;
+  });
 
-    const description = lastInterventionDesc 
-      ? `${lastInterventionDesc.description} (reporté)`
-      : "Heures supplémentaires (reporté)";
-
-    if (reportIntervention) {
-      // Mettre à jour l'intervention existante
-      db.prepare(`
-        UPDATE interventions 
-        SET hours_used = ?, description = ?, date = ?
-        WHERE id = ?
-      `).run(overage, description, new Date().toISOString(), reportIntervention.id);
-    } else {
-      // Créer une nouvelle intervention de report
-      const reportId = randomUUID();
-      db.prepare(`
-        INSERT INTO interventions (id, contract_id, date, description, hours_used, technician, is_billable, location)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        reportId,
-        contract.renewal_quote_id,
-        new Date().toISOString(),
-        description,
-        overage,
-        "Système",
-        1,
-        null
-      );
-    }
-
-    // Mettre à jour les heures utilisées du devis
-    db.prepare('UPDATE contracts SET used_hours = ? WHERE id = ?')
-      .run(overage, contract.renewal_quote_id);
-  } else {
-    // Plus de dépassement, supprimer l'intervention de report si elle existe
-    if (reportIntervention) {
-      db.prepare('DELETE FROM interventions WHERE id = ?').run(reportIntervention.id);
-      db.prepare('UPDATE contracts SET used_hours = 0 WHERE id = ?').run(contract.renewal_quote_id);
-    }
-  }
+  // Mettre à jour les heures utilisées du devis
+  db.prepare('UPDATE contracts SET used_hours = ? WHERE id = ?')
+    .run(totalOverage, contract.renewal_quote_id);
 }
 
 // Routes pour les interventions
