@@ -33,17 +33,37 @@ app.use(express.json());
 
 // Helper function to generate contract number based on client name
 function generateContractNumber(clientName) {
-  // Get first 3 letters of client name, uppercase, remove special chars
-  const prefix = clientName
-    .substring(0, 3)
+  // Clean and prepare the client name
+  const cleanName = clientName
     .toUpperCase()
-    .replace(/[^A-Z]/g, '')
-    .padEnd(3, 'X'); // Pad with X if less than 3 letters
+    .replace(/[^A-Z]/g, ''); // Remove special chars and numbers
   
-  // Get the highest number for this prefix
+  // Try to find a unique prefix starting with 4 letters, then 5, then 6
+  let prefix = '';
+  let prefixLength = 4;
+  
+  while (prefixLength <= Math.max(6, cleanName.length)) {
+    prefix = cleanName
+      .substring(0, prefixLength)
+      .padEnd(prefixLength, 'X'); // Pad with X if less than prefixLength letters
+    
+    // Check if this prefix already exists for a different client
+    const existingContract = db.prepare(
+      'SELECT DISTINCT client_name FROM contracts WHERE contract_number LIKE ? AND client_name != ?'
+    ).get(`${prefix}%`, clientName);
+    
+    // If no collision or we've used all available letters, use this prefix
+    if (!existingContract || prefixLength >= cleanName.length) {
+      break;
+    }
+    
+    prefixLength++;
+  }
+  
+  // Get the highest number for this prefix and this specific client
   const maxNumberRow = db.prepare(
-    'SELECT MAX(CAST(SUBSTR(contract_number, 4) AS INTEGER)) as max_number FROM contracts WHERE contract_number LIKE ?'
-  ).get(`${prefix}%`);
+    'SELECT MAX(CAST(SUBSTR(contract_number, ?) AS INTEGER)) as max_number FROM contracts WHERE contract_number LIKE ? AND client_name = ?'
+  ).get(prefix.length + 1, `${prefix}%`, clientName);
   
   const nextNumber = (maxNumberRow.max_number || 0) + 1;
   
