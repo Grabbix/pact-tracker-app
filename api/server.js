@@ -955,6 +955,20 @@ app.post('/api/contracts/export-all-excel', (req, res) => {
         fs.mkdirSync(clientFolderPath, { recursive: true });
       }
 
+      // Supprimer tous les fichiers existants pour ce contrat (même client + même heures)
+      const existingFiles = fs.readdirSync(clientFolderPath);
+      const contractFilePattern = `${clientFolderName}_${contract.totalHours}h_`;
+      existingFiles.forEach(file => {
+        if (file.includes(contractFilePattern)) {
+          const oldFilePath = path.join(clientFolderPath, file);
+          try {
+            fs.unlinkSync(oldFilePath);
+          } catch (err) {
+            console.error(`Error deleting old file ${file}:`, err);
+          }
+        }
+      });
+
       // Déterminer le statut pour le nom du fichier
       let statusPrefix = 'actif';
       if (contract.isArchived) {
@@ -1102,6 +1116,20 @@ cron.schedule('0 18 * * *', () => {
       if (!fs.existsSync(clientFolderPath)) {
         fs.mkdirSync(clientFolderPath, { recursive: true });
       }
+
+      // Supprimer tous les fichiers existants pour ce contrat (même client + même heures)
+      const existingFiles = fs.readdirSync(clientFolderPath);
+      const contractFilePattern = `${clientFolderName}_${contract.totalHours}h_`;
+      existingFiles.forEach(file => {
+        if (file.includes(contractFilePattern)) {
+          const oldFilePath = path.join(clientFolderPath, file);
+          try {
+            fs.unlinkSync(oldFilePath);
+          } catch (err) {
+            console.error(`Error deleting old file ${file}:`, err);
+          }
+        }
+      });
 
       // Déterminer le statut pour le nom du fichier
       let statusPrefix = 'actif';
