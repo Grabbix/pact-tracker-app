@@ -107,5 +107,6 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
+    font-size: 1.0625rem; /* 17px - increased from default 16px */
   }
 }
