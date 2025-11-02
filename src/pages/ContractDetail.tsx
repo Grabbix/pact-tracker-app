@@ -257,7 +257,7 @@ const ContractDetail = () => {
               <Button
                 variant="link"
                 size="sm"
-                onClick={() => navigate(`/contracts/${renewalQuote.id}`)}
+                onClick={() => navigate(`/contract/${renewalQuote.id}`)}
                 className="h-auto p-0 text-primary"
               >
                 Voir le devis
@@ -287,9 +287,9 @@ const ContractDetail = () => {
           <Card className="p-6">
             <div className="flex items-center justify-between mb-2">
               <p className="text-sm text-muted-foreground">Heures restantes</p>
-              <Clock className={`h-5 w-5 ${remainingHours < 0 ? 'text-destructive' : 'text-success'}`} />
+              <Clock className={`h-5 w-5 ${remainingHours < 0 ? 'text-destructive' : percentage >= 80 ? 'text-destructive' : 'text-success'}`} />
             </div>
-            <p className={`text-3xl font-bold ${remainingHours < 0 ? 'text-destructive' : 'text-success'}`}>
+            <p className={`text-3xl font-bold ${remainingHours < 0 ? 'text-destructive' : percentage >= 80 ? 'text-destructive' : 'text-success'}`}>
               {remainingHours.toFixed(1)}h
             </p>
           </Card>
