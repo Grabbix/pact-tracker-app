@@ -363,7 +363,7 @@ const ContractDetail = () => {
                 key={intervention.id}
                 className={`border rounded-lg p-5 hover:border-primary/30 transition-colors ${
                   intervention.isBillable === false 
-                    ? 'bg-muted/50 border-muted-foreground/30 opacity-70' 
+                    ? 'bg-muted/70 border-muted-foreground/30' 
                     : 'border-border bg-card'
                 }`}
               >
