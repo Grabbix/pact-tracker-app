@@ -122,6 +122,9 @@ export const ContractCard = ({ contract, isArchived = false }: ContractCardProps
       <EditClientNameDialog
         contractId={contract.id}
         currentName={contract.clientName}
+        currentSignedDate={contract.signedDate}
+        currentCreatedDate={contract.createdDate}
+        contractType={contract.contractType}
         open={editingName}
         onOpenChange={setEditingName}
         onUpdate={refetch}

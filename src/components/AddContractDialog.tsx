@@ -24,10 +24,13 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Plus, Check, ChevronsUpDown } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { Plus, Check, ChevronsUpDown, CalendarIcon } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
 
 interface AddContractDialogProps {
   onAdd: (contract: {
@@ -35,14 +38,17 @@ interface AddContractDialogProps {
     clientId?: string;
     totalHours: number;
     contractType: "quote" | "signed";
+    createdDate?: string;
   }) => void;
 }
 
 export const AddContractDialog = ({ onAdd }: AddContractDialogProps) => {
   const [open, setOpen] = useState(false);
   const [comboOpen, setComboOpen] = useState(false);
+  const [dateOpen, setDateOpen] = useState(false);
   const [clients, setClients] = useState<{ id: string; name: string }[]>([]);
   const [contractType, setContractType] = useState<"quote" | "signed">("signed");
+  const [createdDate, setCreatedDate] = useState<Date>(new Date());
   const [formData, setFormData] = useState({
     clientName: "",
     clientId: "",
@@ -74,6 +80,7 @@ export const AddContractDialog = ({ onAdd }: AddContractDialogProps) => {
       clientId: formData.clientId || undefined,
       totalHours: parseFloat(formData.totalHours),
       contractType,
+      createdDate: createdDate.toISOString(),
     });
 
     toast.success(contractType === "quote" ? "Devis créé avec succès" : "Contrat créé avec succès");
@@ -82,6 +89,7 @@ export const AddContractDialog = ({ onAdd }: AddContractDialogProps) => {
       clientId: "",
       totalHours: "",
     });
+    setCreatedDate(new Date());
     setContractType("signed");
     setOpen(false);
   };
@@ -193,6 +201,37 @@ export const AddContractDialog = ({ onAdd }: AddContractDialogProps) => {
                   setFormData({ ...formData, totalHours: e.target.value })
                 }
               />
+            </div>
+
+            <div className="grid gap-2">
+              <Label>Date de création</Label>
+              <Popover open={dateOpen} onOpenChange={setDateOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {format(createdDate, "PPP", { locale: fr })}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={createdDate}
+                    onSelect={(date) => {
+                      if (date) {
+                        setCreatedDate(date);
+                      }
+                      setDateOpen(false);
+                    }}
+                    initialFocus
+                    className="pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
           <DialogFooter>

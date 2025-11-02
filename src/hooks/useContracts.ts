@@ -132,7 +132,7 @@ export const useContracts = (includeArchived: boolean = false) => {
 
   const updateClientName = async (contractId: string, clientName: string) => {
     try {
-      await api.updateClientName(contractId, clientName);
+      await api.updateContract(contractId, { clientName });
       toast.success("Nom du client modifié avec succès");
       await fetchContracts();
     } catch (error: any) {

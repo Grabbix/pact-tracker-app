@@ -9,7 +9,13 @@ export const api = {
     return response.json();
   },
 
-  async createContract(data: { clientName: string; totalHours: number; contractType?: "quote" | "signed" }) {
+  async createContract(data: { 
+    clientName: string; 
+    totalHours: number; 
+    contractType?: "quote" | "signed"; 
+    createdDate?: string;
+    signedDate?: string;
+  }) {
     const response = await fetch(`${API_BASE_URL}/api/contracts`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -171,13 +177,17 @@ export const api = {
     return response.json();
   },
 
-  async updateClientName(contractId: string, clientName: string) {
+  async updateContract(contractId: string, data: { 
+    clientName: string; 
+    signedDate?: string | null;
+    createdDate?: string;
+  }) {
     const response = await fetch(`${API_BASE_URL}/api/contracts/${contractId}/client-name`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ clientName }),
+      body: JSON.stringify(data),
     });
-    if (!response.ok) throw new Error('Failed to update client name');
+    if (!response.ok) throw new Error('Failed to update contract');
     return response.json();
   },
 

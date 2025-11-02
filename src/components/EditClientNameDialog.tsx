@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import {
   Command,
   CommandEmpty,
@@ -22,14 +23,20 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Check, ChevronsUpDown } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { CalendarIcon, Check, ChevronsUpDown } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
 
 interface EditClientNameDialogProps {
   contractId: string;
   currentName: string;
+  currentSignedDate?: string | null;
+  currentCreatedDate?: string;
+  contractType?: "quote" | "signed";
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onUpdate: () => void;
@@ -38,13 +45,24 @@ interface EditClientNameDialogProps {
 export const EditClientNameDialog = ({
   contractId,
   currentName,
+  currentSignedDate,
+  currentCreatedDate,
+  contractType,
   open,
   onOpenChange,
   onUpdate,
 }: EditClientNameDialogProps) => {
   const [comboOpen, setComboOpen] = useState(false);
+  const [dateOpen, setDateOpen] = useState(false);
+  const [createdDateOpen, setCreatedDateOpen] = useState(false);
   const [clients, setClients] = useState<string[]>([]);
   const [clientName, setClientName] = useState(currentName);
+  const [signedDate, setSignedDate] = useState<Date | undefined>(
+    currentSignedDate ? new Date(currentSignedDate) : undefined
+  );
+  const [createdDate, setCreatedDate] = useState<Date | undefined>(
+    currentCreatedDate ? new Date(currentCreatedDate) : undefined
+  );
 
   useEffect(() => {
     const fetchClients = async () => {
@@ -58,8 +76,10 @@ export const EditClientNameDialog = ({
     if (open) {
       fetchClients();
       setClientName(currentName);
+      setSignedDate(currentSignedDate ? new Date(currentSignedDate) : undefined);
+      setCreatedDate(currentCreatedDate ? new Date(currentCreatedDate) : undefined);
     }
-  }, [open, currentName]);
+  }, [open, currentName, currentSignedDate, currentCreatedDate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,13 +90,17 @@ export const EditClientNameDialog = ({
     }
 
     try {
-      await api.updateClientName(contractId, clientName);
-      toast.success("Nom du client modifié avec succès");
+      await api.updateContract(contractId, {
+        clientName,
+        signedDate: signedDate?.toISOString() || null,
+        createdDate: createdDate?.toISOString(),
+      });
+      toast.success("Contrat modifié avec succès");
       onUpdate();
       onOpenChange(false);
     } catch (error) {
-      console.error("Error updating client name:", error);
-      toast.error("Erreur lors de la modification du nom");
+      console.error("Error updating contract:", error);
+      toast.error("Erreur lors de la modification");
     }
   };
 
@@ -84,9 +108,9 @@ export const EditClientNameDialog = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Modifier le nom du client</DialogTitle>
+          <DialogTitle>Modifier le contrat</DialogTitle>
           <DialogDescription>
-            Changez le nom du client pour ce contrat
+            Modifiez les informations du contrat
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
@@ -147,6 +171,68 @@ export const EditClientNameDialog = ({
                 </PopoverContent>
               </Popover>
             </div>
+
+            <div className="grid gap-2">
+              <Label>Date de création</Label>
+              <Popover open={createdDateOpen} onOpenChange={setCreatedDateOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !createdDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {createdDate ? format(createdDate, "PPP", { locale: fr }) : <span>Sélectionner une date</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={createdDate}
+                    onSelect={(date) => {
+                      setCreatedDate(date);
+                      setCreatedDateOpen(false);
+                    }}
+                    initialFocus
+                    className="pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            {contractType === "signed" && (
+              <div className="grid gap-2">
+                <Label>Date de signature</Label>
+                <Popover open={dateOpen} onOpenChange={setDateOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !signedDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {signedDate ? format(signedDate, "PPP", { locale: fr }) : <span>Sélectionner une date</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={signedDate}
+                      onSelect={(date) => {
+                        setSignedDate(date);
+                        setDateOpen(false);
+                      }}
+                      initialFocus
+                      className="pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

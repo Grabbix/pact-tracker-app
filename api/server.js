@@ -113,11 +113,11 @@ app.get('/api/contracts', (req, res) => {
 
 app.post('/api/contracts', (req, res) => {
   try {
-    const { clientName, clientId, totalHours, contractType, internalNotes } = req.body;
+    const { clientName, clientId, totalHours, contractType, internalNotes, createdDate: customCreatedDate, signedDate: customSignedDate } = req.body;
     const id = randomUUID();
-    const createdDate = new Date().toISOString();
+    const createdDate = customCreatedDate || new Date().toISOString();
     const type = contractType || 'signed';
-    const signedDate = type === 'signed' ? createdDate : null;
+    const signedDate = customSignedDate || (type === 'signed' ? createdDate : null);
 
     let finalClientId = clientId;
 
@@ -551,15 +551,31 @@ app.post('/api/contracts/:id/renewal-quote', (req, res) => {
 app.patch('/api/contracts/:id/client-name', (req, res) => {
   try {
     const { id } = req.params;
-    const { clientName } = req.body;
+    const { clientName, signedDate, createdDate } = req.body;
 
-    const stmt = db.prepare('UPDATE contracts SET client_name = ? WHERE id = ?');
-    stmt.run(clientName, id);
+    let query = 'UPDATE contracts SET client_name = ?';
+    let params = [clientName];
+
+    if (signedDate !== undefined) {
+      query += ', signed_date = ?';
+      params.push(signedDate);
+    }
+
+    if (createdDate !== undefined) {
+      query += ', created_date = ?';
+      params.push(createdDate);
+    }
+
+    query += ' WHERE id = ?';
+    params.push(id);
+
+    const stmt = db.prepare(query);
+    stmt.run(...params);
 
     res.json({ success: true });
   } catch (error) {
-    console.error('Error updating client name:', error);
-    res.status(500).json({ error: 'Erreur lors de la mise à jour du nom du client' });
+    console.error('Error updating contract:', error);
+    res.status(500).json({ error: 'Erreur lors de la mise à jour du contrat' });
   }
 });
 
