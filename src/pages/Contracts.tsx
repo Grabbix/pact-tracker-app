@@ -58,6 +58,15 @@ const Contracts = () => {
     toast.success(`${signedContracts.length} PDF(s) exporté(s) avec succès`);
   };
 
+  const handleRunBackup = async () => {
+    try {
+      const result = await exportAllContractsToExcelBackup();
+      toast.success(`Backup effectué : ${result.count} fichier(s) Excel créé(s) dans le dossier backup`);
+    } catch (error) {
+      toast.error("Erreur lors du backup");
+    }
+  };
+
   const handleExportAllExcel = async () => {
     try {
       const result = await exportAllContractsToExcelBackup();
@@ -120,11 +129,15 @@ const Contracts = () => {
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem onClick={handleExportAllPDF}>
                     <FileText className="h-4 w-4 mr-2" />
-                    Tout exporter (PDF)
+                    Export PDF
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={handleExportAllExcel}>
                     <FileSpreadsheet className="h-4 w-4 mr-2" />
-                    Backup Excel
+                    Export Excel
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleRunBackup}>
+                    <Download className="h-4 w-4 mr-2" />
+                    Run Backup
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
