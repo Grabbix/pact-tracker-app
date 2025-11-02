@@ -4,7 +4,7 @@ import { AddContractDialog } from "@/components/AddContractDialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, FileText, Archive, Download, ArrowLeft, CheckCircle, TrendingUp, FileSpreadsheet } from "lucide-react";
+import { Search, FileText, Archive, Download, ArrowLeft, CheckCircle, TrendingUp, FileSpreadsheet, AlertTriangle } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,21 +21,36 @@ const Contracts = () => {
   const { contracts, addContract, signContract, loading } = useContracts();
   const [searchQuery, setSearchQuery] = useState("");
   const [filterNearExpiry, setFilterNearExpiry] = useState(false);
+  const [filterOverage, setFilterOverage] = useState(false);
   const navigate = useNavigate();
 
   // Filter by contract type
   const signedContracts = contracts.filter(c => c.contractType !== "quote");
   const quoteContracts = contracts.filter(c => c.contractType === "quote");
 
-  // Contracts near expiry: used >= 90% (only signed contracts)
-  const nearExpiryContracts = signedContracts.filter(
-    c => (c.usedHours / c.totalHours) >= 0.9
+  // Contracts near expiry: used >= 90% and < 100% (only signed contracts)
+  const nearExpiryContracts = signedContracts.filter(c => {
+    const percentage = (c.usedHours / c.totalHours) * 100;
+    return percentage >= 90 && percentage < 100;
+  });
+
+  // Contracts in overage: used > 100% (only signed contracts)
+  const overageContracts = signedContracts.filter(
+    c => c.usedHours > c.totalHours
   );
 
   const filterContractsBySearch = (contractList: typeof contracts) => {
     return contractList.filter(contract => {
       const matchesSearch = contract.clientName.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesFilter = !filterNearExpiry || (contract.usedHours / contract.totalHours) >= 0.9;
+      const percentage = (contract.usedHours / contract.totalHours) * 100;
+      
+      let matchesFilter = true;
+      if (filterNearExpiry) {
+        matchesFilter = percentage >= 90 && percentage < 100;
+      } else if (filterOverage) {
+        matchesFilter = contract.usedHours > contract.totalHours;
+      }
+      
       return matchesSearch && matchesFilter;
     });
   };
@@ -159,7 +174,7 @@ const Contracts = () => {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           <div className="bg-card p-4 rounded-lg border border-border">
             <p className="text-sm text-muted-foreground mb-1">Total contrats signés</p>
             <p className="text-3xl font-bold text-foreground">{signedContracts.length}</p>
@@ -172,13 +187,30 @@ const Contracts = () => {
           </div>
           <div 
             className="bg-card p-4 rounded-lg border border-border cursor-pointer hover:border-warning transition-colors"
-            onClick={() => setFilterNearExpiry(!filterNearExpiry)}
+            onClick={() => {
+              setFilterNearExpiry(!filterNearExpiry);
+              setFilterOverage(false);
+            }}
           >
             <p className="text-sm text-muted-foreground mb-1">
               Proche expiration {filterNearExpiry && "(filtré)"}
             </p>
             <p className="text-3xl font-bold text-warning">
               {nearExpiryContracts.length}
+            </p>
+          </div>
+          <div 
+            className="bg-card p-4 rounded-lg border border-border cursor-pointer hover:border-destructive transition-colors"
+            onClick={() => {
+              setFilterOverage(!filterOverage);
+              setFilterNearExpiry(false);
+            }}
+          >
+            <p className="text-sm text-muted-foreground mb-1">
+              Dépassements {filterOverage && "(filtré)"}
+            </p>
+            <p className="text-3xl font-bold text-destructive">
+              {overageContracts.length}
             </p>
           </div>
         </div>
