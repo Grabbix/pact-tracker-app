@@ -476,8 +476,25 @@ app.patch('/api/contracts/:id/sign', (req, res) => {
     const { id } = req.params;
     const signedDate = new Date().toISOString();
 
-    // Récupérer le contrat/devis à signer
-    const contract = db.prepare('SELECT * FROM contracts WHERE id = ?').get(id);
+    // Récupérer le contrat/devis à signer avec ses interventions
+    const contract = db.prepare(`
+      SELECT c.*, 
+        GROUP_CONCAT(
+          json_object(
+            'id', i.id,
+            'date', i.date,
+            'description', i.description,
+            'hours_used', i.hours_used,
+            'technician', i.technician,
+            'is_billable', i.is_billable,
+            'location', i.location
+          )
+        ) as interventions_json
+      FROM contracts c
+      LEFT JOIN interventions i ON c.id = i.contract_id
+      WHERE c.id = ?
+      GROUP BY c.id
+    `).get(id);
     
     if (!contract) {
       return res.status(404).json({ error: 'Contrat non trouvé' });
@@ -485,6 +502,53 @@ app.patch('/api/contracts/:id/sign', (req, res) => {
 
     // Si c'est un devis de renouvellement lié à un contrat
     if (contract.linked_contract_id) {
+      // Récupérer l'ancien contrat pour vérifier le dépassement
+      const oldContract = db.prepare('SELECT used_hours, total_hours FROM contracts WHERE id = ?')
+        .get(contract.linked_contract_id);
+      
+      if (oldContract) {
+        const overage = oldContract.used_hours - oldContract.total_hours;
+        
+        // Si dépassement et que le devis n'a pas déjà les heures reportées
+        if (overage > 0 && contract.used_hours === 0) {
+          // Récupérer la dernière intervention billable pour le libellé
+          let lastDescription = "Heures supplémentaires";
+          
+          if (contract.interventions_json) {
+            try {
+              const interventions = JSON.parse(`[${contract.interventions_json}]`)
+                .filter(i => i.id !== null && i.is_billable === 1)
+                .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+              
+              if (interventions.length > 0) {
+                lastDescription = interventions[0].description;
+              }
+            } catch (e) {
+              console.error("Error parsing interventions:", e);
+            }
+          }
+
+          const reportInterventionId = randomUUID();
+          db.prepare(`
+            INSERT INTO interventions (id, contract_id, date, description, hours_used, technician, is_billable, location)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          `).run(
+            reportInterventionId,
+            id,
+            signedDate,
+            `${lastDescription} (reporté)`,
+            overage,
+            "Système",
+            1,
+            null
+          );
+
+          // Mettre à jour les heures utilisées du devis signé
+          db.prepare('UPDATE contracts SET used_hours = ? WHERE id = ?')
+            .run(overage, id);
+        }
+      }
+      
       // Archiver l'ancien contrat
       const archivedAt = new Date().toISOString();
       db.prepare('UPDATE contracts SET is_archived = 1, archived_at = ? WHERE id = ?')

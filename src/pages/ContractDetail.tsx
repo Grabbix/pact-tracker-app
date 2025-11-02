@@ -22,7 +22,8 @@ import {
   FileSpreadsheet,
   ChevronDown,
   FileText,
-  Info
+  Info,
+  RefreshCw
 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
@@ -195,7 +196,17 @@ const ContractDetail = () => {
             <div className="flex gap-3">
               <AddInterventionDialog onAdd={handleAddIntervention} variant="billable" />
               <AddInterventionDialog onAdd={handleAddIntervention} variant="non-billable" />
-              {!contract.isArchived && !contract.renewalQuoteId && (
+              {!contract.isArchived && contract.contractType === 'quote' && (
+                <Button variant="default" className="gap-2 bg-success hover:bg-success/90" onClick={() => {
+                  if (id) {
+                    signContract(id).then(() => navigate("/contracts"));
+                  }
+                }}>
+                  <RefreshCw className="h-4 w-4" />
+                  Signer le devis
+                </Button>
+              )}
+              {!contract.isArchived && contract.contractType === 'signed' && !contract.renewalQuoteId && (
                 <>
                   <RenewContractDialog 
                     onRenew={handleRenewContract}
