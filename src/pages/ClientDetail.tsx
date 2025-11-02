@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Building2, Phone, Mail, User, MapPin, Edit, Globe, Shield, Clock, TrendingUp, Plus } from "lucide-react";
+import { ArrowLeft, Building2, Phone, Mail, User, MapPin, Edit, Globe, Shield, Clock, TrendingUp, Plus, FileText } from "lucide-react";
 import { api } from "@/lib/api";
 import { Client } from "@/types/client";
 import { Contract } from "@/types/contract";
@@ -19,6 +19,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { AddContractDialogWithClient } from "@/components/AddContractDialogWithClient";
 
 const ClientDetail = () => {
   const { id } = useParams();
@@ -27,6 +28,8 @@ const ClientDetail = () => {
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [loading, setLoading] = useState(true);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [showAddContractDialog, setShowAddContractDialog] = useState(false);
+  const [contractTypeToCreate, setContractTypeToCreate] = useState<"signed" | "quote">("signed");
   
   const [formData, setFormData] = useState({
     name: "",
@@ -125,6 +128,33 @@ const ClientDetail = () => {
   const removeContact = (index: number) => {
     const newContacts = formData.contacts.filter((_, i) => i !== index);
     setFormData({ ...formData, contacts: newContacts });
+  };
+
+  const handleAddContract = async (contract: {
+    clientName: string;
+    clientId?: string;
+    totalHours: number;
+    contractType: "quote" | "signed";
+    createdDate?: string;
+  }) => {
+    try {
+      await api.createContract({
+        clientName: client!.name,
+        totalHours: contract.totalHours,
+        contractType: contract.contractType,
+        createdDate: contract.createdDate,
+      });
+      toast.success(contract.contractType === "quote" ? "Devis créé avec succès" : "Contrat créé avec succès");
+      fetchClientData();
+    } catch (error) {
+      console.error("Error creating contract:", error);
+      toast.error("Erreur lors de la création");
+    }
+  };
+
+  const openContractDialog = (type: "signed" | "quote") => {
+    setContractTypeToCreate(type);
+    setShowAddContractDialog(true);
   };
 
   if (loading) {
@@ -375,8 +405,12 @@ const ClientDetail = () => {
 
         {/* Contrats actifs */}
         <Card className="mb-6">
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Contrats signés ({activeContracts.length})</CardTitle>
+            <Button onClick={() => openContractDialog("signed")} size="sm" className="gap-2">
+              <Plus className="h-4 w-4" />
+              Nouveau contrat
+            </Button>
           </CardHeader>
           <CardContent>
             {activeContracts.length === 0 ? (
@@ -407,12 +441,18 @@ const ClientDetail = () => {
         </Card>
 
         {/* Devis */}
-        {quoteContracts.length > 0 && (
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle>Devis ({quoteContracts.length})</CardTitle>
-            </CardHeader>
-            <CardContent>
+        <Card className="mb-6">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Devis ({quoteContracts.length})</CardTitle>
+            <Button onClick={() => openContractDialog("quote")} size="sm" variant="outline" className="gap-2">
+              <FileText className="h-4 w-4" />
+              Nouveau devis
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {quoteContracts.length === 0 ? (
+              <p className="text-muted-foreground text-center py-4">Aucun devis</p>
+            ) : (
               <div className="space-y-2">
                 {quoteContracts.map((contract) => (
                   <div
@@ -433,9 +473,9 @@ const ClientDetail = () => {
                   </div>
                 ))}
               </div>
-            </CardContent>
-          </Card>
-        )}
+            )}
+          </CardContent>
+        </Card>
 
         {/* Contrats archivés */}
         {archivedContracts.length > 0 && (
@@ -694,6 +734,17 @@ const ClientDetail = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Dialog for creating contract/quote */}
+      {client && (
+        <AddContractDialogWithClient
+          open={showAddContractDialog}
+          onOpenChange={setShowAddContractDialog}
+          clientName={client.name}
+          contractType={contractTypeToCreate}
+          onAdd={handleAddContract}
+        />
+      )}
     </div>
   );
 };
