@@ -54,8 +54,11 @@ export const exportContractToExcel = (contract: Contract) => {
     XLSX.utils.book_append_sheet(wb, nonBillableWs, 'Interventions non comptées');
   }
 
-  // Save file
-  XLSX.writeFile(wb, `contrat-${contract.clientName.replace(/\s+/g, '-')}-${contract.id}.xlsx`);
+  // Save file with contract number if available
+  const contractRef = contract.contractNumber ? `N${contract.contractNumber}` : contract.id;
+  const clientName = contract.clientName.replace(/[^a-zA-Z0-9]/g, '-');
+  const date = new Date().toISOString().split('T')[0];
+  XLSX.writeFile(wb, `Contrat_${contractRef}_${clientName}_${date}.xlsx`);
 };
 
 export const exportAllContractsToExcelBackup = async () => {

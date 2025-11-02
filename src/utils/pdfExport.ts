@@ -131,6 +131,9 @@ export const exportContractToPDF = (contract: Contract, includeNonBillable: bool
     );
   }
 
-  // Save the PDF
-  doc.save(`contrat-${contract.clientName.replace(/\s+/g, '-')}-${contract.id}.pdf`);
+  // Save the PDF with contract number if available
+  const contractRef = contract.contractNumber ? `N${contract.contractNumber}` : contract.id;
+  const clientName = contract.clientName.replace(/[^a-zA-Z0-9]/g, '-');
+  const date = new Date().toISOString().split('T')[0];
+  doc.save(`Contrat_${contractRef}_${clientName}_${date}.pdf`);
 };
