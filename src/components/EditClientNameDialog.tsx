@@ -67,10 +67,11 @@ export const EditClientNameDialog = ({
   useEffect(() => {
     const fetchClients = async () => {
       try {
-        const data = await api.getClients();
-        setClients(data);
+        const data = await api.getClientsList();
+        setClients(data.map(c => c.name));
       } catch (error) {
         console.error("Error fetching clients:", error);
+        setClients([]);
       }
     };
     if (open) {
