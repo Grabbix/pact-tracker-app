@@ -19,7 +19,8 @@ export const exportContractToPDF = (contract: Contract, includeNonBillable: bool
   doc.setFontSize(12);
   doc.setTextColor(0, 0, 0);
   doc.text(`Client: ${contract.clientName}`, 14, 45);
-  doc.text(`Contrat N°: ${contract.id}`, 14, 52);
+  const contractRef = contract.contractNumber ? `CT-${String(contract.contractNumber).padStart(4, '0')}` : contract.id;
+  doc.text(`Contrat N°: ${contractRef}`, 14, 52);
   doc.text(`Créé le: ${new Date(contract.createdDate).toLocaleDateString('fr-FR')}`, 14, 59);
 
   // Hours summary
@@ -36,14 +37,13 @@ export const exportContractToPDF = (contract: Contract, includeNonBillable: bool
   const tableData = billableInterventions.map(intervention => [
     new Date(intervention.date).toLocaleDateString('fr-FR'),
     intervention.description,
-    intervention.technician,
     intervention.location || 'N/A',
     `${intervention.hoursUsed}h`
   ]);
 
   autoTable(doc, {
     startY: 100,
-    head: [['Date', 'Description', 'Technicien', 'Lieu', 'Heures']],
+    head: [['Date', 'Description', 'Lieu', 'Heures']],
     body: tableData,
     theme: 'striped',
     headStyles: {
@@ -63,10 +63,9 @@ export const exportContractToPDF = (contract: Contract, includeNonBillable: bool
     },
     columnStyles: {
       0: { cellWidth: 28 },
-      1: { cellWidth: 65 },
-      2: { cellWidth: 35 },
-      3: { cellWidth: 25 },
-      4: { cellWidth: 22 }
+      1: { cellWidth: 90 },
+      2: { cellWidth: 30 },
+      3: { cellWidth: 22 }
     }
   });
 
@@ -83,14 +82,13 @@ export const exportContractToPDF = (contract: Contract, includeNonBillable: bool
       const nonBillableData = nonBillableInterventions.map(intervention => [
         new Date(intervention.date).toLocaleDateString('fr-FR'),
         intervention.description,
-        intervention.technician,
         intervention.location || 'N/A',
         `${Math.round(intervention.hoursUsed * 60)} min`
       ]);
 
       autoTable(doc, {
         startY: finalY + 20,
-        head: [['Date', 'Description', 'Technicien', 'Lieu', 'Durée']],
+        head: [['Date', 'Description', 'Lieu', 'Durée']],
         body: nonBillableData,
         theme: 'grid',
         headStyles: {
@@ -109,10 +107,9 @@ export const exportContractToPDF = (contract: Contract, includeNonBillable: bool
         },
         columnStyles: {
           0: { cellWidth: 28 },
-          1: { cellWidth: 65 },
-          2: { cellWidth: 35 },
-          3: { cellWidth: 25 },
-          4: { cellWidth: 22 }
+          1: { cellWidth: 90 },
+          2: { cellWidth: 30 },
+          3: { cellWidth: 22 }
         }
       });
     }
@@ -132,7 +129,6 @@ export const exportContractToPDF = (contract: Contract, includeNonBillable: bool
   }
 
   // Save the PDF with contract number if available
-  const contractRef = contract.contractNumber ? `N${contract.contractNumber}` : contract.id;
   const clientName = contract.clientName.replace(/[^a-zA-Z0-9]/g, '-');
   const date = new Date().toISOString().split('T')[0];
   doc.save(`Contrat_${contractRef}_${clientName}_${date}.pdf`);
