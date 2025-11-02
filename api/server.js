@@ -708,13 +708,14 @@ app.post('/api/contracts/export-all-excel', (req, res) => {
         createdDate: row.created_date,
         status: row.status,
         isArchived: row.is_archived === 1,
+        contractType: row.contract_type,
+        signedDate: row.signed_date,
         interventions,
       };
     });
 
     // Créer un fichier Excel par contrat
     let exportedCount = 0;
-    const timestamp = new Date().toISOString().split('T')[0];
 
     contracts.forEach(contract => {
       // Interventions comptées
@@ -770,9 +771,30 @@ app.post('/api/contracts/export-all-excel', (req, res) => {
         XLSX.utils.book_append_sheet(wb, nonBillableWs, 'Interventions non comptées');
       }
 
+      // Créer le dossier client si nécessaire
+      const clientFolderName = contract.clientName.replace(/[\/\\?%*:|"<>]/g, '-');
+      const clientFolderPath = path.join(backupDir, clientFolderName);
+      
+      if (!fs.existsSync(clientFolderPath)) {
+        fs.mkdirSync(clientFolderPath, { recursive: true });
+      }
+
+      // Déterminer le statut pour le nom du fichier
+      let statusPrefix = 'actif';
+      if (contract.isArchived) {
+        statusPrefix = 'archive';
+      } else if (contract.contractType === 'quote') {
+        statusPrefix = 'devis';
+      }
+
+      // Formater la date de signature
+      const signedDateStr = contract.signedDate 
+        ? new Date(contract.signedDate).toLocaleDateString('fr-FR').replace(/\//g, '-')
+        : 'non-signe';
+
       // Sauvegarder le fichier
-      const fileName = `${contract.clientName.replace(/\s+/g, '-')}_${contract.id}_${timestamp}.xlsx`;
-      const filePath = path.join(backupDir, fileName);
+      const fileName = `[${statusPrefix}]${clientFolderName}_${contract.totalHours}h_${signedDateStr}.xlsx`;
+      const filePath = path.join(clientFolderPath, fileName);
       XLSX.writeFile(wb, filePath);
       exportedCount++;
     });
@@ -843,12 +865,13 @@ cron.schedule('0 18 * * *', () => {
         createdDate: row.created_date,
         status: row.status,
         isArchived: row.is_archived === 1,
+        contractType: row.contract_type,
+        signedDate: row.signed_date,
         interventions,
       };
     });
 
     let exportedCount = 0;
-    const timestamp = new Date().toISOString().split('T')[0];
 
     contracts.forEach(contract => {
       const billableInterventions = contract.interventions
@@ -896,8 +919,29 @@ cron.schedule('0 18 * * *', () => {
         XLSX.utils.book_append_sheet(wb, nonBillableWs, 'Interventions non comptées');
       }
 
-      const fileName = `${contract.clientName.replace(/\s+/g, '-')}_${contract.id}_${timestamp}.xlsx`;
-      const filePath = path.join(backupDir, fileName);
+      // Créer le dossier client si nécessaire
+      const clientFolderName = contract.clientName.replace(/[\/\\?%*:|"<>]/g, '-');
+      const clientFolderPath = path.join(backupDir, clientFolderName);
+      
+      if (!fs.existsSync(clientFolderPath)) {
+        fs.mkdirSync(clientFolderPath, { recursive: true });
+      }
+
+      // Déterminer le statut pour le nom du fichier
+      let statusPrefix = 'actif';
+      if (contract.isArchived) {
+        statusPrefix = 'archive';
+      } else if (contract.contractType === 'quote') {
+        statusPrefix = 'devis';
+      }
+
+      // Formater la date de signature
+      const signedDateStr = contract.signedDate 
+        ? new Date(contract.signedDate).toLocaleDateString('fr-FR').replace(/\//g, '-')
+        : 'non-signe';
+
+      const fileName = `[${statusPrefix}]${clientFolderName}_${contract.totalHours}h_${signedDateStr}.xlsx`;
+      const filePath = path.join(clientFolderPath, fileName);
       XLSX.writeFile(wb, filePath);
       exportedCount++;
     });
