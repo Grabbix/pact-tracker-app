@@ -20,8 +20,11 @@ import {
   Trash2,
   Pencil,
   FileSpreadsheet,
-  ChevronDown
+  ChevronDown,
+  FileText,
+  Info
 } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -45,10 +48,11 @@ import {
 const ContractDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { getContract, addIntervention, updateIntervention, deleteIntervention, renewContract, refetch, loading } = useContracts(true);
+  const { getContract, addIntervention, updateIntervention, deleteIntervention, renewContract, createRenewalQuote, signContract, refetch, loading, contracts } = useContracts(true);
   const [editingIntervention, setEditingIntervention] = useState<Intervention | null>(null);
   const [deletingInterventionId, setDeletingInterventionId] = useState<string | null>(null);
   const [editingClientName, setEditingClientName] = useState(false);
+  const [isCreatingQuote, setIsCreatingQuote] = useState(false);
   
   const contract = getContract(id || "");
 
@@ -121,12 +125,36 @@ const ContractDetail = () => {
     }
   };
 
-  const handleRenewContract = (totalHours: number) => {
-    if (id) {
-      renewContract(id, totalHours);
+  const handleRenewContract = async (totalHours: number) => {
+    if (id && contract?.renewalQuoteId) {
+      // Si un devis de renouvellement existe, on le signe
+      await signContract(contract.renewalQuoteId);
+      navigate("/contracts");
+    } else if (id) {
+      // Sinon renouvellement classique
+      await renewContract(id, totalHours);
       navigate("/contracts");
     }
   };
+
+  const handleCreateRenewalQuote = async (totalHours: number) => {
+    if (id) {
+      setIsCreatingQuote(true);
+      try {
+        const result = await createRenewalQuote(id, totalHours);
+        if (result?.quoteId) {
+          await refetch();
+        }
+      } finally {
+        setIsCreatingQuote(false);
+      }
+    }
+  };
+
+  // Trouver le devis de renouvellement lié
+  const renewalQuote = contract?.renewalQuoteId 
+    ? contracts.find(c => c.id === contract.renewalQuoteId)
+    : null;
 
   return (
     <div className="min-h-screen bg-background">
@@ -167,33 +195,69 @@ const ContractDetail = () => {
             <div className="flex gap-3">
               <AddInterventionDialog onAdd={handleAddIntervention} variant="billable" />
               <AddInterventionDialog onAdd={handleAddIntervention} variant="non-billable" />
-              {!contract.isArchived && (
-                <RenewContractDialog onRenew={handleRenewContract} />
+              {!contract.isArchived && !contract.renewalQuoteId && (
+                <RenewContractDialog 
+                  onRenew={handleCreateRenewalQuote}
+                  buttonLabel="Devis Renouvellement"
+                  dialogTitle="Créer un devis de renouvellement"
+                  disabled={isCreatingQuote}
+                />
+              )}
+              {!contract.isArchived && contract.renewalQuoteId && (
+                <RenewContractDialog 
+                  onRenew={handleRenewContract}
+                  buttonLabel="Signer Devis Renouvellement"
+                  dialogTitle="Signer le devis de renouvellement"
+                />
               )}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" className="gap-2">
                     <Download className="h-4 w-4" />
-                    PDF
+                    Exporter
                     <ChevronDown className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem onClick={() => handleExportPDF(true)}>
-                    Export complet (tout)
+                    <FileText className="h-4 w-4 mr-2" />
+                    PDF Complet
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => handleExportPDF(false)}>
-                    Interventions comptées seulement
+                    <FileText className="h-4 w-4 mr-2" />
+                    PDF Interventions comptées
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleExportExcel}>
+                    <FileSpreadsheet className="h-4 w-4 mr-2" />
+                    Excel
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-              <Button variant="outline" onClick={handleExportExcel} className="gap-2">
-                <FileSpreadsheet className="h-4 w-4" />
-                Excel
-              </Button>
             </div>
           </div>
         </div>
+
+        {/* Renewal Quote Banner */}
+        {renewalQuote && (
+          <Alert className="mb-6 border-primary/50 bg-primary/5">
+            <Info className="h-4 w-4 text-primary" />
+            <AlertDescription className="flex items-center justify-between">
+              <span>
+                Devis de renouvellement envoyé le{" "}
+                {new Date(renewalQuote.createdDate).toLocaleDateString('fr-FR')}
+                {" "}- {renewalQuote.totalHours}h
+              </span>
+              <Button
+                variant="link"
+                size="sm"
+                onClick={() => navigate(`/contracts/${renewalQuote.id}`)}
+                className="h-auto p-0 text-primary"
+              >
+                Voir le devis
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">

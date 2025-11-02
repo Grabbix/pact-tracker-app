@@ -93,6 +93,16 @@ export const api = {
     return response.json();
   },
 
+  async createRenewalQuote(id: string, totalHours: number) {
+    const response = await fetch(`${API_BASE_URL}/api/contracts/${id}/renewal-quote`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ totalHours }),
+    });
+    if (!response.ok) throw new Error('Failed to create renewal quote');
+    return response.json();
+  },
+
   async getClients() {
     const response = await fetch(`${API_BASE_URL}/api/clients`);
     if (!response.ok) throw new Error('Failed to fetch clients');

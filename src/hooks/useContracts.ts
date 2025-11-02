@@ -118,6 +118,18 @@ export const useContracts = (includeArchived: boolean = false) => {
     }
   };
 
+  const createRenewalQuote = async (contractId: string, totalHours: number) => {
+    try {
+      const data = await api.createRenewalQuote(contractId, totalHours);
+      toast.success("Devis de renouvellement créé avec succès");
+      await fetchContracts();
+      return data;
+    } catch (error: any) {
+      console.error("Error creating renewal quote:", error);
+      toast.error("Erreur lors de la création du devis de renouvellement");
+    }
+  };
+
   const updateClientName = async (contractId: string, clientName: string) => {
     try {
       await api.updateClientName(contractId, clientName);
@@ -154,6 +166,7 @@ export const useContracts = (includeArchived: boolean = false) => {
     archiveContract,
     unarchiveContract,
     renewContract,
+    createRenewalQuote,
     updateClientName,
     signContract,
     getContract,

@@ -15,9 +15,12 @@ import { RefreshCw } from "lucide-react";
 
 interface RenewContractDialogProps {
   onRenew: (totalHours: number) => void;
+  buttonLabel?: string;
+  dialogTitle?: string;
+  disabled?: boolean;
 }
 
-export const RenewContractDialog = ({ onRenew }: RenewContractDialogProps) => {
+export const RenewContractDialog = ({ onRenew, buttonLabel = "Renouveler", dialogTitle = "Renouveler le contrat", disabled = false }: RenewContractDialogProps) => {
   const [open, setOpen] = useState(false);
   const [totalHours, setTotalHours] = useState("");
 
@@ -34,15 +37,15 @@ export const RenewContractDialog = ({ onRenew }: RenewContractDialogProps) => {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" className="gap-2">
+        <Button variant="outline" className="gap-2" disabled={disabled}>
           <RefreshCw className="h-4 w-4" />
-          Renouveler
+          {buttonLabel}
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle>Renouveler le contrat</DialogTitle>
+            <DialogTitle>{dialogTitle}</DialogTitle>
             <DialogDescription>
               Le contrat actuel sera archivé et un nouveau sera créé. Les heures en dépassement seront automatiquement reportées.
             </DialogDescription>

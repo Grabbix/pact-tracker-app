@@ -23,4 +23,6 @@ export interface Contract {
   signedDate?: string;
   internalNotes?: string;
   clientInternalNotes?: string;
+  renewalQuoteId?: string;
+  linkedContractId?: string;
 }

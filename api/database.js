@@ -48,6 +48,8 @@ db.exec(`
     contract_type TEXT NOT NULL DEFAULT 'signed',
     signed_date TEXT,
     internal_notes TEXT,
+    renewal_quote_id TEXT,
+    linked_contract_id TEXT,
     FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE SET NULL
   );
 
@@ -64,5 +66,24 @@ db.exec(`
     FOREIGN KEY (contract_id) REFERENCES contracts(id) ON DELETE CASCADE
   );
 `);
+
+// Add renewal_quote_id and linked_contract_id columns if they don't exist
+try {
+  db.exec(`
+    ALTER TABLE contracts ADD COLUMN renewal_quote_id TEXT;
+  `);
+  console.log('Added renewal_quote_id column to contracts table');
+} catch (e) {
+  // Column already exists
+}
+
+try {
+  db.exec(`
+    ALTER TABLE contracts ADD COLUMN linked_contract_id TEXT;
+  `);
+  console.log('Added linked_contract_id column to contracts table');
+} catch (e) {
+  // Column already exists
+}
 
 module.exports = db;
