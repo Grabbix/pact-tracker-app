@@ -469,9 +469,7 @@ const ContractDetail = () => {
       <EditClientNameDialog
         contractId={contract.id}
         currentName={contract.clientName}
-        currentSignedDate={contract.signedDate}
         currentCreatedDate={contract.createdDate}
-        contractType={contract.contractType}
         open={editingClientName}
         onOpenChange={setEditingClientName}
         onUpdate={refetch}

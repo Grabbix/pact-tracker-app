@@ -34,9 +34,7 @@ import { fr } from "date-fns/locale";
 interface EditClientNameDialogProps {
   contractId: string;
   currentName: string;
-  currentSignedDate?: string | null;
   currentCreatedDate?: string;
-  contractType?: "quote" | "signed";
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onUpdate: () => void;
@@ -45,21 +43,15 @@ interface EditClientNameDialogProps {
 export const EditClientNameDialog = ({
   contractId,
   currentName,
-  currentSignedDate,
   currentCreatedDate,
-  contractType,
   open,
   onOpenChange,
   onUpdate,
 }: EditClientNameDialogProps) => {
   const [comboOpen, setComboOpen] = useState(false);
-  const [dateOpen, setDateOpen] = useState(false);
   const [createdDateOpen, setCreatedDateOpen] = useState(false);
   const [clients, setClients] = useState<string[]>([]);
   const [clientName, setClientName] = useState(currentName);
-  const [signedDate, setSignedDate] = useState<Date | undefined>(
-    currentSignedDate ? new Date(currentSignedDate) : undefined
-  );
   const [createdDate, setCreatedDate] = useState<Date | undefined>(
     currentCreatedDate ? new Date(currentCreatedDate) : undefined
   );
@@ -77,10 +69,9 @@ export const EditClientNameDialog = ({
     if (open) {
       fetchClients();
       setClientName(currentName);
-      setSignedDate(currentSignedDate ? new Date(currentSignedDate) : undefined);
       setCreatedDate(currentCreatedDate ? new Date(currentCreatedDate) : undefined);
     }
-  }, [open, currentName, currentSignedDate, currentCreatedDate]);
+  }, [open, currentName, currentCreatedDate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -93,7 +84,6 @@ export const EditClientNameDialog = ({
     try {
       await api.updateContract(contractId, {
         clientName,
-        signedDate: signedDate?.toISOString() || null,
         createdDate: createdDate?.toISOString(),
       });
       toast.success("Contrat modifié avec succès");
@@ -203,37 +193,6 @@ export const EditClientNameDialog = ({
               </Popover>
             </div>
 
-            {contractType === "signed" && (
-              <div className="grid gap-2">
-                <Label>Date de signature</Label>
-                <Popover open={dateOpen} onOpenChange={setDateOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !signedDate && "text-muted-foreground"
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {signedDate ? format(signedDate, "PPP", { locale: fr }) : <span>Sélectionner une date</span>}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={signedDate}
-                      onSelect={(date) => {
-                        setSignedDate(date);
-                        setDateOpen(false);
-                      }}
-                      initialFocus
-                      className="pointer-events-auto"
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-            )}
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

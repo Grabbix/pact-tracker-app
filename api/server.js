@@ -551,15 +551,10 @@ app.post('/api/contracts/:id/renewal-quote', (req, res) => {
 app.patch('/api/contracts/:id/client-name', (req, res) => {
   try {
     const { id } = req.params;
-    const { clientName, signedDate, createdDate } = req.body;
+    const { clientName, createdDate } = req.body;
 
     let query = 'UPDATE contracts SET client_name = ?';
     let params = [clientName];
-
-    if (signedDate !== undefined) {
-      query += ', signed_date = ?';
-      params.push(signedDate);
-    }
 
     if (createdDate !== undefined) {
       query += ', created_date = ?';

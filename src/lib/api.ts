@@ -179,7 +179,6 @@ export const api = {
 
   async updateContract(contractId: string, data: { 
     clientName: string; 
-    signedDate?: string | null;
     createdDate?: string;
   }) {
     const response = await fetch(`${API_BASE_URL}/api/contracts/${contractId}/client-name`, {
