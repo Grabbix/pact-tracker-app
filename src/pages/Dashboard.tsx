@@ -150,7 +150,7 @@ const Dashboard = () => {
       <div className="container mx-auto p-6 max-w-7xl">
         {/* Header */}
         <div className="flex items-center gap-4 mb-8">
-          <Button variant="ghost" onClick={() => navigate("/")}>
+          <Button variant="ghost" onClick={() => navigate("/contracts")}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div className="flex items-center gap-3">
