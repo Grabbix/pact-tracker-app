@@ -64,6 +64,14 @@ const Dashboard = () => {
   const usedHours = contracts.reduce((acc, c) => acc + c.usedHours, 0);
   const remainingHours = totalHours - usedHours;
   const usagePercentage = totalHours > 0 ? Math.round((usedHours / totalHours) * 100) : 0;
+  
+  // Heures en dépassement totales
+  const totalOverageHours = contracts.reduce((acc, c) => {
+    if (c.usedHours > c.totalHours) {
+      return acc + (c.usedHours - c.totalHours);
+    }
+    return acc;
+  }, 0);
 
   // Top 5 clients par heures utilisées
   const clientsWithHours = clients.map(client => {
@@ -71,6 +79,18 @@ const Dashboard = () => {
     const totalUsed = clientContracts.reduce((acc, c) => acc + c.usedHours, 0);
     return { name: client.name, hours: totalUsed };
   }).sort((a, b) => b.hours - a.hours).slice(0, 5);
+
+  // Top clients en dépassement
+  const clientsWithOverage = clients.map(client => {
+    const clientContracts = contracts.filter(c => c.clientId === client.id);
+    const totalOverage = clientContracts.reduce((acc, c) => {
+      if (c.usedHours > c.totalHours) {
+        return acc + (c.usedHours - c.totalHours);
+      }
+      return acc;
+    }, 0);
+    return { name: client.name, overage: totalOverage };
+  }).filter(c => c.overage > 0).sort((a, b) => b.overage - a.overage).slice(0, 5);
 
   // Distribution des contrats par statut
   const statusData = [
@@ -140,7 +160,7 @@ const Dashboard = () => {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 mb-8">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">Total Clients</CardTitle>
@@ -194,6 +214,17 @@ const Dashboard = () => {
               <p className="text-xs text-muted-foreground">{usagePercentage}% utilisé</p>
             </CardContent>
           </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Heures en Dépassement</CardTitle>
+              <DollarSign className="h-4 w-4 text-destructive" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-destructive">{totalOverageHours}h</div>
+              <p className="text-xs text-muted-foreground">à facturer</p>
+            </CardContent>
+          </Card>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
@@ -215,6 +246,30 @@ const Dashboard = () => {
             </CardContent>
           </Card>
 
+          {/* Top Clients en Dépassement */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Top Clients en Dépassement</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {clientsWithOverage.length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={clientsWithOverage}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="overage" fill="hsl(var(--destructive))" name="Heures dépassées" />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <p className="text-muted-foreground text-center py-12">Aucun dépassement enregistré</p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           {/* Status Distribution */}
           <Card>
             <CardHeader>
@@ -246,9 +301,7 @@ const Dashboard = () => {
               )}
             </CardContent>
           </Card>
-        </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Monthly Hours */}
           <Card>
             <CardHeader>
