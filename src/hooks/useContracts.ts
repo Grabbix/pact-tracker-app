@@ -152,6 +152,17 @@ export const useContracts = (includeArchived: boolean = false) => {
     }
   };
 
+  const deleteQuote = async (id: string) => {
+    try {
+      await api.deleteQuote(id);
+      toast.success("Devis supprimé");
+      fetchContracts();
+    } catch (error) {
+      console.error("Error deleting quote:", error);
+      toast.error("Erreur lors de la suppression du devis");
+    }
+  };
+
   const getContract = (id: string) => {
     return contracts.find((c) => c.id === id);
   };
@@ -169,6 +180,7 @@ export const useContracts = (includeArchived: boolean = false) => {
     createRenewalQuote,
     updateClientName,
     signContract,
+    deleteQuote,
     getContract,
     refetch: fetchContracts,
   };

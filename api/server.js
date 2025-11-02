@@ -641,6 +641,43 @@ app.patch('/api/contracts/:id/client-name', (req, res) => {
   }
 });
 
+// Supprimer un devis et restaurer le contrat lié
+app.delete('/api/contracts/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Récupérer le contrat à supprimer
+    const contract = db.prepare('SELECT * FROM contracts WHERE id = ?').get(id);
+    
+    if (!contract) {
+      return res.status(404).json({ error: 'Contract not found' });
+    }
+    
+    // Vérifier que c'est bien un devis
+    if (contract.contract_type !== 'quote') {
+      return res.status(400).json({ error: 'Only quotes can be deleted' });
+    }
+    
+    // Trouver le contrat lié
+    if (contract.linked_contract_id) {
+      // Retirer le renewal_quote_id du contrat actif
+      db.prepare('UPDATE contracts SET renewal_quote_id = NULL WHERE id = ?')
+        .run(contract.linked_contract_id);
+    }
+    
+    // Supprimer les interventions du devis
+    db.prepare('DELETE FROM interventions WHERE contract_id = ?').run(id);
+    
+    // Supprimer le devis
+    db.prepare('DELETE FROM contracts WHERE id = ?').run(id);
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting quote:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Helper function to sync overage interventions to renewal quote
 function syncOverageToRenewalQuote(contractId) {
   const contract = db.prepare('SELECT * FROM contracts WHERE id = ?').get(contractId);

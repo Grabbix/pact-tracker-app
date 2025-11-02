@@ -49,7 +49,7 @@ import {
 const ContractDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { getContract, addIntervention, updateIntervention, deleteIntervention, renewContract, createRenewalQuote, signContract, refetch, loading, contracts } = useContracts(true);
+  const { getContract, addIntervention, updateIntervention, deleteIntervention, renewContract, createRenewalQuote, signContract, deleteQuote, refetch, loading, contracts } = useContracts(true);
   const [editingIntervention, setEditingIntervention] = useState<Intervention | null>(null);
   const [deletingInterventionId, setDeletingInterventionId] = useState<string | null>(null);
   const [editingClientName, setEditingClientName] = useState(false);
@@ -198,14 +198,24 @@ const ContractDetail = () => {
               <AddInterventionDialog onAdd={handleAddIntervention} variant="billable" />
               <AddInterventionDialog onAdd={handleAddIntervention} variant="non-billable" />
               {!contract.isArchived && contract.contractType === 'quote' && (
-                <Button variant="default" className="gap-2 bg-success hover:bg-success/90" onClick={() => {
-                  if (id) {
-                    signContract(id).then(() => navigate("/contracts"));
-                  }
-                }}>
-                  <RefreshCw className="h-4 w-4" />
-                  Signer le devis
-                </Button>
+                <>
+                  <Button variant="default" className="gap-2 bg-success hover:bg-success/90" onClick={() => {
+                    if (id) {
+                      signContract(id).then(() => navigate("/contracts"));
+                    }
+                  }}>
+                    <RefreshCw className="h-4 w-4" />
+                    Signer le devis
+                  </Button>
+                  <Button variant="destructive" className="gap-2" onClick={() => {
+                    if (id) {
+                      deleteQuote(id).then(() => navigate("/contracts"));
+                    }
+                  }}>
+                    <Trash2 className="h-4 w-4" />
+                    Supprimer le devis
+                  </Button>
+                </>
               )}
               {!contract.isArchived && contract.contractType === 'signed' && !contract.renewalQuoteId && (
                 <>

@@ -206,6 +206,14 @@ export const api = {
     return response.json();
   },
 
+  async deleteQuote(id: string) {
+    const response = await fetch(`${API_BASE_URL}/api/contracts/${id}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) throw new Error('Failed to delete quote');
+    return response.json();
+  },
+
   async getTechniciansList(): Promise<string[]> {
     const response = await fetch(`${API_BASE_URL}/api/technicians-list`);
     if (!response.ok) throw new Error('Failed to fetch technicians list');
