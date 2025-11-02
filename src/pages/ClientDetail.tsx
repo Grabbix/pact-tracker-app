@@ -240,9 +240,27 @@ const ClientDetail = () => {
               {client.domains && client.domains.length > 0 && (
                 <div>
                   <p className="text-xs font-medium text-muted-foreground mb-1">Domaines</p>
-                  <div className="flex flex-wrap gap-1">
+                  <div className="space-y-2">
                     {client.domains.map((domain, i) => (
-                      <Badge key={i} variant="secondary" className="text-xs">{domain}</Badge>
+                      <div key={i} className="flex items-center gap-2">
+                        <Badge variant="secondary" className="text-xs">{domain}</Badge>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 px-2 text-xs"
+                          onClick={() => window.open(`https://who.is/dns/${domain}`, '_blank')}
+                        >
+                          DNS
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 px-2 text-xs"
+                          onClick={() => window.open(`https://who.is/rdap/${domain}`, '_blank')}
+                        >
+                          WHOIS
+                        </Button>
+                      </div>
                     ))}
                   </div>
                 </div>
