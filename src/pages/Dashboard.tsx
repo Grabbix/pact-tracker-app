@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, TrendingUp, Users, FileText, AlertCircle, Clock, DollarSign } from "lucide-react";
+import { ArrowLeft, TrendingUp, FileText, AlertCircle, Clock, DollarSign } from "lucide-react";
 import { api } from "@/lib/api";
 import { Contract } from "@/types/contract";
 import { Client } from "@/types/client";
@@ -18,8 +18,7 @@ import {
   Pie,
   Cell,
   LineChart,
-  Line,
-  Legend
+  Line
 } from "recharts";
 import { format, subMonths, startOfMonth, endOfMonth, eachMonthOfInterval } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -27,6 +26,7 @@ import { fr } from "date-fns/locale";
 const Dashboard = () => {
   const navigate = useNavigate();
   const [contracts, setContracts] = useState<Contract[]>([]);
+  const [allContracts, setAllContracts] = useState<Contract[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -37,11 +37,13 @@ const Dashboard = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [contractsData, clientsData] = await Promise.all([
+      const [contractsData, allContractsData, clientsData] = await Promise.all([
         api.getContracts(false),
+        api.getContracts(true), // Tous les contrats pour les stats clients
         api.getClients()
       ]);
       setContracts(contractsData);
+      setAllContracts(allContractsData);
       setClients(clientsData);
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -51,7 +53,6 @@ const Dashboard = () => {
   };
 
   // Statistiques globales
-  const totalClients = clients.length;
   const totalContracts = contracts.length;
   const activeContracts = contracts.filter(c => c.status === "active").length;
   const nearExpiryContracts = contracts.filter(c => {
@@ -73,9 +74,9 @@ const Dashboard = () => {
     return acc;
   }, 0);
 
-  // Top 5 clients par heures utilisées
+  // Top 5 clients par heures utilisées (ALL TIME - tous contrats)
   const clientsWithHours = clients.map(client => {
-    const clientContracts = contracts.filter(c => c.clientId === client.id);
+    const clientContracts = allContracts.filter(c => c.clientId === client.id);
     const totalUsed = clientContracts.reduce((acc, c) => acc + c.usedHours, 0);
     return { name: client.name, hours: totalUsed };
   }).sort((a, b) => b.hours - a.hours).slice(0, 5);
@@ -93,10 +94,22 @@ const Dashboard = () => {
   }).filter(c => c.overage > 0).sort((a, b) => b.overage - a.overage).slice(0, 5);
 
   // Distribution des contrats par statut
+  const validContracts = contracts.filter(c => {
+    const percentage = (c.usedHours / c.totalHours) * 100;
+    return percentage < 90;
+  }).length;
+  
+  const nearExpiryContractsCount = contracts.filter(c => {
+    const percentage = (c.usedHours / c.totalHours) * 100;
+    return percentage >= 90 && percentage <= 100;
+  }).length;
+  
+  const overageContractsCount = contracts.filter(c => c.usedHours > c.totalHours).length;
+  
   const statusData = [
-    { name: "Actifs", value: contracts.filter(c => c.status === "active").length, color: "#10b981" },
-    { name: "Expirés", value: contracts.filter(c => c.status === "expired").length, color: "#ef4444" },
-    { name: "Proche expiration", value: contracts.filter(c => c.status === "near-expiry").length, color: "#f59e0b" }
+    { name: "Valides", value: validContracts, color: "#10b981" },
+    { name: "Bientôt expirés", value: nearExpiryContractsCount, color: "#f59e0b" },
+    { name: "Dépassement", value: overageContractsCount, color: "#ef4444" }
   ].filter(d => d.value > 0);
 
   // Heures utilisées par mois (6 derniers mois)
@@ -123,17 +136,16 @@ const Dashboard = () => {
     };
   });
 
-  // Technicians stats
-  const technicianStats = contracts.reduce((acc, contract) => {
+  // Technicians stats (ALL TIME)
+  const technicianStats = allContracts.reduce((acc, contract) => {
     contract.interventions.forEach(intervention => {
       if (!acc[intervention.technician]) {
-        acc[intervention.technician] = { name: intervention.technician, hours: 0, count: 0 };
+        acc[intervention.technician] = { name: intervention.technician, hours: 0 };
       }
       acc[intervention.technician].hours += intervention.hoursUsed;
-      acc[intervention.technician].count += 1;
     });
     return acc;
-  }, {} as Record<string, { name: string; hours: number; count: number }>);
+  }, {} as Record<string, { name: string; hours: number }>);
 
   const technicianData = Object.values(technicianStats).sort((a, b) => b.hours - a.hours);
 
@@ -160,17 +172,7 @@ const Dashboard = () => {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 mb-8">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Total Clients</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{totalClients}</div>
-            </CardContent>
-          </Card>
-
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">Contrats Actifs</CardTitle>
@@ -231,7 +233,7 @@ const Dashboard = () => {
           {/* Top Clients */}
           <Card>
             <CardHeader>
-              <CardTitle>Top 5 Clients (heures utilisées)</CardTitle>
+              <CardTitle>Top 5 Clients (All Time)</CardTitle>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
@@ -240,7 +242,7 @@ const Dashboard = () => {
                   <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} />
                   <YAxis />
                   <Tooltip />
-                  <Bar dataKey="hours" fill="hsl(var(--primary))" />
+                  <Bar dataKey="hours" fill="hsl(var(--primary))" name="Heures totales" />
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>
@@ -314,7 +316,6 @@ const Dashboard = () => {
                   <XAxis dataKey="month" />
                   <YAxis />
                   <Tooltip />
-                  <Legend />
                   <Line type="monotone" dataKey="hours" stroke="hsl(var(--primary))" strokeWidth={2} name="Heures" />
                 </LineChart>
               </ResponsiveContainer>
@@ -324,7 +325,7 @@ const Dashboard = () => {
           {/* Technicians */}
           <Card>
             <CardHeader>
-              <CardTitle>Activité par technicien</CardTitle>
+              <CardTitle>Activité par technicien (All Time)</CardTitle>
             </CardHeader>
             <CardContent>
               {technicianData.length > 0 ? (
@@ -334,9 +335,7 @@ const Dashboard = () => {
                     <XAxis dataKey="name" />
                     <YAxis />
                     <Tooltip />
-                    <Legend />
                     <Bar dataKey="hours" fill="hsl(var(--primary))" name="Heures" />
-                    <Bar dataKey="count" fill="hsl(var(--secondary))" name="Interventions" />
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
