@@ -14,11 +14,18 @@ const PORT = process.env.PORT || 3001;
 const dataDir = path.join(__dirname, 'data');
 const backupDir = path.join(__dirname, 'backup');
 
+console.log('Data directory path:', dataDir);
+console.log('Backup directory path:', backupDir);
+
 if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir);
+  console.log('Created data directory');
 }
 if (!fs.existsSync(backupDir)) {
   fs.mkdirSync(backupDir);
+  console.log('Created backup directory');
+} else {
+  console.log('Backup directory already exists');
 }
 
 app.use(cors());
