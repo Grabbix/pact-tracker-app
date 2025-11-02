@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Building2, Phone, Mail, User, MapPin, Edit, Globe, Shield, Clock, TrendingUp } from "lucide-react";
+import { ArrowLeft, Building2, Phone, Mail, User, MapPin, Edit, Globe, Shield, Clock, TrendingUp, Plus } from "lucide-react";
 import { api } from "@/lib/api";
 import { Client } from "@/types/client";
 import { Contract } from "@/types/contract";
@@ -13,13 +13,12 @@ import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 const ClientDetail = () => {
   const { id } = useParams();
@@ -28,7 +27,23 @@ const ClientDetail = () => {
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [loading, setLoading] = useState(true);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [editedName, setEditedName] = useState("");
+  
+  const [formData, setFormData] = useState({
+    name: "",
+    address: "",
+    phoneStandard: "",
+    internalNotes: "",
+    fai: "",
+    domains: [] as string[],
+    emailType: "",
+    mailinblack: false,
+    arx: false,
+    arxQuota: "",
+    eset: false,
+    esetVersion: "",
+    fortinet: false,
+    contacts: [{ name: "", email: "", phone: "" } as { name: string; email?: string; phone?: string }]
+  });
 
   useEffect(() => {
     if (id) {
@@ -54,26 +69,62 @@ const ClientDetail = () => {
   };
 
   const handleEditClick = () => {
-    setEditedName(client?.name || "");
+    if (client) {
+      setFormData({
+        name: client.name,
+        address: client.address || "",
+        phoneStandard: client.phoneStandard || "",
+        internalNotes: client.internalNotes || "",
+        fai: client.fai || "",
+        domains: client.domains || [],
+        emailType: client.emailType || "",
+        mailinblack: client.mailinblack || false,
+        arx: client.arx || false,
+        arxQuota: client.arxQuota || "",
+        eset: client.eset || false,
+        esetVersion: client.esetVersion || "",
+        fortinet: client.fortinet || false,
+        contacts: client.contacts.length > 0 ? client.contacts.map(c => ({ name: c.name, email: c.email, phone: c.phone })) : [{ name: "", email: "", phone: "" }]
+      });
+    }
     setIsEditDialogOpen(true);
   };
 
-  const handleSaveClientName = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editedName.trim() || !id) {
-      toast.error("Le nom du client ne peut pas être vide");
+  const handleSubmit = async () => {
+    if (!formData.name.trim() || !id) {
+      toast.error("Le nom du client est requis");
       return;
     }
 
+    const contacts = formData.contacts.filter(c => c.name.trim());
+
     try {
-      await api.updateClient(id, { ...client!, name: editedName });
-      toast.success("Nom du client modifié avec succès");
-      fetchClientData();
+      await api.updateClient(id, { ...formData, contacts });
+      toast.success("Client mis à jour avec succès");
       setIsEditDialogOpen(false);
+      fetchClientData();
     } catch (error) {
-      console.error("Error updating client name:", error);
-      toast.error("Erreur lors de la modification du nom");
+      console.error("Error saving client:", error);
+      toast.error("Erreur lors de l'enregistrement");
     }
+  };
+
+  const addContactField = () => {
+    setFormData({
+      ...formData,
+      contacts: [...formData.contacts, { name: "", email: "", phone: "" }]
+    });
+  };
+
+  const updateContact = (index: number, field: string, value: string) => {
+    const newContacts = [...formData.contacts];
+    newContacts[index] = { ...newContacts[index], [field]: value };
+    setFormData({ ...formData, contacts: newContacts });
+  };
+
+  const removeContact = (index: number) => {
+    const newContacts = formData.contacts.filter((_, i) => i !== index);
+    setFormData({ ...formData, contacts: newContacts });
   };
 
   if (loading) {
@@ -399,32 +450,230 @@ const ClientDetail = () => {
       </div>
 
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Modifier le nom du client</DialogTitle>
-            <DialogDescription>
-              Modifiez le nom du client
-            </DialogDescription>
+            <DialogTitle>Modifier le client</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSaveClientName}>
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label htmlFor="name">Nom du client</Label>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="name">Nom du client *</Label>
+              <Input
+                id="name"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder="Nom de l'entreprise"
+              />
+            </div>
+            <div>
+              <Label htmlFor="address">Adresse</Label>
+              <Input
+                id="address"
+                value={formData.address}
+                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                placeholder="Adresse complète"
+              />
+            </div>
+            <div>
+              <Label htmlFor="phoneStandard">Numéro du standard</Label>
+              <Input
+                id="phoneStandard"
+                value={formData.phoneStandard}
+                onChange={(e) => setFormData({ ...formData, phoneStandard: e.target.value })}
+                placeholder="01 23 45 67 89"
+              />
+            </div>
+            <div>
+              <Label htmlFor="internalNotes">Notes internes</Label>
+              <Textarea
+                id="internalNotes"
+                value={formData.internalNotes}
+                onChange={(e) => setFormData({ ...formData, internalNotes: e.target.value })}
+                placeholder="Notes visibles sur les contrats"
+                rows={3}
+              />
+            </div>
+
+            <div className="border-t pt-4 space-y-4">
+              <h3 className="font-semibold text-sm">Informations techniques</h3>
+              
+              <div>
+                <Label htmlFor="fai">FAI</Label>
                 <Input
-                  id="name"
-                  value={editedName}
-                  onChange={(e) => setEditedName(e.target.value)}
-                  placeholder="Nom du client"
+                  id="fai"
+                  value={formData.fai}
+                  onChange={(e) => setFormData({ ...formData, fai: e.target.value })}
+                  placeholder="Fournisseur d'accès internet"
                 />
               </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <Label>Domaines</Label>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => setFormData({ ...formData, domains: [...formData.domains, ""] })}
+                  >
+                    <Plus className="h-3 w-3 mr-1" />
+                    Ajouter
+                  </Button>
+                </div>
+                {formData.domains.map((domain, index) => (
+                  <div key={index} className="flex gap-2 mb-2">
+                    <Input
+                      placeholder="exemple.com"
+                      value={domain}
+                      onChange={(e) => {
+                        const newDomains = [...formData.domains];
+                        newDomains[index] = e.target.value;
+                        setFormData({ ...formData, domains: newDomains });
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setFormData({ ...formData, domains: formData.domains.filter((_, i) => i !== index) })}
+                    >
+                      Supprimer
+                    </Button>
+                  </div>
+                ))}
+              </div>
+
+              <div>
+                <Label htmlFor="emailType">Type de mails</Label>
+                <Input
+                  id="emailType"
+                  value={formData.emailType}
+                  onChange={(e) => setFormData({ ...formData, emailType: e.target.value })}
+                  placeholder="OVH Exchange, 365, ou autre"
+                />
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="mailinblack"
+                  checked={formData.mailinblack}
+                  onChange={(e) => setFormData({ ...formData, mailinblack: e.target.checked })}
+                  className="h-4 w-4"
+                />
+                <Label htmlFor="mailinblack">Mailinblack</Label>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="arx"
+                    checked={formData.arx}
+                    onChange={(e) => setFormData({ ...formData, arx: e.target.checked })}
+                    className="h-4 w-4"
+                  />
+                  <Label htmlFor="arx">ARX</Label>
+                </div>
+                {formData.arx && (
+                  <div className="ml-6">
+                    <Label htmlFor="arxQuota">Quota (Go)</Label>
+                    <Input
+                      id="arxQuota"
+                      value={formData.arxQuota}
+                      onChange={(e) => setFormData({ ...formData, arxQuota: e.target.value })}
+                      placeholder="Ex: 100"
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="eset"
+                    checked={formData.eset}
+                    onChange={(e) => setFormData({ ...formData, eset: e.target.checked })}
+                    className="h-4 w-4"
+                  />
+                  <Label htmlFor="eset">ESET</Label>
+                </div>
+                {formData.eset && (
+                  <div className="ml-6">
+                    <Label htmlFor="esetVersion">Version</Label>
+                    <Input
+                      id="esetVersion"
+                      value={formData.esetVersion}
+                      onChange={(e) => setFormData({ ...formData, esetVersion: e.target.value })}
+                      placeholder="Ex: v10.1"
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="fortinet"
+                  checked={formData.fortinet}
+                  onChange={(e) => setFormData({ ...formData, fortinet: e.target.checked })}
+                  className="h-4 w-4"
+                />
+                <Label htmlFor="fortinet">Fortinet</Label>
+              </div>
             </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+
+            <div className="border-t pt-4">
+              <div className="flex items-center justify-between mb-2">
+                <Label>Personnes à contacter</Label>
+                <Button type="button" variant="outline" size="sm" onClick={addContactField}>
+                  <Plus className="h-3 w-3 mr-1" />
+                  Ajouter
+                </Button>
+              </div>
+              {formData.contacts.map((contact, index) => (
+                <div key={index} className="space-y-2 p-3 border rounded-md mb-2">
+                  <div className="flex justify-between items-center">
+                    <Label className="text-sm">Contact {index + 1}</Label>
+                    {formData.contacts.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeContact(index)}
+                      >
+                        Supprimer
+                      </Button>
+                    )}
+                  </div>
+                  <Input
+                    placeholder="Nom"
+                    value={contact.name}
+                    onChange={(e) => updateContact(index, "name", e.target.value)}
+                  />
+                  <Input
+                    placeholder="Email"
+                    type="email"
+                    value={contact.email}
+                    onChange={(e) => updateContact(index, "email", e.target.value)}
+                  />
+                  <Input
+                    placeholder="Téléphone"
+                    value={contact.phone}
+                    onChange={(e) => updateContact(index, "phone", e.target.value)}
+                  />
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-end gap-2 pt-4">
+              <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
                 Annuler
               </Button>
-              <Button type="submit">Enregistrer</Button>
-            </DialogFooter>
-          </form>
+              <Button onClick={handleSubmit}>
+                Mettre à jour
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

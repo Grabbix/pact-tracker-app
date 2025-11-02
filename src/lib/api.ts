@@ -177,6 +177,14 @@ export const api = {
     return response.json();
   },
 
+  async deleteClient(id: string) {
+    const response = await fetch(`${API_BASE_URL}/api/clients/${id}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) throw new Error('Failed to delete client');
+    return response.json();
+  },
+
   async updateContract(contractId: string, data: { 
     clientName: string; 
     createdDate?: string;

@@ -3,13 +3,23 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Building2, Search, ArrowLeft, Plus, Phone, Mail, User, MapPin, Edit } from "lucide-react";
+import { Building2, Search, ArrowLeft, Plus, Phone, Mail, User, MapPin, Edit, Trash2 } from "lucide-react";
 import { api } from "@/lib/api";
 import { Client } from "@/types/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const Clients = () => {
   const navigate = useNavigate();
@@ -18,6 +28,8 @@ const Clients = () => {
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -138,6 +150,27 @@ const Clients = () => {
   const removeContact = (index: number) => {
     const newContacts = formData.contacts.filter((_, i) => i !== index);
     setFormData({ ...formData, contacts: newContacts });
+  };
+
+  const handleDeleteClient = async () => {
+    if (!clientToDelete) return;
+    
+    try {
+      await api.deleteClient(clientToDelete.id);
+      toast.success("Client supprimé avec succès");
+      setDeleteDialogOpen(false);
+      setClientToDelete(null);
+      fetchClients();
+    } catch (error) {
+      console.error("Error deleting client:", error);
+      toast.error("Erreur lors de la suppression du client");
+    }
+  };
+
+  const openDeleteDialog = (client: Client, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setClientToDelete(client);
+    setDeleteDialogOpen(true);
   };
 
   return (
@@ -424,6 +457,13 @@ const Clients = () => {
                       >
                         <Edit className="h-4 w-4" />
                       </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => openDeleteDialog(client, e)}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
                       <Building2 className="h-5 w-5 text-muted-foreground flex-shrink-0" />
                     </div>
                   </CardTitle>
@@ -513,6 +553,33 @@ const Clients = () => {
           </div>
         )}
       </div>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer le client</AlertDialogTitle>
+            <AlertDialogDescription>
+              {clientToDelete && (
+                <>
+                  Êtes-vous sûr de vouloir supprimer <strong>{clientToDelete.name}</strong> ?
+                  {(clientToDelete.activeContractsCount || 0) + (clientToDelete.archivedContractsCount || 0) > 0 && (
+                    <div className="mt-2 p-2 bg-destructive/10 border border-destructive/20 rounded">
+                      <strong>Attention :</strong> En supprimant ce client vous allez également supprimer{" "}
+                      {(clientToDelete.activeContractsCount || 0) + (clientToDelete.archivedContractsCount || 0)} contrat(s) associé(s).
+                    </div>
+                  )}
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteClient} className="bg-destructive hover:bg-destructive/90">
+              Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

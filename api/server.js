@@ -422,6 +422,33 @@ app.patch('/api/clients/:id', (req, res) => {
   }
 });
 
+app.delete('/api/clients/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Compter les contrats liés
+    const contractCount = db.prepare('SELECT COUNT(*) as count FROM contracts WHERE client_id = ?').get(id);
+    
+    // Supprimer les contrats et interventions liés
+    const contracts = db.prepare('SELECT id FROM contracts WHERE client_id = ?').all(id);
+    contracts.forEach(contract => {
+      db.prepare('DELETE FROM interventions WHERE contract_id = ?').run(contract.id);
+    });
+    db.prepare('DELETE FROM contracts WHERE client_id = ?').run(id);
+    
+    // Supprimer les contacts du client
+    db.prepare('DELETE FROM contact_persons WHERE client_id = ?').run(id);
+    
+    // Supprimer le client
+    db.prepare('DELETE FROM clients WHERE id = ?').run(id);
+    
+    res.json({ success: true, deletedContractsCount: contractCount.count });
+  } catch (error) {
+    console.error('Error deleting client:', error);
+    res.status(500).json({ error: 'Erreur lors de la suppression du client' });
+  }
+});
+
 app.get('/api/clients-list', (req, res) => {
   try {
     const clients = db.prepare('SELECT id, name FROM clients ORDER BY name ASC').all();
