@@ -79,9 +79,12 @@ const ContractDetail = () => {
     .filter(i => i.isBillable !== false)
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
     .map((intervention, index, arr) => {
-      const cumulativeHours = arr.slice(0, index + 1).reduce((acc, i) => acc + i.hoursUsed, 0);
-      const isOverage = cumulativeHours > contract.totalHours;
-      return { ...intervention, isOverage };
+      const cumulativeBefore = arr.slice(0, index).reduce((acc, i) => acc + i.hoursUsed, 0);
+      const cumulativeAfter = cumulativeBefore + intervention.hoursUsed;
+      const isOverage = cumulativeAfter > contract.totalHours;
+      const overageHours = isOverage ? Math.max(0, cumulativeAfter - contract.totalHours) : 0;
+      const partialOverage = cumulativeBefore < contract.totalHours && cumulativeAfter > contract.totalHours;
+      return { ...intervention, isOverage, overageHours, partialOverage };
     });
   
   // Calculate total non-billable minutes
@@ -281,6 +284,8 @@ const ContractDetail = () => {
               .map((intervention) => {
                 const interventionWithOverage = interventionsWithOverage.find(i => i.id === intervention.id);
                 const isOverage = interventionWithOverage?.isOverage || false;
+                const overageHours = interventionWithOverage?.overageHours || 0;
+                const partialOverage = interventionWithOverage?.partialOverage || false;
                 
                 return (
               <div
@@ -321,7 +326,11 @@ const ContractDetail = () => {
                         <span className="text-xs text-muted-foreground">(non compté)</span>
                       )}
                       {isOverage && (
-                        <span className="text-xs text-destructive font-medium">(dépassement)</span>
+                        <span className="text-xs text-destructive font-medium">
+                          {partialOverage 
+                            ? `(dont ${overageHours.toFixed(1)}h en dépassement)` 
+                            : `(dépassement)`}
+                        </span>
                       )}
                     </div>
                     {intervention.location && (
