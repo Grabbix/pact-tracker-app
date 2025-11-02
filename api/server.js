@@ -12,17 +12,17 @@ const PORT = process.env.PORT || 3001;
 
 // Créer les dossiers nécessaires
 const dataDir = path.join(__dirname, 'data');
-const backupDir = path.join(__dirname, 'backup');
+const backupDir = path.join(dataDir, 'backup');
 
 console.log('Data directory path:', dataDir);
 console.log('Backup directory path:', backupDir);
 
 if (!fs.existsSync(dataDir)) {
-  fs.mkdirSync(dataDir);
+  fs.mkdirSync(dataDir, { recursive: true });
   console.log('Created data directory');
 }
 if (!fs.existsSync(backupDir)) {
-  fs.mkdirSync(backupDir);
+  fs.mkdirSync(backupDir, { recursive: true });
   console.log('Created backup directory');
 } else {
   console.log('Backup directory already exists');
