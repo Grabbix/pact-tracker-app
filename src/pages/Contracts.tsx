@@ -4,7 +4,13 @@ import { AddContractDialog } from "@/components/AddContractDialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, FileText, Archive, Download, ArrowLeft, CheckCircle, TrendingUp } from "lucide-react";
+import { Search, FileText, Archive, Download, ArrowLeft, CheckCircle, TrendingUp, FileSpreadsheet } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useContracts } from "@/hooks/useContracts";
 import { useNavigate } from "react-router-dom";
 import { exportContractToPDF } from "@/utils/pdfExport";
@@ -104,22 +110,24 @@ const Contracts = () => {
                 <Archive className="h-4 w-4" />
                 Archives
               </Button>
-              <Button
-                variant="outline"
-                onClick={handleExportAllPDF}
-                className="gap-2"
-              >
-                <Download className="h-4 w-4" />
-                Tout exporter (PDF)
-              </Button>
-              <Button
-                variant="outline"
-                onClick={handleExportAllExcel}
-                className="gap-2"
-              >
-                <Download className="h-4 w-4" />
-                Backup Excel
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="gap-2">
+                    <Download className="h-4 w-4" />
+                    Export / Backup
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={handleExportAllPDF}>
+                    <FileText className="h-4 w-4 mr-2" />
+                    Tout exporter (PDF)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleExportAllExcel}>
+                    <FileSpreadsheet className="h-4 w-4 mr-2" />
+                    Backup Excel
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <AddContractDialog onAdd={handleAddContract} />
             </div>
           </div>

@@ -781,9 +781,9 @@ app.post('/api/contracts/export-all-excel', (req, res) => {
   }
 });
 
-// Cron job pour l'export quotidien à minuit
-cron.schedule('0 0 * * *', () => {
-  console.log('Starting daily Excel backup at midnight...');
+// Cron job pour l'export quotidien à 18h
+cron.schedule('0 18 * * *', () => {
+  console.log('Starting daily Excel backup at 18:00...');
   try {
     const query = `
       SELECT c.*, 
@@ -903,5 +903,5 @@ cron.schedule('0 0 * * *', () => {
 
 app.listen(PORT, () => {
   console.log(`API running on http://localhost:${PORT}`);
-  console.log('Daily Excel backup scheduled at midnight (0 0 * * *)');
+  console.log('Daily Excel backup scheduled at 18:00 (0 18 * * *)');
 });
