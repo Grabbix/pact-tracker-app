@@ -132,7 +132,10 @@ const ContractDetail = () => {
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
               <div className="flex items-center gap-3 mb-2">
-                <h1 className="text-4xl font-bold text-foreground">
+                <h1 
+                  className="text-4xl font-bold text-foreground hover:text-primary transition-colors cursor-pointer"
+                  onClick={() => contract.clientId && navigate(`/clients/${contract.clientId}`)}
+                >
                   {contract.clientName}
                 </h1>
                 <Button
