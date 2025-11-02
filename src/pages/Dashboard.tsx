@@ -52,22 +52,25 @@ const Dashboard = () => {
     }
   };
 
+  // Filtrer les contrats signés (exclure les devis)
+  const signedContracts = contracts.filter(c => c.contractType !== 'quote');
+  
   // Statistiques globales
-  const totalContracts = contracts.length;
-  const activeContracts = contracts.filter(c => c.status === "active").length;
-  const nearExpiryContracts = contracts.filter(c => {
+  const totalContracts = signedContracts.length;
+  const activeContracts = signedContracts.filter(c => c.status === "active").length;
+  const nearExpiryContracts = signedContracts.filter(c => {
     const percentage = (c.usedHours / c.totalHours) * 100;
     return percentage >= 90 && percentage < 100;
   }).length;
-  const overageContracts = contracts.filter(c => c.usedHours > c.totalHours).length;
+  const overageContracts = signedContracts.filter(c => c.usedHours > c.totalHours).length;
   
-  const totalHours = contracts.reduce((acc, c) => acc + c.totalHours, 0);
-  const usedHours = contracts.reduce((acc, c) => acc + c.usedHours, 0);
+  const totalHours = signedContracts.reduce((acc, c) => acc + c.totalHours, 0);
+  const usedHours = signedContracts.reduce((acc, c) => acc + c.usedHours, 0);
   const remainingHours = totalHours - usedHours;
   const usagePercentage = totalHours > 0 ? Math.round((usedHours / totalHours) * 100) : 0;
   
   // Heures en dépassement totales
-  const totalOverageHours = contracts.reduce((acc, c) => {
+  const totalOverageHours = signedContracts.reduce((acc, c) => {
     if (c.usedHours > c.totalHours) {
       return acc + (c.usedHours - c.totalHours);
     }
@@ -81,9 +84,9 @@ const Dashboard = () => {
     return { name: client.name, hours: totalUsed };
   }).sort((a, b) => b.hours - a.hours).slice(0, 5);
 
-  // Top clients en dépassement
+  // Top clients en dépassement (exclure les devis)
   const clientsWithOverage = clients.map(client => {
-    const clientContracts = contracts.filter(c => c.clientId === client.id);
+    const clientContracts = signedContracts.filter(c => c.clientId === client.id);
     const totalOverage = clientContracts.reduce((acc, c) => {
       if (c.usedHours > c.totalHours) {
         return acc + (c.usedHours - c.totalHours);
@@ -94,19 +97,17 @@ const Dashboard = () => {
   }).filter(c => c.overage > 0).sort((a, b) => b.overage - a.overage).slice(0, 5);
 
   // Distribution des contrats par statut (exclure les devis)
-  const activeSignedContracts = contracts.filter(c => c.contractType !== 'quote');
-  
-  const validContracts = activeSignedContracts.filter(c => {
+  const validContracts = signedContracts.filter(c => {
     const percentage = (c.usedHours / c.totalHours) * 100;
     return percentage < 90;
   }).length;
   
-  const nearExpiryContractsCount = activeSignedContracts.filter(c => {
+  const nearExpiryContractsCount = signedContracts.filter(c => {
     const percentage = (c.usedHours / c.totalHours) * 100;
     return percentage >= 90 && percentage <= 100;
   }).length;
   
-  const overageContractsCount = activeSignedContracts.filter(c => c.usedHours > c.totalHours).length;
+  const overageContractsCount = signedContracts.filter(c => c.usedHours > c.totalHours).length;
   
   const statusData = [
     { name: "Valides", value: validContracts, color: "#10b981" },
@@ -124,7 +125,7 @@ const Dashboard = () => {
     const monthStart = startOfMonth(month);
     const monthEnd = endOfMonth(month);
     
-    const hoursInMonth = contracts.reduce((acc, contract) => {
+    const hoursInMonth = signedContracts.reduce((acc, contract) => {
       const interventionsInMonth = contract.interventions.filter(i => {
         const intDate = new Date(i.date);
         return intDate >= monthStart && intDate <= monthEnd;
