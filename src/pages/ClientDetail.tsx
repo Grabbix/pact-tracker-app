@@ -317,7 +317,7 @@ const ClientDetail = () => {
                 {activeContracts.map((contract) => (
                   <div
                     key={contract.id}
-                    onClick={() => navigate(`/contracts/${contract.id}`)}
+                    onClick={() => navigate(`/contract/${contract.id}`)}
                     className="p-4 border rounded-lg hover:shadow-md transition-shadow cursor-pointer"
                   >
                     <div className="flex items-center justify-between mb-2">
@@ -348,7 +348,7 @@ const ClientDetail = () => {
                 {quoteContracts.map((contract) => (
                   <div
                     key={contract.id}
-                    onClick={() => navigate(`/contracts/${contract.id}`)}
+                    onClick={() => navigate(`/contract/${contract.id}`)}
                     className="p-4 border border-warning/50 rounded-lg hover:shadow-md transition-shadow cursor-pointer bg-warning/5"
                   >
                     <div className="flex items-center justify-between mb-2">
@@ -379,7 +379,7 @@ const ClientDetail = () => {
                 {archivedContracts.map((contract) => (
                   <div
                     key={contract.id}
-                    onClick={() => navigate(`/contracts/${contract.id}`)}
+                    onClick={() => navigate(`/contract/${contract.id}`)}
                     className="p-4 border rounded-lg hover:shadow-md transition-shadow cursor-pointer opacity-75"
                   >
                     <div className="flex items-center justify-between mb-2">
