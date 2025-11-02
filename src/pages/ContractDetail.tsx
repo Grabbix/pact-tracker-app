@@ -196,17 +196,24 @@ const ContractDetail = () => {
               <AddInterventionDialog onAdd={handleAddIntervention} variant="billable" />
               <AddInterventionDialog onAdd={handleAddIntervention} variant="non-billable" />
               {!contract.isArchived && !contract.renewalQuoteId && (
-                <RenewContractDialog 
-                  onRenew={handleCreateRenewalQuote}
-                  buttonLabel="Devis Renouvellement"
-                  dialogTitle="Créer un devis de renouvellement"
-                  disabled={isCreatingQuote}
-                />
+                <>
+                  <RenewContractDialog 
+                    onRenew={handleRenewContract}
+                    buttonLabel="Renouvellement"
+                    dialogTitle="Renouveler le contrat"
+                  />
+                  <RenewContractDialog 
+                    onRenew={handleCreateRenewalQuote}
+                    buttonLabel="Devis Renouvellement"
+                    dialogTitle="Créer un devis de renouvellement"
+                    disabled={isCreatingQuote}
+                  />
+                </>
               )}
               {!contract.isArchived && contract.renewalQuoteId && (
                 <RenewContractDialog 
                   onRenew={handleRenewContract}
-                  buttonLabel="Signer Devis Renouvellement"
+                  buttonLabel="Signer Devis"
                   dialogTitle="Signer le devis de renouvellement"
                 />
               )}
