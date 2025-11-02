@@ -11,8 +11,25 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Check, ChevronsUpDown } from "lucide-react";
 import { toast } from "sonner";
 import { Intervention } from "@/types/contract";
+import { api } from "@/lib/api";
+import { cn } from "@/lib/utils";
 
 interface EditInterventionDialogProps {
   intervention: Intervention;
@@ -27,12 +44,27 @@ export const EditInterventionDialog = ({
   onOpenChange, 
   onEdit 
 }: EditInterventionDialogProps) => {
+  const [comboOpen, setComboOpen] = useState(false);
+  const [technicians, setTechnicians] = useState<string[]>([]);
   const [formData, setFormData] = useState({
     date: intervention.date,
     description: intervention.description,
     hoursUsed: intervention.hoursUsed.toString(),
     technician: intervention.technician,
+    location: intervention.location === 'Sur site' ? 'sur-site' : 'a-distance',
   });
+
+  useEffect(() => {
+    const fetchTechnicians = async () => {
+      try {
+        const data = await api.getTechniciansList();
+        setTechnicians(data);
+      } catch (error) {
+        console.error("Error fetching technicians:", error);
+      }
+    };
+    fetchTechnicians();
+  }, []);
 
   useEffect(() => {
     setFormData({
@@ -40,6 +72,7 @@ export const EditInterventionDialog = ({
       description: intervention.description,
       hoursUsed: intervention.hoursUsed.toString(),
       technician: intervention.technician,
+      location: intervention.location === 'Sur site' ? 'sur-site' : 'a-distance',
     });
   }, [intervention]);
 
@@ -57,6 +90,8 @@ export const EditInterventionDialog = ({
       description: formData.description,
       hoursUsed: parseFloat(formData.hoursUsed),
       technician: formData.technician,
+      isBillable: intervention.isBillable,
+      location: formData.location === 'sur-site' ? 'Sur site' : 'À distance',
     });
 
     onOpenChange(false);
@@ -111,15 +146,83 @@ export const EditInterventionDialog = ({
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="edit-technician">Technicien</Label>
-              <Input
-                id="edit-technician"
-                placeholder="Nom du technicien"
-                value={formData.technician}
-                onChange={(e) =>
-                  setFormData({ ...formData, technician: e.target.value })
+              <Label>Localisation</Label>
+              <RadioGroup
+                value={formData.location}
+                onValueChange={(value) =>
+                  setFormData({ ...formData, location: value as "sur-site" | "a-distance" })
                 }
-              />
+                className="flex gap-4"
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="sur-site" id="edit-sur-site" />
+                  <Label htmlFor="edit-sur-site" className="font-normal cursor-pointer">
+                    Sur site
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="a-distance" id="edit-a-distance" />
+                  <Label htmlFor="edit-a-distance" className="font-normal cursor-pointer">
+                    À distance
+                  </Label>
+                </div>
+              </RadioGroup>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-technician">Technicien</Label>
+              <Popover open={comboOpen} onOpenChange={setComboOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={comboOpen}
+                    className="w-full justify-between"
+                  >
+                    {formData.technician || "Sélectionner un technicien..."}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-full p-0">
+                  <Command>
+                    <CommandInput 
+                      placeholder="Rechercher ou taper un nouveau nom..." 
+                      value={formData.technician}
+                      onValueChange={(value) => setFormData({ ...formData, technician: value })}
+                    />
+                    <CommandList>
+                      <CommandEmpty>
+                        <div className="text-sm text-muted-foreground p-2">
+                          Appuyez sur Entrée pour créer "{formData.technician}"
+                        </div>
+                      </CommandEmpty>
+                      <CommandGroup>
+                        {technicians
+                          .filter((tech) =>
+                            tech.toLowerCase().includes(formData.technician.toLowerCase())
+                          )
+                          .map((tech) => (
+                            <CommandItem
+                              key={tech}
+                              value={tech}
+                              onSelect={() => {
+                                setFormData({ ...formData, technician: tech });
+                                setComboOpen(false);
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  formData.technician === tech ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              {tech}
+                            </CommandItem>
+                          ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
           <DialogFooter>
