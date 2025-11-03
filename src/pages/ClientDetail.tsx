@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { AddContractDialogWithClient } from "@/components/AddContractDialogWithClient";
+import { ArxAccountsSection } from "@/components/ArxAccountsSection";
 
 const ClientDetail = () => {
   const { id } = useParams();
@@ -353,6 +354,10 @@ const ClientDetail = () => {
             </CardContent>
           </Card>
         )}
+
+        {/* ARXONE - Sauvegardes */}
+        <ArxAccountsSection clientId={id!} />
+
 
         {/* Statistiques */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">

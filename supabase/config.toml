@@ -1,1 +1,4 @@
 project_id = "mmfyoycjvtvjjnzrnjoq"
+
+[functions.sync-arx-data]
+verify_jwt = false

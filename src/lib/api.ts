@@ -219,4 +219,36 @@ export const api = {
     if (!response.ok) throw new Error('Failed to fetch technicians list');
     return response.json();
   },
+
+  async getArxAccounts(clientId: string) {
+    const response = await fetch(`${API_BASE_URL}/api/clients/${clientId}/arx-accounts`);
+    if (!response.ok) throw new Error('Failed to fetch ARX accounts');
+    return response.json();
+  },
+
+  async createArxAccount(clientId: string, accountName: string) {
+    const response = await fetch(`${API_BASE_URL}/api/clients/${clientId}/arx-accounts`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ accountName }),
+    });
+    if (!response.ok) throw new Error('Failed to create ARX account');
+    return response.json();
+  },
+
+  async refreshArxAccount(clientId: string, accountId: string) {
+    const response = await fetch(`${API_BASE_URL}/api/clients/${clientId}/arx-accounts/${accountId}/refresh`, {
+      method: 'POST',
+    });
+    if (!response.ok) throw new Error('Failed to refresh ARX account');
+    return response.json();
+  },
+
+  async deleteArxAccount(clientId: string, accountId: string) {
+    const response = await fetch(`${API_BASE_URL}/api/clients/${clientId}/arx-accounts/${accountId}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) throw new Error('Failed to delete ARX account');
+    return response.json();
+  },
 };

@@ -65,6 +65,18 @@ db.exec(`
     created_at TEXT DEFAULT (datetime('now')),
     FOREIGN KEY (contract_id) REFERENCES contracts(id) ON DELETE CASCADE
   );
+
+  CREATE TABLE IF NOT EXISTS arx_accounts (
+    id TEXT PRIMARY KEY,
+    client_id TEXT NOT NULL,
+    account_name TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'ok',
+    last_backup_date TEXT,
+    used_space_gb REAL,
+    allowed_space_gb REAL,
+    last_updated TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
+  );
 `);
 
 // Add renewal_quote_id and linked_contract_id columns if they don't exist

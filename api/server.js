@@ -470,6 +470,119 @@ app.get('/api/technicians-list', (req, res) => {
   }
 });
 
+// ARX Accounts routes
+app.get('/api/clients/:clientId/arx-accounts', (req, res) => {
+  try {
+    const { clientId } = req.params;
+    const accounts = db.prepare('SELECT * FROM arx_accounts WHERE client_id = ? ORDER BY account_name ASC').all(clientId);
+    
+    const formattedAccounts = accounts.map(account => ({
+      id: account.id,
+      clientId: account.client_id,
+      accountName: account.account_name,
+      status: account.status,
+      lastBackupDate: account.last_backup_date,
+      usedSpaceGb: account.used_space_gb,
+      allowedSpaceGb: account.allowed_space_gb,
+      lastUpdated: account.last_updated
+    }));
+    
+    res.json(formattedAccounts);
+  } catch (error) {
+    console.error('Error fetching ARX accounts:', error);
+    res.status(500).json({ error: 'Erreur lors du chargement des comptes ARX' });
+  }
+});
+
+app.post('/api/clients/:clientId/arx-accounts', (req, res) => {
+  try {
+    const { clientId } = req.params;
+    const { accountName } = req.body;
+    
+    const accountId = randomUUID();
+    db.prepare(`
+      INSERT INTO arx_accounts (id, client_id, account_name, status)
+      VALUES (?, ?, ?, 'ok')
+    `).run(accountId, clientId, accountName);
+    
+    res.json({ id: accountId, clientId, accountName, status: 'ok' });
+  } catch (error) {
+    console.error('Error creating ARX account:', error);
+    res.status(500).json({ error: 'Erreur lors de la création du compte ARX' });
+  }
+});
+
+app.patch('/api/clients/:clientId/arx-accounts/:accountId', (req, res) => {
+  try {
+    const { accountId } = req.params;
+    const { status, lastBackupDate, usedSpaceGb, allowedSpaceGb } = req.body;
+    
+    db.prepare(`
+      UPDATE arx_accounts 
+      SET status = ?, last_backup_date = ?, used_space_gb = ?, allowed_space_gb = ?, last_updated = datetime('now')
+      WHERE id = ?
+    `).run(status, lastBackupDate, usedSpaceGb, allowedSpaceGb, accountId);
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error updating ARX account:', error);
+    res.status(500).json({ error: 'Erreur lors de la mise à jour du compte ARX' });
+  }
+});
+
+app.post('/api/clients/:clientId/arx-accounts/:accountId/refresh', async (req, res) => {
+  try {
+    const { clientId, accountId } = req.params;
+    
+    // Get the account details
+    const account = db.prepare('SELECT * FROM arx_accounts WHERE id = ?').get(accountId);
+    if (!account) {
+      return res.status(404).json({ error: 'Compte ARX non trouvé' });
+    }
+    
+    // Call the edge function to sync the data
+    const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://mmfyoycjvtvjjnzrnjoq.supabase.co';
+    const supabaseAnonKey = process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    
+    const response = await fetch(`${supabaseUrl}/functions/v1/sync-arx-data`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${supabaseAnonKey}`
+      },
+      body: JSON.stringify({
+        accountName: account.account_name,
+        clientId,
+        accountId
+      })
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to sync ARX data');
+    }
+    
+    const result = await response.json();
+    res.json(result);
+  } catch (error) {
+    console.error('Error refreshing ARX account:', error);
+    res.status(500).json({ error: 'Erreur lors de l\'actualisation du compte ARX' });
+  }
+});
+
+app.delete('/api/clients/:clientId/arx-accounts/:accountId', (req, res) => {
+  try {
+    const { accountId } = req.params;
+    
+    db.prepare('DELETE FROM arx_accounts WHERE id = ?').run(accountId);
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting ARX account:', error);
+    res.status(500).json({ error: 'Erreur lors de la suppression du compte ARX' });
+  }
+});
+
+
 // Signer un devis (le transformer en contrat signé)
 app.patch('/api/contracts/:id/sign', (req, res) => {
   try {
@@ -1308,7 +1421,47 @@ cron.schedule('0 18 * * *', () => {
   }
 });
 
+// Planifier la synchronisation des comptes ARX à 8h30
+cron.schedule('30 8 * * *', async () => {
+  console.log('Starting daily ARX accounts sync at 8:30...');
+  try {
+    const accounts = db.prepare('SELECT * FROM arx_accounts').all();
+    const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://mmfyoycjvtvjjnzrnjoq.supabase.co';
+    const supabaseAnonKey = process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    
+    for (const account of accounts) {
+      try {
+        const response = await fetch(`${supabaseUrl}/functions/v1/sync-arx-data`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${supabaseAnonKey}`
+          },
+          body: JSON.stringify({
+            accountName: account.account_name,
+            clientId: account.client_id,
+            accountId: account.id
+          })
+        });
+        
+        if (response.ok) {
+          console.log(`Successfully synced ARX account: ${account.account_name}`);
+        } else {
+          console.error(`Failed to sync ARX account: ${account.account_name}`);
+        }
+      } catch (error) {
+        console.error(`Error syncing ARX account ${account.account_name}:`, error);
+      }
+    }
+    
+    console.log('Daily ARX sync completed');
+  } catch (error) {
+    console.error('Error during daily ARX sync:', error);
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`API running on http://localhost:${PORT}`);
   console.log('Daily Excel backup scheduled at 18:00 (0 18 * * *)');
+  console.log('Daily ARX sync scheduled at 8:30 (30 8 * * *)');
 });
