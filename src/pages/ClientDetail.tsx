@@ -356,7 +356,7 @@ const ClientDetail = () => {
         )}
 
         {/* ARXONE - Sauvegardes */}
-        <ArxAccountsSection clientId={id!} />
+        {client.arx && <ArxAccountsSection clientId={id!} />}
 
 
         {/* Statistiques */}
