@@ -356,8 +356,11 @@ const ClientDetail = () => {
         )}
 
         {/* ARXONE - Sauvegardes */}
-        {client.arx && <ArxAccountsSection clientId={id!} />}
-
+        {client.arx && (
+          <div className="mb-6">
+            <ArxAccountsSection clientId={id!} />
+          </div>
+        )}
 
         {/* Statistiques */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
