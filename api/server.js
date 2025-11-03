@@ -600,23 +600,23 @@ app.post('/api/clients/:clientId/arx-accounts/:accountId/refresh', async (req, r
 
     const accountData = arxData[0];
 
-    // Determine status based on events
+    // Determine status based on events (ARX API uses PascalCase)
     let status = 'ok';
-    if (accountData.events && accountData.events.length > 0) {
-      const hasCritical = accountData.events.some(
-        (event) => event.entry && event.entry.priority === 'Critical'
+    if (accountData.Events && accountData.Events.length > 0) {
+      const hasCritical = accountData.Events.some(
+        (event) => event.Priority === 'Critical'
       );
       if (hasCritical) {
         status = 'attention_requise';
       }
     }
 
-    // Convert bytes to GB (handle missing quota safely)
-    const usedSpaceGb = accountData?.quota?.usedSpace != null
-      ? accountData.quota.usedSpace / 1000000000
+    // Convert bytes to GB (ARX API uses PascalCase: Quota.UsedSpace, Quota.AllowedSpace)
+    const usedSpaceGb = accountData?.Quota?.UsedSpace != null
+      ? accountData.Quota.UsedSpace / 1000000000
       : null;
-    const allowedSpaceGb = accountData?.quota?.allowedSpace != null
-      ? accountData.quota.allowedSpace / 1000000000
+    const allowedSpaceGb = accountData?.Quota?.AllowedSpace != null
+      ? accountData.Quota.AllowedSpace / 1000000000
       : null;
 
     // Update the database
@@ -624,7 +624,7 @@ app.post('/api/clients/:clientId/arx-accounts/:accountId/refresh', async (req, r
       UPDATE arx_accounts 
       SET status = ?, last_backup_date = ?, used_space_gb = ?, allowed_space_gb = ?, last_updated = datetime('now')
       WHERE id = ?
-    `).run(status, accountData.lastBackupStartTime, usedSpaceGb, allowedSpaceGb, accountId);
+    `).run(status, accountData.LastBackupStartTime, usedSpaceGb, allowedSpaceGb, accountId);
 
     console.log(`Successfully updated ARX account ${account.account_name}`);
     
