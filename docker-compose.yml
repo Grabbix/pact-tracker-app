@@ -9,8 +9,10 @@ services:
       - "3001:3001"
     volumes:
       - ./api/data:/app/data
+      - ./.env:/app/.env:ro
     environment:
       - PORT=3001
+      - ARX_API_KEY=${ARX_API_KEY}
     restart: unless-stopped
 
   web:
