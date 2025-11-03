@@ -539,30 +539,68 @@ app.post('/api/clients/:clientId/arx-accounts/:accountId/refresh', async (req, r
     if (!account) {
       return res.status(404).json({ error: 'Compte ARX non trouvé' });
     }
-    
-    // Call the edge function to sync the data
-    const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://mmfyoycjvtvjjnzrnjoq.supabase.co';
-    const supabaseAnonKey = process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-    
-    const response = await fetch(`${supabaseUrl}/functions/v1/sync-arx-data`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${supabaseAnonKey}`
-      },
-      body: JSON.stringify({
-        accountName: account.account_name,
-        clientId,
-        accountId
-      })
-    });
-    
-    if (!response.ok) {
-      throw new Error('Failed to sync ARX data');
+
+    const arxApiKey = process.env.ARX_API_KEY;
+    if (!arxApiKey) {
+      return res.status(500).json({ error: 'ARX_API_KEY non configurée' });
     }
     
-    const result = await response.json();
-    res.json(result);
+    // Fetch data from ARX API
+    console.log(`Fetching ARX data for account: ${account.account_name}`);
+    const arxResponse = await fetch(
+      `https://api.arx.one/s9/${account.account_name}/supervision/events?hierarchy=Self`,
+      {
+        headers: {
+          'Authorization': `Bearer ${arxApiKey}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    if (!arxResponse.ok) {
+      console.error(`ARX API error: ${arxResponse.status} ${arxResponse.statusText}`);
+      return res.status(500).json({ error: 'Erreur lors de la récupération des données ARX' });
+    }
+
+    const arxData = await arxResponse.json();
+    
+    if (!arxData || arxData.length === 0) {
+      return res.status(404).json({ error: 'Aucune donnée retournée par l\'API ARX' });
+    }
+
+    const accountData = arxData[0];
+
+    // Determine status based on events
+    let status = 'ok';
+    if (accountData.events && accountData.events.length > 0) {
+      const hasCritical = accountData.events.some(
+        (event) => event.entry && event.entry.priority === 'Critical'
+      );
+      if (hasCritical) {
+        status = 'attention_requise';
+      }
+    }
+
+    // Convert bytes to GB
+    const usedSpaceGb = accountData.quota.usedSpace ? accountData.quota.usedSpace / 1000000000 : null;
+    const allowedSpaceGb = accountData.quota.allowedSpace ? accountData.quota.allowedSpace / 1000000000 : null;
+
+    // Update the database
+    db.prepare(`
+      UPDATE arx_accounts 
+      SET status = ?, last_backup_date = ?, used_space_gb = ?, allowed_space_gb = ?, last_updated = datetime('now')
+      WHERE id = ?
+    `).run(status, accountData.lastBackupStartTime, usedSpaceGb, allowedSpaceGb, accountId);
+
+    console.log(`Successfully updated ARX account ${account.account_name}`);
+    
+    res.json({
+      success: true,
+      status,
+      lastBackupDate: accountData.lastBackupStartTime,
+      usedSpaceGb,
+      allowedSpaceGb,
+    });
   } catch (error) {
     console.error('Error refreshing ARX account:', error);
     res.status(500).json({ error: 'Erreur lors de l\'actualisation du compte ARX' });
@@ -1426,29 +1464,64 @@ cron.schedule('30 8 * * *', async () => {
   console.log('Starting daily ARX accounts sync at 8:30...');
   try {
     const accounts = db.prepare('SELECT * FROM arx_accounts').all();
-    const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://mmfyoycjvtvjjnzrnjoq.supabase.co';
-    const supabaseAnonKey = process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    const arxApiKey = process.env.ARX_API_KEY;
+    
+    if (!arxApiKey) {
+      console.error('ARX_API_KEY not configured, skipping sync');
+      return;
+    }
     
     for (const account of accounts) {
       try {
-        const response = await fetch(`${supabaseUrl}/functions/v1/sync-arx-data`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${supabaseAnonKey}`
-          },
-          body: JSON.stringify({
-            accountName: account.account_name,
-            clientId: account.client_id,
-            accountId: account.id
-          })
-        });
+        console.log(`Syncing ARX account: ${account.account_name}`);
         
-        if (response.ok) {
-          console.log(`Successfully synced ARX account: ${account.account_name}`);
-        } else {
-          console.error(`Failed to sync ARX account: ${account.account_name}`);
+        const arxResponse = await fetch(
+          `https://api.arx.one/s9/${account.account_name}/supervision/events?hierarchy=Self`,
+          {
+            headers: {
+              'Authorization': `Bearer ${arxApiKey}`,
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+
+        if (!arxResponse.ok) {
+          console.error(`ARX API error for ${account.account_name}: ${arxResponse.status}`);
+          continue;
         }
+
+        const arxData = await arxResponse.json();
+        
+        if (!arxData || arxData.length === 0) {
+          console.error(`No data for ${account.account_name}`);
+          continue;
+        }
+
+        const accountData = arxData[0];
+
+        // Determine status
+        let status = 'ok';
+        if (accountData.events && accountData.events.length > 0) {
+          const hasCritical = accountData.events.some(
+            (event) => event.entry && event.entry.priority === 'Critical'
+          );
+          if (hasCritical) {
+            status = 'attention_requise';
+          }
+        }
+
+        // Convert bytes to GB
+        const usedSpaceGb = accountData.quota.usedSpace ? accountData.quota.usedSpace / 1000000000 : null;
+        const allowedSpaceGb = accountData.quota.allowedSpace ? accountData.quota.allowedSpace / 1000000000 : null;
+
+        // Update database
+        db.prepare(`
+          UPDATE arx_accounts 
+          SET status = ?, last_backup_date = ?, used_space_gb = ?, allowed_space_gb = ?, last_updated = datetime('now')
+          WHERE id = ?
+        `).run(status, accountData.lastBackupStartTime, usedSpaceGb, allowedSpaceGb, account.id);
+
+        console.log(`Successfully synced ARX account: ${account.account_name}`);
       } catch (error) {
         console.error(`Error syncing ARX account ${account.account_name}:`, error);
       }
