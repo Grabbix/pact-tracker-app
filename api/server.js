@@ -611,9 +611,13 @@ app.post('/api/clients/:clientId/arx-accounts/:accountId/refresh', async (req, r
       }
     }
 
-    // Convert bytes to GB
-    const usedSpaceGb = accountData.quota.usedSpace ? accountData.quota.usedSpace / 1000000000 : null;
-    const allowedSpaceGb = accountData.quota.allowedSpace ? accountData.quota.allowedSpace / 1000000000 : null;
+    // Convert bytes to GB (handle missing quota safely)
+    const usedSpaceGb = accountData?.quota?.usedSpace != null
+      ? accountData.quota.usedSpace / 1000000000
+      : null;
+    const allowedSpaceGb = accountData?.quota?.allowedSpace != null
+      ? accountData.quota.allowedSpace / 1000000000
+      : null;
 
     // Update the database
     db.prepare(`
