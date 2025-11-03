@@ -1,4 +1,33 @@
-require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
+// Load environment variables (dotenv if available, else fallback parser)
+try {
+  require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
+} catch (err) {
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    const candidates = [path.join(__dirname, '..', '.env'), path.join(__dirname, '.env')];
+    for (const p of candidates) {
+      if (fs.existsSync(p)) {
+        const content = fs.readFileSync(p, 'utf-8');
+        content.split('\n').forEach((line) => {
+          const match = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$/);
+          if (match) {
+            let val = match[2].trim();
+            if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith('\'') && val.endsWith('\''))) {
+              val = val.slice(1, -1);
+            }
+            if (!(match[1] in process.env)) process.env[match[1]] = val;
+          }
+        });
+        console.log(`Loaded environment variables from ${p} (fallback)`);
+        break;
+      }
+    }
+  } catch (e) {
+    console.warn('dotenv not available and fallback failed; relying on existing environment vars');
+  }
+}
+
 const express = require('express');
 const cors = require('cors');
 const { randomUUID } = require('crypto');
