@@ -18,9 +18,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Shield, Plus, RefreshCw, Trash2, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Shield, Plus, RefreshCw, Trash2, AlertCircle, CheckCircle2, ChevronDown, ChevronUp } from "lucide-react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
@@ -33,7 +35,15 @@ interface ArxAccount {
   lastBackupDate: string | null;
   usedSpaceGb: number | null;
   allowedSpaceGb: number | null;
+  analyzedSizeGb: number | null;
   lastUpdated: string;
+}
+
+interface HistoryEntry {
+  recorded_at: string;
+  used_space_gb: number | null;
+  analyzed_size_gb: number | null;
+  allowed_space_gb: number | null;
 }
 
 interface ArxAccountsSectionProps {
@@ -46,6 +56,8 @@ export const ArxAccountsSection = ({ clientId }: ArxAccountsSectionProps) => {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [newAccountName, setNewAccountName] = useState("gigapro-");
   const [refreshing, setRefreshing] = useState<string | null>(null);
+  const [expandedAccountId, setExpandedAccountId] = useState<string | null>(null);
+  const [historyData, setHistoryData] = useState<HistoryEntry[]>([]);
 
   useEffect(() => {
     fetchAccounts();
@@ -142,6 +154,35 @@ export const ArxAccountsSection = ({ clientId }: ArxAccountsSectionProps) => {
     return `${used.toFixed(2)} Go / ${allowed.toFixed(2)} Go`;
   };
 
+  const formatSize = (sizeGb: number | null) => {
+    if (sizeGb === null) return "N/A";
+    return `${sizeGb.toFixed(2)} Go`;
+  };
+
+  const handleRowClick = async (accountId: string) => {
+    if (expandedAccountId === accountId) {
+      setExpandedAccountId(null);
+      return;
+    }
+
+    setExpandedAccountId(accountId);
+    
+    // Fetch history data
+    const { data, error } = await supabase
+      .from('arx_account_history' as any)
+      .select('recorded_at, used_space_gb, analyzed_size_gb, allowed_space_gb')
+      .eq('account_id', accountId)
+      .order('recorded_at', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching history:', error);
+      toast.error('Erreur lors du chargement de l\'historique');
+      return;
+    }
+
+    setHistoryData((data as any) || []);
+  };
+
   if (loading) {
     return (
       <Card>
@@ -184,44 +225,107 @@ export const ArxAccountsSection = ({ clientId }: ArxAccountsSectionProps) => {
                   <TableHead>Status</TableHead>
                   <TableHead>Dernière sauvegarde</TableHead>
                   <TableHead>Volume / Alloué</TableHead>
+                  <TableHead>Taille sélection</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {accounts.map((account) => (
-                  <TableRow key={account.id}>
-                    <TableCell className="font-medium">{account.accountName}</TableCell>
-                    <TableCell>{getStatusBadge(account.status)}</TableCell>
-                    <TableCell>{formatDate(account.lastBackupDate)}</TableCell>
-                    <TableCell>
-                      {account.usedSpaceGb !== null && account.allowedSpaceGb !== null && account.usedSpaceGb > account.allowedSpaceGb ? (
-                        <Badge variant="destructive">
-                          {formatStorage(account.usedSpaceGb, account.allowedSpaceGb)}
-                        </Badge>
-                      ) : (
-                        formatStorage(account.usedSpaceGb, account.allowedSpaceGb)
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex gap-2 justify-end">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleRefresh(account.id)}
-                          disabled={refreshing === account.id}
-                        >
-                          <RefreshCw className={`h-4 w-4 ${refreshing === account.id ? "animate-spin" : ""}`} />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDelete(account.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
+                  <>
+                    <TableRow key={account.id} className="cursor-pointer hover:bg-muted/50" onClick={() => handleRowClick(account.id)}>
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-2">
+                          {expandedAccountId === account.id ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                          {account.accountName}
+                        </div>
+                      </TableCell>
+                      <TableCell>{getStatusBadge(account.status)}</TableCell>
+                      <TableCell>{formatDate(account.lastBackupDate)}</TableCell>
+                      <TableCell>
+                        {account.usedSpaceGb !== null && account.allowedSpaceGb !== null && account.usedSpaceGb > account.allowedSpaceGb ? (
+                          <Badge variant="destructive">
+                            {formatStorage(account.usedSpaceGb, account.allowedSpaceGb)}
+                          </Badge>
+                        ) : (
+                          formatStorage(account.usedSpaceGb, account.allowedSpaceGb)
+                        )}
+                      </TableCell>
+                      <TableCell>{formatSize(account.analyzedSizeGb)}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex gap-2 justify-end">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRefresh(account.id);
+                            }}
+                            disabled={refreshing === account.id}
+                          >
+                            <RefreshCw className={`h-4 w-4 ${refreshing === account.id ? "animate-spin" : ""}`} />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDelete(account.id);
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                    {expandedAccountId === account.id && (
+                      <TableRow>
+                        <TableCell colSpan={6}>
+                          <div className="p-4">
+                            <h4 className="text-sm font-semibold mb-4">Historique sur 40 jours</h4>
+                            {historyData.length > 0 ? (
+                              <ResponsiveContainer width="100%" height={300}>
+                                <LineChart data={historyData}>
+                                  <CartesianGrid strokeDasharray="3 3" />
+                                  <XAxis 
+                                    dataKey="recorded_at" 
+                                    tickFormatter={(value) => format(new Date(value), 'dd/MM', { locale: fr })}
+                                  />
+                                  <YAxis label={{ value: 'Go', angle: -90, position: 'insideLeft' }} />
+                                  <Tooltip 
+                                    labelFormatter={(value) => format(new Date(value), 'dd/MM/yyyy HH:mm', { locale: fr })}
+                                    formatter={(value: number) => `${value.toFixed(2)} Go`}
+                                  />
+                                  <Legend />
+                                  <ReferenceLine 
+                                    y={account.allowedSpaceGb || 0} 
+                                    stroke="red" 
+                                    strokeDasharray="3 3" 
+                                    label="Volume alloué"
+                                  />
+                                  <Line 
+                                    type="monotone" 
+                                    dataKey="used_space_gb" 
+                                    stroke="#8884d8" 
+                                    name="Volume utilisé"
+                                    dot={false}
+                                  />
+                                  <Line 
+                                    type="monotone" 
+                                    dataKey="analyzed_size_gb" 
+                                    stroke="#82ca9d" 
+                                    name="Taille sélection"
+                                    dot={false}
+                                  />
+                                </LineChart>
+                              </ResponsiveContainer>
+                            ) : (
+                              <p className="text-muted-foreground text-center">Aucun historique disponible</p>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </>
                 ))}
               </TableBody>
             </Table>
