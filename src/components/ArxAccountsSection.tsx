@@ -149,12 +149,12 @@ export const ArxAccountsSection = ({ clientId }: ArxAccountsSectionProps) => {
   };
 
   const formatStorage = (used: number | null, allowed: number | null) => {
-    if (used === null || allowed === null) return "N/A";
+    if (used === null || used === undefined || allowed === null || allowed === undefined) return "N/A";
     return `${used.toFixed(2)} Go / ${allowed.toFixed(2)} Go`;
   };
 
   const formatSize = (sizeGb: number | null) => {
-    if (sizeGb === null) return "N/A";
+    if (sizeGb === null || sizeGb === undefined) return "N/A";
     return `${sizeGb.toFixed(2)} Go`;
   };
 
