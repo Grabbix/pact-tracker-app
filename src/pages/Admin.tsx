@@ -11,7 +11,7 @@ const Admin = () => {
   const handleTriggerArxSync = async () => {
     setIsTriggering(true);
     try {
-      const response = await fetch('http://localhost:3001/api/admin/trigger-arx-sync', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/trigger-arx-sync`, {
         method: 'POST',
       });
 
