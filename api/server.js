@@ -514,6 +514,7 @@ app.get('/api/clients/:clientId/arx-accounts', (req, res) => {
       lastBackupDate: account.last_backup_date,
       usedSpaceGb: account.used_space_gb,
       allowedSpaceGb: account.allowed_space_gb,
+      analyzedSizeGb: account.analyzed_size_gb,
       lastUpdated: account.last_updated
     }));
     
@@ -545,13 +546,13 @@ app.post('/api/clients/:clientId/arx-accounts', (req, res) => {
 app.patch('/api/clients/:clientId/arx-accounts/:accountId', (req, res) => {
   try {
     const { accountId } = req.params;
-    const { status, lastBackupDate, usedSpaceGb, allowedSpaceGb } = req.body;
+    const { status, lastBackupDate, usedSpaceGb, allowedSpaceGb, analyzedSizeGb } = req.body;
     
     db.prepare(`
       UPDATE arx_accounts 
-      SET status = ?, last_backup_date = ?, used_space_gb = ?, allowed_space_gb = ?, last_updated = datetime('now')
+      SET status = ?, last_backup_date = ?, used_space_gb = ?, allowed_space_gb = ?, analyzed_size_gb = ?, last_updated = datetime('now')
       WHERE id = ?
-    `).run(status, lastBackupDate, usedSpaceGb, allowedSpaceGb, accountId);
+    `).run(status, lastBackupDate, usedSpaceGb, allowedSpaceGb, analyzedSizeGb, accountId);
     
     res.json({ success: true });
   } catch (error) {
