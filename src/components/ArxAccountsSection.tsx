@@ -193,7 +193,15 @@ export const ArxAccountsSection = ({ clientId }: ArxAccountsSectionProps) => {
                     <TableCell className="font-medium">{account.accountName}</TableCell>
                     <TableCell>{getStatusBadge(account.status)}</TableCell>
                     <TableCell>{formatDate(account.lastBackupDate)}</TableCell>
-                    <TableCell>{formatStorage(account.usedSpaceGb, account.allowedSpaceGb)}</TableCell>
+                    <TableCell>
+                      {account.usedSpaceGb !== null && account.allowedSpaceGb !== null && account.usedSpaceGb > account.allowedSpaceGb ? (
+                        <Badge variant="destructive">
+                          {formatStorage(account.usedSpaceGb, account.allowedSpaceGb)}
+                        </Badge>
+                      ) : (
+                        formatStorage(account.usedSpaceGb, account.allowedSpaceGb)
+                      )}
+                    </TableCell>
                     <TableCell className="text-right">
                       <div className="flex gap-2 justify-end">
                         <Button
