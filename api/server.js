@@ -1337,6 +1337,93 @@ app.post('/api/contracts/export-all-excel', (req, res) => {
   }
 });
 
+// Endpoint pour déclencher manuellement la sync ARX
+app.post('/api/admin/trigger-arx-sync', async (req, res) => {
+  console.log('Manual ARX sync triggered from admin panel');
+  try {
+    const accounts = db.prepare('SELECT * FROM arx_accounts').all();
+    const arxApiKey = process.env.ARX_API_KEY;
+    
+    if (!arxApiKey) {
+      console.error('ARX_API_KEY not configured');
+      return res.status(500).json({ error: 'ARX_API_KEY not configured' });
+    }
+    
+    let successCount = 0;
+    let errorCount = 0;
+    
+    for (const account of accounts) {
+      try {
+        console.log(`Syncing ARX account: ${account.account_name}`);
+        
+        const arxResponse = await fetch(
+          `https://api.arx.one/s9/${account.account_name}/supervision/events?hierarchy=Self`,
+          {
+            headers: {
+              'Authorization': `Bearer ${arxApiKey}`,
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+
+        if (!arxResponse.ok) {
+          console.error(`ARX API error for ${account.account_name}: ${arxResponse.status}`);
+          errorCount++;
+          continue;
+        }
+
+        const arxData = await arxResponse.json();
+        
+        if (!arxData || arxData.length === 0) {
+          console.error(`No data for ${account.account_name}`);
+          errorCount++;
+          continue;
+        }
+
+        const accountData = arxData[0];
+
+        // Determine status
+        let status = 'ok';
+        if (accountData.Events && accountData.Events.length > 0) {
+          const hasCritical = accountData.Events.some(
+            (event) => event.Priority === 'Critical'
+          );
+          if (hasCritical) {
+            status = 'attention_requise';
+          }
+        }
+
+        // Convert bytes to GB
+        const usedSpaceGb = accountData.Quota?.UsedSpace ? accountData.Quota.UsedSpace / 1000000000 : null;
+        const allowedSpaceGb = accountData.Quota?.AllowedSpace ? accountData.Quota.AllowedSpace / 1000000000 : null;
+
+        // Update database
+        db.prepare(`
+          UPDATE arx_accounts 
+          SET status = ?, last_backup_date = ?, used_space_gb = ?, allowed_space_gb = ?, last_updated = datetime('now')
+          WHERE id = ?
+        `).run(status, accountData.LastBackupStartTime, usedSpaceGb, allowedSpaceGb, account.id);
+
+        console.log(`Successfully synced ARX account: ${account.account_name}`);
+        successCount++;
+      } catch (error) {
+        console.error(`Error syncing ARX account ${account.account_name}:`, error);
+        errorCount++;
+      }
+    }
+    
+    res.json({ 
+      success: true,
+      message: `Synchronisation terminée: ${successCount} succès, ${errorCount} erreurs`,
+      successCount,
+      errorCount
+    });
+  } catch (error) {
+    console.error('Error during manual ARX sync:', error);
+    res.status(500).json({ error: 'Erreur lors de la synchronisation ARX' });
+  }
+});
+
 // Cron job pour l'export quotidien à 18h
 cron.schedule('0 18 * * *', () => {
   console.log('Starting daily Excel backup at 18:00...');
