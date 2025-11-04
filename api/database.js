@@ -98,4 +98,14 @@ try {
   // Column already exists
 }
 
+// Add analyzed_size_gb column to arx_accounts if it doesn't exist
+try {
+  db.exec(`
+    ALTER TABLE arx_accounts ADD COLUMN analyzed_size_gb REAL;
+  `);
+  console.log('Added analyzed_size_gb column to arx_accounts table');
+} catch (e) {
+  // Column already exists
+}
+
 module.exports = db;

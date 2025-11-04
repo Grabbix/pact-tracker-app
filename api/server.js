@@ -620,21 +620,52 @@ app.post('/api/clients/:clientId/arx-accounts/:accountId/refresh', async (req, r
       ? accountData.Quota.AllowedSpace / 1000000000
       : null;
 
+    // Fetch analyzed size since last backup and update DB
+    let analyzedSizeGb = null;
+    try {
+      if (accountData.LastBackupStartTime) {
+        const formattedDate = new Date(accountData.LastBackupStartTime).toISOString().split('T')[0];
+        console.log(`Fetching analyzed size for ${account.account_name} since ${formattedDate}`);
+        const dataResponse = await fetch(
+          `https://api.arx.one/s9/${account.account_name}/data?eventID=2.1.1.3.1&minimumTime=${formattedDate}&kind=Default&skip=0&includeDescendants=false`,
+          {
+            headers: {
+              'Authorization': `Bearer ${arxApiKey}`,
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+        if (dataResponse.ok) {
+          const dataEvents = await dataResponse.json();
+          const analyzedSizeStr = dataEvents?.[0]?.LiteralValues?.['analyzed-size'];
+          if (analyzedSizeStr) {
+            const analyzedSizeBytes = parseInt(String(analyzedSizeStr).replace(/[^\d]/g, ''), 10);
+            if (!Number.isNaN(analyzedSizeBytes)) {
+              analyzedSizeGb = analyzedSizeBytes / 1000000000;
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Error fetching analyzed size:', e);
+    }
+
     // Update the database
     db.prepare(`
       UPDATE arx_accounts 
-      SET status = ?, last_backup_date = ?, used_space_gb = ?, allowed_space_gb = ?, last_updated = datetime('now')
+      SET status = ?, last_backup_date = ?, used_space_gb = ?, allowed_space_gb = ?, analyzed_size_gb = ?, last_updated = datetime('now')
       WHERE id = ?
-    `).run(status, accountData.LastBackupStartTime, usedSpaceGb, allowedSpaceGb, accountId);
+    `).run(status, accountData.LastBackupStartTime, usedSpaceGb, allowedSpaceGb, analyzedSizeGb, accountId);
 
     console.log(`Successfully updated ARX account ${account.account_name}`);
     
     res.json({
       success: true,
       status,
-      lastBackupDate: accountData.lastBackupStartTime,
+      lastBackupDate: accountData.LastBackupStartTime,
       usedSpaceGb,
       allowedSpaceGb,
+      analyzedSizeGb,
     });
   } catch (error) {
     console.error('Error refreshing ARX account:', error);
