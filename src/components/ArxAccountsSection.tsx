@@ -21,7 +21,6 @@ import {
 import { Shield, Plus, RefreshCw, Trash2, AlertCircle, CheckCircle2, ChevronDown, ChevronUp } from "lucide-react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -167,20 +166,9 @@ export const ArxAccountsSection = ({ clientId }: ArxAccountsSectionProps) => {
 
     setExpandedAccountId(accountId);
     
-    // Fetch history data
-    const { data, error } = await supabase
-      .from('arx_account_history' as any)
-      .select('recorded_at, used_space_gb, analyzed_size_gb, allowed_space_gb')
-      .eq('account_id', accountId)
-      .order('recorded_at', { ascending: true });
-
-    if (error) {
-      console.error('Error fetching history:', error);
-      toast.error('Erreur lors du chargement de l\'historique');
-      return;
-    }
-
-    setHistoryData((data as any) || []);
+    // TODO: Fetch history data from local API when endpoint is ready
+    // For now, set empty array
+    setHistoryData([]);
   };
 
   if (loading) {
