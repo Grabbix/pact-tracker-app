@@ -77,6 +77,21 @@ db.exec(`
     last_updated TEXT DEFAULT (datetime('now')),
     FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
   );
+
+  CREATE TABLE IF NOT EXISTS arx_account_history (
+    id TEXT PRIMARY KEY,
+    account_id TEXT NOT NULL,
+    recorded_at TEXT NOT NULL DEFAULT (datetime('now')),
+    status TEXT NOT NULL,
+    last_backup_date TEXT,
+    used_space_gb REAL,
+    allowed_space_gb REAL,
+    analyzed_size_gb REAL,
+    FOREIGN KEY (account_id) REFERENCES arx_accounts(id) ON DELETE CASCADE
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_arx_history_account_date 
+    ON arx_account_history(account_id, recorded_at DESC);
 `);
 
 // Add renewal_quote_id and linked_contract_id columns if they don't exist

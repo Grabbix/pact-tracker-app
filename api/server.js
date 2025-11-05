@@ -650,12 +650,18 @@ app.post('/api/clients/:clientId/arx-accounts/:accountId/refresh', async (req, r
       console.error('Error fetching analyzed size:', e);
     }
 
-    // Update the database
+    // Update the current state in arx_accounts
     db.prepare(`
       UPDATE arx_accounts 
       SET status = ?, last_backup_date = ?, used_space_gb = ?, allowed_space_gb = ?, analyzed_size_gb = ?, last_updated = datetime('now')
       WHERE id = ?
     `).run(status, accountData.LastBackupStartTime, usedSpaceGb, allowedSpaceGb, analyzedSizeGb, accountId);
+
+    // Insert into history table
+    db.prepare(`
+      INSERT INTO arx_account_history (id, account_id, recorded_at, status, last_backup_date, used_space_gb, allowed_space_gb, analyzed_size_gb)
+      VALUES (?, ?, datetime('now'), ?, ?, ?, ?, ?)
+    `).run(randomUUID(), accountId, status, accountData.LastBackupStartTime, usedSpaceGb, allowedSpaceGb, analyzedSizeGb);
 
     console.log(`Successfully updated ARX account ${account.account_name}`);
     
@@ -683,6 +689,32 @@ app.delete('/api/clients/:clientId/arx-accounts/:accountId', (req, res) => {
   } catch (error) {
     console.error('Error deleting ARX account:', error);
     res.status(500).json({ error: 'Erreur lors de la suppression du compte ARX' });
+  }
+});
+
+// Get ARX account history (last 40 days)
+app.get('/api/clients/:clientId/arx-accounts/:accountId/history', (req, res) => {
+  try {
+    const { accountId } = req.params;
+    
+    const history = db.prepare(`
+      SELECT 
+        recorded_at,
+        status,
+        last_backup_date,
+        used_space_gb,
+        allowed_space_gb,
+        analyzed_size_gb
+      FROM arx_account_history
+      WHERE account_id = ?
+        AND recorded_at >= datetime('now', '-40 days')
+      ORDER BY recorded_at ASC
+    `).all(accountId);
+    
+    res.json(history);
+  } catch (error) {
+    console.error('Error fetching ARX account history:', error);
+    res.status(500).json({ error: 'Erreur lors de la récupération de l\'historique' });
   }
 });
 

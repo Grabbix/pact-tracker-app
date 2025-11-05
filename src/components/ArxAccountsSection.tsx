@@ -166,9 +166,14 @@ export const ArxAccountsSection = ({ clientId }: ArxAccountsSectionProps) => {
 
     setExpandedAccountId(accountId);
     
-    // TODO: Fetch history data from local API when endpoint is ready
-    // For now, set empty array
-    setHistoryData([]);
+    // Fetch history data from local API
+    try {
+      const history = await api.getArxAccountHistory(clientId, accountId);
+      setHistoryData(history);
+    } catch (error) {
+      console.error("Error fetching ARX account history:", error);
+      setHistoryData([]);
+    }
   };
 
   if (loading) {

@@ -251,4 +251,10 @@ export const api = {
     if (!response.ok) throw new Error('Failed to delete ARX account');
     return response.json();
   },
+
+  async getArxAccountHistory(clientId: string, accountId: string) {
+    const response = await fetch(`${API_BASE_URL}/api/clients/${clientId}/arx-accounts/${accountId}/history`);
+    if (!response.ok) throw new Error('Failed to fetch ARX account history');
+    return response.json();
+  },
 };
