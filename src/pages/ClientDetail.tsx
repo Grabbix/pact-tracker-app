@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, Building2, Phone, Mail, User, MapPin, Edit, Globe, Shield, Clock, TrendingUp, Plus, FileText } from "lucide-react";
 import { api } from "@/lib/api";
 import { Client } from "@/types/client";
@@ -265,6 +266,42 @@ const ClientDetail = () => {
                   <p className="text-sm whitespace-pre-wrap">{client.internalNotes}</p>
                 </div>
               )}
+              {client.contacts.length > 0 && (
+                <div className="pt-2 border-t">
+                  <p className="text-xs font-medium text-muted-foreground mb-2">Personnes à contacter</p>
+                  <div className="space-y-2">
+                    {client.contacts.map((contact) => (
+                      <div key={contact.id} className="space-y-1">
+                        <p className="text-sm font-medium">{contact.name}</p>
+                        <div className="flex flex-col gap-1">
+                          {contact.email && (
+                            <div className="flex items-center gap-2 text-xs">
+                              <Mail className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                              <a 
+                                href={`mailto:${contact.email}`}
+                                className="text-muted-foreground hover:underline hover:text-foreground transition-colors truncate"
+                              >
+                                {contact.email}
+                              </a>
+                            </div>
+                          )}
+                          {contact.phone && (
+                            <div className="flex items-center gap-2 text-xs">
+                              <Phone className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                              <a 
+                                href={`tel:${contact.phone}`}
+                                className="text-muted-foreground hover:underline hover:text-foreground transition-colors"
+                              >
+                                {contact.phone}
+                              </a>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -346,48 +383,41 @@ const ClientDetail = () => {
           </Card>
         </div>
 
-        {/* Contacts */}
-        {client.contacts.length > 0 && (
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <User className="h-5 w-5" />
-                Personnes à contacter
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {client.contacts.map((contact) => (
-                  <div key={contact.id} className="p-3 border rounded-lg space-y-2">
-                    <p className="font-medium">{contact.name}</p>
-                    {contact.email && (
-                      <div className="flex items-center gap-2 text-sm">
-                        <Mail className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                        <a 
-                          href={`mailto:${contact.email}`}
-                          className="text-muted-foreground hover:underline hover:text-foreground transition-colors truncate"
-                        >
-                          {contact.email}
-                        </a>
-                      </div>
-                    )}
-                    {contact.phone && (
-                      <div className="flex items-center gap-2 text-sm">
-                        <Phone className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                        <a 
-                          href={`tel:${contact.phone}`}
-                          className="text-muted-foreground hover:underline hover:text-foreground transition-colors"
-                        >
-                          {contact.phone}
-                        </a>
-                      </div>
-                    )}
-                  </div>
-                ))}
+        {/* Statistiques contrats et heures */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5" />
+              Statistiques contrats et heures
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-1">Heures vendues (total)</p>
+                <p className="text-2xl font-bold">{totalHoursSold}h</p>
               </div>
-            </CardContent>
-          </Card>
-        )}
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-1">Heures utilisées (total)</p>
+                <p className="text-2xl font-bold">{totalHoursUsed}h</p>
+                <p className="text-xs text-muted-foreground">
+                  {totalHoursSold > 0 ? Math.round((totalHoursUsed / totalHoursSold) * 100) : 0}% utilisé
+                </p>
+              </div>
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-1">Heures vendues ({currentYear})</p>
+                <p className="text-2xl font-bold">{currentYearHoursSold}h</p>
+              </div>
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-1">Heures utilisées ({currentYear})</p>
+                <p className="text-2xl font-bold">{currentYearHoursUsed}h</p>
+                <p className="text-xs text-muted-foreground">
+                  {currentYearHoursSold > 0 ? Math.round((currentYearHoursUsed / currentYearHoursSold) * 100) : 0}% utilisé
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* ARXONE - Sauvegardes */}
         {client.arx && (
@@ -396,157 +426,110 @@ const ClientDetail = () => {
           </div>
         )}
 
-        {/* Statistiques */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Heures vendues (total)</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{totalHoursSold}h</div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Heures utilisées (total)</CardTitle>
-              <Clock className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{totalHoursUsed}h</div>
-              <p className="text-xs text-muted-foreground">
-                {totalHoursSold > 0 ? Math.round((totalHoursUsed / totalHoursSold) * 100) : 0}% utilisé
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Heures vendues ({currentYear})</CardTitle>
-              <TrendingUp className="h-4 w-4 text-primary" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{currentYearHoursSold}h</div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Heures utilisées ({currentYear})</CardTitle>
-              <Clock className="h-4 w-4 text-primary" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{currentYearHoursUsed}h</div>
-              <p className="text-xs text-muted-foreground">
-                {currentYearHoursSold > 0 ? Math.round((currentYearHoursUsed / currentYearHoursSold) * 100) : 0}% utilisé
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Contrats actifs */}
-        <Card className="mb-6">
+        {/* Contrats */}
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Contrats signés ({activeContracts.length})</CardTitle>
-            <Button onClick={() => openContractDialog("signed")} size="sm" className="gap-2">
-              <Plus className="h-4 w-4" />
-              Nouveau contrat
-            </Button>
+            <CardTitle>Contrats</CardTitle>
+            <div className="flex gap-2">
+              <Button onClick={() => openContractDialog("signed")} size="sm" className="gap-2">
+                <Plus className="h-4 w-4" />
+                Nouveau contrat
+              </Button>
+              <Button onClick={() => openContractDialog("quote")} size="sm" variant="outline" className="gap-2">
+                <FileText className="h-4 w-4" />
+                Nouveau devis
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
-            {activeContracts.length === 0 ? (
-              <p className="text-muted-foreground text-center py-4">Aucun contrat signé</p>
-            ) : (
-              <div className="space-y-2">
-                {activeContracts.map((contract) => (
-                  <div
-                    key={contract.id}
-                    onClick={() => navigate(`/contract/${contract.id}`)}
-                    className="p-4 border rounded-lg hover:shadow-md transition-shadow cursor-pointer"
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <h3 className="font-medium">{contract.clientName}</h3>
-                      <Badge variant={contract.status === 'active' ? 'default' : 'secondary'}>
-                        {contract.status}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                      <span>Créé le {format(new Date(contract.createdDate), "dd MMMM yyyy", { locale: fr })}</span>
-                      <span>{contract.usedHours}/{contract.totalHours}h utilisées</span>
-                    </div>
+            <Tabs defaultValue="active" className="w-full">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="active">Contrats actifs ({activeContracts.length})</TabsTrigger>
+                <TabsTrigger value="quotes">Devis ({quoteContracts.length})</TabsTrigger>
+                <TabsTrigger value="archived">Archives ({archivedContracts.length})</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="active" className="mt-4">
+                {activeContracts.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-8">Aucun contrat signé</p>
+                ) : (
+                  <div className="space-y-2">
+                    {activeContracts.map((contract) => (
+                      <div
+                        key={contract.id}
+                        onClick={() => navigate(`/contract/${contract.id}`)}
+                        className="p-4 border rounded-lg hover:shadow-md transition-shadow cursor-pointer"
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <h3 className="font-medium">{contract.clientName}</h3>
+                          <Badge variant={contract.status === 'active' ? 'default' : 'secondary'}>
+                            {contract.status}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                          <span>Créé le {format(new Date(contract.createdDate), "dd MMMM yyyy", { locale: fr })}</span>
+                          <span>{contract.usedHours}/{contract.totalHours}h utilisées</span>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            )}
+                )}
+              </TabsContent>
+
+              <TabsContent value="quotes" className="mt-4">
+                {quoteContracts.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-8">Aucun devis</p>
+                ) : (
+                  <div className="space-y-2">
+                    {quoteContracts.map((contract) => (
+                      <div
+                        key={contract.id}
+                        onClick={() => navigate(`/contract/${contract.id}`)}
+                        className="p-4 border border-warning/50 rounded-lg hover:shadow-md transition-shadow cursor-pointer bg-warning/5"
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <h3 className="font-medium">{contract.clientName}</h3>
+                          <Badge variant="outline" className="border-warning text-warning">
+                            Devis
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                          <span>Créé le {format(new Date(contract.createdDate), "dd MMMM yyyy", { locale: fr })}</span>
+                          <span>{contract.totalHours}h</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="archived" className="mt-4">
+                {archivedContracts.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-8">Aucun contrat archivé</p>
+                ) : (
+                  <div className="space-y-2">
+                    {archivedContracts.map((contract) => (
+                      <div
+                        key={contract.id}
+                        onClick={() => navigate(`/contract/${contract.id}`)}
+                        className="p-4 border rounded-lg hover:shadow-md transition-shadow cursor-pointer opacity-75"
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <h3 className="font-medium">{contract.clientName}</h3>
+                          <Badge variant="secondary">Archivé</Badge>
+                        </div>
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                          <span>Créé le {format(new Date(contract.createdDate), "dd MMMM yyyy", { locale: fr })}</span>
+                          <span>{contract.usedHours}/{contract.totalHours}h utilisées</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
           </CardContent>
         </Card>
-
-        {/* Devis */}
-        <Card className="mb-6">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Devis ({quoteContracts.length})</CardTitle>
-            <Button onClick={() => openContractDialog("quote")} size="sm" variant="outline" className="gap-2">
-              <FileText className="h-4 w-4" />
-              Nouveau devis
-            </Button>
-          </CardHeader>
-          <CardContent>
-            {quoteContracts.length === 0 ? (
-              <p className="text-muted-foreground text-center py-4">Aucun devis</p>
-            ) : (
-              <div className="space-y-2">
-                {quoteContracts.map((contract) => (
-                  <div
-                    key={contract.id}
-                    onClick={() => navigate(`/contract/${contract.id}`)}
-                    className="p-4 border border-warning/50 rounded-lg hover:shadow-md transition-shadow cursor-pointer bg-warning/5"
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <h3 className="font-medium">{contract.clientName}</h3>
-                      <Badge variant="outline" className="border-warning text-warning">
-                        Devis
-                      </Badge>
-                    </div>
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                      <span>Créé le {format(new Date(contract.createdDate), "dd MMMM yyyy", { locale: fr })}</span>
-                      <span>{contract.totalHours}h</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Contrats archivés */}
-        {archivedContracts.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Contrats archivés ({archivedContracts.length})</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {archivedContracts.map((contract) => (
-                  <div
-                    key={contract.id}
-                    onClick={() => navigate(`/contract/${contract.id}`)}
-                    className="p-4 border rounded-lg hover:shadow-md transition-shadow cursor-pointer opacity-75"
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <h3 className="font-medium">{contract.clientName}</h3>
-                      <Badge variant="secondary">Archivé</Badge>
-                    </div>
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                      <span>Créé le {format(new Date(contract.createdDate), "dd MMMM yyyy", { locale: fr })}</span>
-                      <span>{contract.usedHours}/{contract.totalHours}h utilisées</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
       </div>
 
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
