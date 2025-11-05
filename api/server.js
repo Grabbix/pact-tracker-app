@@ -657,11 +657,32 @@ app.post('/api/clients/:clientId/arx-accounts/:accountId/refresh', async (req, r
       WHERE id = ?
     `).run(status, accountData.LastBackupStartTime, usedSpaceGb, allowedSpaceGb, analyzedSizeGb, accountId);
 
-    // Insert into history table
+    // Check if there's already an entry for today
+    const todayEntry = db.prepare(`
+      SELECT id FROM arx_account_history
+      WHERE account_id = ? AND date(recorded_at) = date('now')
+    `).get(accountId);
+
+    if (todayEntry) {
+      // Update today's entry
+      db.prepare(`
+        UPDATE arx_account_history
+        SET status = ?, last_backup_date = ?, used_space_gb = ?, allowed_space_gb = ?, analyzed_size_gb = ?, recorded_at = datetime('now')
+        WHERE id = ?
+      `).run(status, accountData.LastBackupStartTime, usedSpaceGb, allowedSpaceGb, analyzedSizeGb, todayEntry.id);
+    } else {
+      // Insert new entry for today
+      db.prepare(`
+        INSERT INTO arx_account_history (id, account_id, recorded_at, status, last_backup_date, used_space_gb, allowed_space_gb, analyzed_size_gb)
+        VALUES (?, ?, datetime('now'), ?, ?, ?, ?, ?)
+      `).run(randomUUID(), accountId, status, accountData.LastBackupStartTime, usedSpaceGb, allowedSpaceGb, analyzedSizeGb);
+    }
+
+    // Delete entries older than 40 days
     db.prepare(`
-      INSERT INTO arx_account_history (id, account_id, recorded_at, status, last_backup_date, used_space_gb, allowed_space_gb, analyzed_size_gb)
-      VALUES (?, ?, datetime('now'), ?, ?, ?, ?, ?)
-    `).run(randomUUID(), accountId, status, accountData.LastBackupStartTime, usedSpaceGb, allowedSpaceGb, analyzedSizeGb);
+      DELETE FROM arx_account_history
+      WHERE account_id = ? AND recorded_at < datetime('now', '-40 days')
+    `).run(accountId);
 
     console.log(`Successfully updated ARX account ${account.account_name}`);
     
