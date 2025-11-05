@@ -22,6 +22,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { AddContractDialogWithClient } from "@/components/AddContractDialogWithClient";
 import { ArxAccountsSection } from "@/components/ArxAccountsSection";
 
+interface ArxAccount {
+  id: string;
+  clientId: string;
+  accountName: string;
+  status: string;
+  lastBackupDate: string | null;
+  usedSpaceGb: number | null;
+  allowedSpaceGb: number | null;
+  analyzedSizeGb: number | null;
+  lastUpdated: string;
+}
+
 const ClientDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -31,6 +43,7 @@ const ClientDetail = () => {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [showAddContractDialog, setShowAddContractDialog] = useState(false);
   const [contractTypeToCreate, setContractTypeToCreate] = useState<"signed" | "quote">("signed");
+  const [arxAccounts, setArxAccounts] = useState<ArxAccount[]>([]);
   
   const [formData, setFormData] = useState({
     name: "",
@@ -58,12 +71,14 @@ const ClientDetail = () => {
   const fetchClientData = async () => {
     try {
       setLoading(true);
-      const [clientData, allContractsData] = await Promise.all([
+      const [clientData, allContractsData, arxAccountsData] = await Promise.all([
         api.getClient(id!),
-        api.getContracts(true) // Include archived
+        api.getContracts(true), // Include archived
+        api.getArxAccounts(id!).catch(() => []) // Fetch ARX accounts, fallback to empty array
       ]);
       setClient(clientData);
       setContracts(allContractsData.filter(c => c.clientId === id));
+      setArxAccounts(arxAccountsData);
     } catch (error) {
       console.error("Error fetching client data:", error);
       toast.error("Erreur lors du chargement des données");
@@ -304,10 +319,29 @@ const ClientDetail = () => {
               )}
               <div className="flex flex-wrap gap-2 pt-2">
                 {client.mailinblack && <Badge>Mailinblack</Badge>}
-                {client.arx && <Badge>ARX {client.arxQuota && `(${client.arxQuota} Go)`}</Badge>}
                 {client.eset && <Badge>ESET {client.esetVersion && `(${client.esetVersion})`}</Badge>}
                 {client.fortinet && <Badge>Fortinet</Badge>}
               </div>
+              {client.arx && (() => {
+                const quotaVendu = parseFloat(client.arxQuota || "0");
+                const totalUtilise = arxAccounts.reduce((sum, acc) => sum + (acc.usedSpaceGb || 0), 0);
+                const depassement = totalUtilise - quotaVendu;
+                const isOverage = depassement > 0;
+                
+                return (
+                  <div className={`pt-2 ${isOverage ? 'text-destructive' : 'text-green-600'}`}>
+                    <p className="text-xs font-medium text-muted-foreground mb-1">Stockage ARX</p>
+                    <p className="text-sm font-semibold">
+                      Vendu : {quotaVendu.toFixed(2)} Go / Utilisé : {totalUtilise.toFixed(2)} Go
+                    </p>
+                    {isOverage && (
+                      <p className="text-xs font-medium mt-1">
+                        Dépassement : {depassement.toFixed(2)} Go
+                      </p>
+                    )}
+                  </div>
+                );
+              })()}
             </CardContent>
           </Card>
         </div>

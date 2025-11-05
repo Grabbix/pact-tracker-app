@@ -298,14 +298,16 @@ export const ArxAccountsSection = ({ clientId }: ArxAccountsSectionProps) => {
                                   <Line 
                                     type="monotone" 
                                     dataKey="used_space_gb" 
-                                    stroke="#8884d8" 
+                                    stroke="#2563eb" 
+                                    strokeWidth={3}
                                     name="Volume utilisé"
                                     dot={false}
                                   />
                                   <Line 
                                     type="monotone" 
                                     dataKey="analyzed_size_gb" 
-                                    stroke="#82ca9d" 
+                                    stroke="#16a34a" 
+                                    strokeWidth={3}
                                     name="Taille sélection"
                                     dot={false}
                                   />
