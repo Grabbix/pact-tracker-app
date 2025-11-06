@@ -49,14 +49,17 @@ import {
 const ContractDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { getContract, addIntervention, updateIntervention, deleteIntervention, renewContract, createRenewalQuote, signContract, deleteQuote, refetch, loading, contracts } = useContracts(true);
+  const { contracts, addIntervention, updateIntervention, deleteIntervention, renewContract, createRenewalQuote, signContract, deleteQuote, refetch, loading } = useContracts(true);
   const [editingIntervention, setEditingIntervention] = useState<Intervention | null>(null);
   const [deletingInterventionId, setDeletingInterventionId] = useState<string | null>(null);
   const [editingClientName, setEditingClientName] = useState(false);
   const [isCreatingQuote, setIsCreatingQuote] = useState(false);
   const [isSigningQuote, setIsSigningQuote] = useState(false);
   
-  const contract = getContract(id || "");
+  // Find contract by contract number (from URL) or by UUID (backward compatibility)
+  const contract = contracts.find(c => 
+    (c.contractNumber && String(c.contractNumber) === id) || c.id === id
+  );
 
   if (loading) {
     return (
@@ -99,8 +102,8 @@ const ContractDetail = () => {
     .reduce((acc, i) => acc + (i.hoursUsed * 60), 0);
 
   const handleAddIntervention = (newIntervention: Omit<Intervention, "id">) => {
-    if (id) {
-      addIntervention(id, newIntervention);
+    if (contract?.id) {
+      addIntervention(contract.id, newIntervention);
     }
   };
 
@@ -115,35 +118,35 @@ const ContractDetail = () => {
   };
 
   const handleEditIntervention = (intervention: Intervention) => {
-    if (id) {
-      updateIntervention(id, intervention);
+    if (contract?.id) {
+      updateIntervention(contract.id, intervention);
     }
   };
 
   const handleDeleteIntervention = () => {
-    if (id && deletingInterventionId) {
-      deleteIntervention(id, deletingInterventionId);
+    if (contract?.id && deletingInterventionId) {
+      deleteIntervention(contract.id, deletingInterventionId);
       setDeletingInterventionId(null);
     }
   };
 
   const handleRenewContract = async (totalHours: number) => {
-    if (id && contract?.renewalQuoteId) {
+    if (contract?.id && contract?.renewalQuoteId) {
       // Si un devis de renouvellement existe, on le signe
       await signContract(contract.renewalQuoteId);
       navigate("/contracts");
-    } else if (id) {
+    } else if (contract?.id) {
       // Sinon renouvellement classique
-      await renewContract(id, totalHours);
+      await renewContract(contract.id, totalHours);
       navigate("/contracts");
     }
   };
 
   const handleCreateRenewalQuote = async (totalHours: number) => {
-    if (id) {
+    if (contract?.id) {
       setIsCreatingQuote(true);
       try {
-        const result = await createRenewalQuote(id, totalHours);
+        const result = await createRenewalQuote(contract.id, totalHours);
         if (result?.quoteId) {
           await refetch();
         }
@@ -177,7 +180,7 @@ const ContractDetail = () => {
               <div className="flex items-center gap-3 mb-2">
                 <h1 
                   className="text-4xl font-bold text-foreground hover:text-primary transition-colors cursor-pointer"
-                  onClick={() => contract.clientId && navigate(`/clients/${contract.clientId}`)}
+                  onClick={() => navigate(`/clients/${contract.clientName}`)}
                 >
                   {contract.clientName}
                 </h1>
@@ -200,16 +203,16 @@ const ContractDetail = () => {
               {!contract.isArchived && contract.contractType === 'quote' && (
                 <>
                   <Button variant="default" className="gap-2 bg-success hover:bg-success/90" onClick={() => {
-                    if (id) {
-                      signContract(id).then(() => navigate("/contracts"));
+                    if (contract?.id) {
+                      signContract(contract.id).then(() => navigate("/contracts"));
                     }
                   }}>
                     <RefreshCw className="h-4 w-4" />
                     Signer le devis
                   </Button>
                   <Button variant="destructive" className="gap-2" onClick={() => {
-                    if (id) {
-                      deleteQuote(id).then(() => navigate("/contracts"));
+                    if (contract?.id) {
+                      deleteQuote(contract.id).then(() => navigate("/contracts"));
                     }
                   }}>
                     <Trash2 className="h-4 w-4" />
@@ -282,7 +285,7 @@ const ContractDetail = () => {
               <Button
                 variant="link"
                 size="sm"
-                onClick={() => navigate(`/contract/${renewalQuote.id}`)}
+                onClick={() => navigate(`/contract/${renewalQuote.contractNumber ? String(renewalQuote.contractNumber) : renewalQuote.id}`)}
                 className="h-auto p-0 text-primary"
               >
                 Voir le devis

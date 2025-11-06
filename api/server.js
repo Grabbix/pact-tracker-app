@@ -180,6 +180,59 @@ app.get('/api/contracts', (req, res) => {
   }
 });
 
+// Get contract by contract number
+app.get('/api/contracts/by-number/:contractNumber', (req, res) => {
+  try {
+    const { contractNumber } = req.params;
+    const contract = db.prepare(`
+      SELECT c.*, 
+        GROUP_CONCAT(
+          json_object(
+            'id', i.id,
+            'date', i.date,
+            'description', i.description,
+            'hoursUsed', i.hours_used,
+            'technician', i.technician,
+            'isBillable', i.is_billable,
+            'location', i.location
+          )
+        ) as interventions
+      FROM contracts c
+      LEFT JOIN interventions i ON c.id = i.contract_id
+      WHERE c.contract_number = ?
+      GROUP BY c.id
+    `).get(contractNumber);
+
+    if (!contract) {
+      return res.status(404).json({ error: 'Contract not found' });
+    }
+
+    const formattedContract = {
+      ...contract,
+      isArchived: !!contract.is_archived,
+      usedHours: contract.used_hours,
+      totalHours: contract.total_hours,
+      createdDate: contract.created_date,
+      contractNumber: contract.contract_number,
+      contractType: contract.contract_type,
+      signedDate: contract.signed_date,
+      renewalQuoteId: contract.renewal_quote_id,
+      linkedContractId: contract.linked_contract_id,
+      internalNotes: contract.internal_notes,
+      clientInternalNotes: contract.client_internal_notes,
+      clientId: contract.client_id,
+      interventions: contract.interventions 
+        ? JSON.parse(`[${contract.interventions}]`) 
+        : []
+    };
+
+    res.json(formattedContract);
+  } catch (error) {
+    console.error('Error fetching contract by number:', error);
+    res.status(500).json({ error: 'Failed to fetch contract' });
+  }
+});
+
 app.post('/api/contracts', (req, res) => {
   try {
     const { clientName, clientId, totalHours, contractType, internalNotes, createdDate: customCreatedDate, signedDate: customSignedDate } = req.body;
@@ -306,6 +359,53 @@ app.get('/api/clients', (req, res) => {
   } catch (error) {
     console.error('Error fetching clients:', error);
     res.status(500).json({ error: 'Erreur lors du chargement des clients' });
+  }
+});
+
+// Get client by name (must be before :id route to avoid conflicts)
+app.get('/api/clients/by-name/:name', (req, res) => {
+  try {
+    const { name } = req.params;
+    const client = db.prepare('SELECT * FROM clients WHERE name = ?').get(decodeURIComponent(name));
+    
+    if (!client) {
+      return res.status(404).json({ error: 'Client non trouvé' });
+    }
+    
+    const contacts = db.prepare('SELECT * FROM contact_persons WHERE client_id = ? ORDER BY name ASC').all(client.id);
+    const activeContracts = db.prepare('SELECT COUNT(*) as count FROM contracts WHERE client_id = ? AND is_archived = 0').get(client.id);
+    const archivedContracts = db.prepare('SELECT COUNT(*) as count FROM contracts WHERE client_id = ? AND is_archived = 1').get(client.id);
+    
+    res.json({
+      id: client.id,
+      name: client.name,
+      address: client.address,
+      phoneStandard: client.phone_standard,
+      internalNotes: client.internal_notes,
+      fai: client.fai,
+      domains: client.domains ? JSON.parse(client.domains) : [],
+      emailType: client.email_type,
+      mailinblack: client.mailinblack === 1,
+      arx: client.arx === 1,
+      arxQuota: client.arx_quota,
+      eset: client.eset === 1,
+      esetVersion: client.eset_version,
+      fortinet: client.fortinet === 1,
+      createdAt: client.created_at,
+      updatedAt: client.updated_at,
+      activeContractsCount: activeContracts.count,
+      archivedContractsCount: archivedContracts.count,
+      contacts: contacts.map(c => ({
+        id: c.id,
+        name: c.name,
+        email: c.email,
+        phone: c.phone,
+        createdAt: c.created_at
+      }))
+    });
+  } catch (error) {
+    console.error('Error fetching client by name:', error);
+    res.status(500).json({ error: 'Erreur lors du chargement du client' });
   }
 });
 

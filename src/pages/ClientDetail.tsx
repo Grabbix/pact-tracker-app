@@ -39,6 +39,7 @@ const ClientDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [client, setClient] = useState<Client | null>(null);
+  const [actualClientId, setActualClientId] = useState<string | null>(null);
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [loading, setLoading] = useState(true);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -72,13 +73,23 @@ const ClientDetail = () => {
   const fetchClientData = async () => {
     try {
       setLoading(true);
-      const [clientData, allContractsData, arxAccountsData] = await Promise.all([
-        api.getClient(id!),
+      // Try to get client by name first (for new URLs), then by ID (backward compatibility)
+      let clientData;
+      try {
+        clientData = await api.getClientByName(id!);
+      } catch {
+        clientData = await api.getClient(id!);
+      }
+      
+      const clientId = clientData.id;
+      setActualClientId(clientId);
+      
+      const [allContractsData, arxAccountsData] = await Promise.all([
         api.getContracts(true), // Include archived
-        api.getArxAccounts(id!).catch(() => []) // Fetch ARX accounts, fallback to empty array
+        api.getArxAccounts(clientId).catch(() => []) // Fetch ARX accounts, fallback to empty array
       ]);
       setClient(clientData);
-      setContracts(allContractsData.filter(c => c.clientId === id));
+      setContracts(allContractsData.filter(c => c.clientId === clientId));
       setArxAccounts(arxAccountsData);
     } catch (error) {
       console.error("Error fetching client data:", error);
@@ -111,7 +122,7 @@ const ClientDetail = () => {
   };
 
   const handleSubmit = async () => {
-    if (!formData.name.trim() || !id) {
+    if (!formData.name.trim() || !actualClientId) {
       toast.error("Le nom du client est requis");
       return;
     }
@@ -119,9 +130,15 @@ const ClientDetail = () => {
     const contacts = formData.contacts.filter(c => c.name.trim());
 
     try {
-      await api.updateClient(id, { ...formData, contacts });
+      await api.updateClient(actualClientId, { ...formData, contacts });
       toast.success("Client mis à jour avec succès");
       setIsEditDialogOpen(false);
+      
+      // Update URL with new client name if it changed
+      if (formData.name !== client?.name) {
+        navigate(`/clients/${formData.name}`, { replace: true });
+      }
+      
       fetchClientData();
     } catch (error) {
       console.error("Error saving client:", error);
@@ -420,9 +437,9 @@ const ClientDetail = () => {
         </Card>
 
         {/* ARXONE - Sauvegardes */}
-        {client.arx && (
+        {client.arx && actualClientId && (
           <div className="mb-6">
-            <ArxAccountsSection clientId={id!} />
+            <ArxAccountsSection clientId={actualClientId} />
           </div>
         )}
 
@@ -457,7 +474,7 @@ const ClientDetail = () => {
                     {activeContracts.map((contract) => (
                       <div
                         key={contract.id}
-                        onClick={() => navigate(`/contract/${contract.id}`)}
+                        onClick={() => navigate(`/contract/${contract.contractNumber ? String(contract.contractNumber) : contract.id}`)}
                         className="p-4 border rounded-lg hover:shadow-md transition-shadow cursor-pointer"
                       >
                         <div className="flex items-center justify-between mb-2">
@@ -484,7 +501,7 @@ const ClientDetail = () => {
                     {quoteContracts.map((contract) => (
                       <div
                         key={contract.id}
-                        onClick={() => navigate(`/contract/${contract.id}`)}
+                        onClick={() => navigate(`/contract/${contract.contractNumber ? String(contract.contractNumber) : contract.id}`)}
                         className="p-4 border border-warning/50 rounded-lg hover:shadow-md transition-shadow cursor-pointer bg-warning/5"
                       >
                         <div className="flex items-center justify-between mb-2">
@@ -511,7 +528,7 @@ const ClientDetail = () => {
                     {archivedContracts.map((contract) => (
                       <div
                         key={contract.id}
-                        onClick={() => navigate(`/contract/${contract.id}`)}
+                        onClick={() => navigate(`/contract/${contract.contractNumber ? String(contract.contractNumber) : contract.id}`)}
                         className="p-4 border rounded-lg hover:shadow-md transition-shadow cursor-pointer opacity-75"
                       >
                         <div className="flex items-center justify-between mb-2">

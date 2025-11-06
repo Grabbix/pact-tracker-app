@@ -442,7 +442,7 @@ const Clients = () => {
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {filteredClients.map((client) => (
-              <Card key={client.id} className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => navigate(`/clients/${client.id}`)}>
+              <Card key={client.id} className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => navigate(`/clients/${client.name}`)}>
                 <CardHeader>
                   <CardTitle className="flex items-center justify-between">
                     <span className="truncate">{client.name}</span>

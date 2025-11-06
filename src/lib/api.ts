@@ -9,6 +9,22 @@ export const api = {
     return response.json();
   },
 
+  async getContractByNumber(contractNumber: string) {
+    const response = await fetch(
+      `${API_BASE_URL}/api/contracts/by-number/${encodeURIComponent(contractNumber)}`
+    );
+    if (!response.ok) throw new Error('Failed to fetch contract');
+    return response.json();
+  },
+
+  async getClientByName(clientName: string) {
+    const response = await fetch(
+      `${API_BASE_URL}/api/clients/by-name/${encodeURIComponent(clientName)}`
+    );
+    if (!response.ok) throw new Error('Failed to fetch client');
+    return response.json();
+  },
+
   async createContract(data: { 
     clientName: string; 
     totalHours: number; 

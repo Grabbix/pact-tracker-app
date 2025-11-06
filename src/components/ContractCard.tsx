@@ -50,7 +50,7 @@ export const ContractCard = ({ contract, isArchived = false }: ContractCardProps
   return (
     <Card 
       className="p-6 hover:shadow-lg transition-all cursor-pointer border-2 hover:border-primary/20"
-      onClick={() => navigate(`/contract/${contract.id}`)}
+      onClick={() => navigate(`/contract/${contract.contractNumber ? String(contract.contractNumber) : contract.id}`)}
     >
       <div className="flex items-start justify-between mb-4">
         <div className="flex-1">
