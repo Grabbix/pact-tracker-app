@@ -1720,12 +1720,70 @@ cron.schedule('30 8 * * *', async () => {
         const usedSpaceGb = accountData.quota.usedSpace ? accountData.quota.usedSpace / 1000000000 : null;
         const allowedSpaceGb = accountData.quota.allowedSpace ? accountData.quota.allowedSpace / 1000000000 : null;
 
-        // Update database
+        // Fetch analyzed size data using last backup date
+        let analyzedSizeGb = null;
+        if (accountData.lastBackupStartTime) {
+          try {
+            const lastBackupDate = new Date(accountData.lastBackupStartTime);
+            const formattedDate = lastBackupDate.toISOString().split('T')[0];
+            
+            console.log(`Fetching analyzed size for ${account.account_name} since ${formattedDate}`);
+            const dataResponse = await fetch(
+              `https://api.arx.one/s9/${account.account_name}/data?eventID=2.1.1.3.1&minimumTime=${formattedDate}&kind=Default&skip=0&includeDescendants=false`,
+              {
+                headers: {
+                  'Authorization': `Bearer ${arxApiKey}`,
+                  'Content-Type': 'application/json',
+                },
+              }
+            );
+
+            if (dataResponse.ok) {
+              const dataEvents = await dataResponse.json();
+              if (dataEvents && dataEvents.length > 0 && dataEvents[0].LiteralValues['analyzed-size']) {
+                const analyzedSizeStr = dataEvents[0].LiteralValues['analyzed-size'];
+                const analyzedSizeBytes = parseInt(analyzedSizeStr.replace(' B', ''));
+                analyzedSizeGb = analyzedSizeBytes / 1000000000;
+                console.log(`Analyzed size: ${analyzedSizeGb} GB`);
+              }
+            }
+          } catch (error) {
+            console.error(`Error fetching analyzed size for ${account.account_name}:`, error);
+          }
+        }
+
+        // Update database with analyzed_size_gb
         db.prepare(`
           UPDATE arx_accounts 
-          SET status = ?, last_backup_date = ?, used_space_gb = ?, allowed_space_gb = ?, last_updated = datetime('now')
+          SET status = ?, last_backup_date = ?, used_space_gb = ?, allowed_space_gb = ?, analyzed_size_gb = ?, last_updated = datetime('now')
           WHERE id = ?
-        `).run(status, accountData.lastBackupStartTime, usedSpaceGb, allowedSpaceGb, account.id);
+        `).run(status, accountData.lastBackupStartTime, usedSpaceGb, allowedSpaceGb, analyzedSizeGb, account.id);
+
+        // Insert into history (one entry per day)
+        const today = new Date().toISOString().split('T')[0];
+        const existingEntry = db.prepare(`
+          SELECT id FROM arx_account_history 
+          WHERE account_id = ? AND DATE(created_at) = ?
+        `).get(account.id, today);
+
+        if (existingEntry) {
+          db.prepare(`
+            UPDATE arx_account_history 
+            SET status = ?, last_backup_date = ?, used_space_gb = ?, allowed_space_gb = ?, analyzed_size_gb = ?
+            WHERE id = ?
+          `).run(status, accountData.lastBackupStartTime, usedSpaceGb, allowedSpaceGb, analyzedSizeGb, existingEntry.id);
+        } else {
+          db.prepare(`
+            INSERT INTO arx_account_history (account_id, status, last_backup_date, used_space_gb, allowed_space_gb, analyzed_size_gb)
+            VALUES (?, ?, ?, ?, ?, ?)
+          `).run(account.id, status, accountData.lastBackupStartTime, usedSpaceGb, allowedSpaceGb, analyzedSizeGb);
+        }
+
+        // Clean history older than 40 days
+        db.prepare(`
+          DELETE FROM arx_account_history 
+          WHERE account_id = ? AND created_at < datetime('now', '-40 days')
+        `).run(account.id);
 
         console.log(`Successfully synced ARX account: ${account.account_name}`);
       } catch (error) {
