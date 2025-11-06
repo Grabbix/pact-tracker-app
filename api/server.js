@@ -727,7 +727,7 @@ app.post('/api/clients/:clientId/arx-accounts/:accountId/refresh', async (req, r
         const formattedDate = new Date(accountData.LastBackupStartTime).toISOString().split('T')[0];
         console.log(`Fetching analyzed size for ${account.account_name} since ${formattedDate}`);
         const dataResponse = await fetch(
-          `https://api.arx.one/s9/${account.account_name}/data?eventID=2.1.1.3.1&minimumTime=${formattedDate}&kind=Default&skip=0&includeDescendants=false`,
+          `https://api.arx.one/s9/${account.account_name}/data/latest?eventID=2.1.1.3.1&skip=0&includeDescendants=false&includeFullInformation=false`,
           {
             headers: {
               'Authorization': `Bearer ${arxApiKey}`,
