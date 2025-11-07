@@ -1897,6 +1897,98 @@ cron.schedule('30 8 * * *', async () => {
   }
 });
 
+// Routes pour les éléments de facturation
+app.get('/api/billing-items', (req, res) => {
+  try {
+    const items = db.prepare(`
+      SELECT * FROM billing_items 
+      ORDER BY is_processed ASC, created_at DESC
+    `).all();
+    
+    res.json(items.map(item => ({
+      id: item.id,
+      clientName: item.client_name,
+      description: item.description,
+      technician: item.technician,
+      isProcessed: item.is_processed === 1,
+      createdAt: item.created_at,
+    })));
+  } catch (error) {
+    console.error('Error fetching billing items:', error);
+    res.status(500).json({ error: 'Erreur lors du chargement des éléments de facturation' });
+  }
+});
+
+app.get('/api/billing-items/client/:clientName', (req, res) => {
+  try {
+    const { clientName } = req.params;
+    const items = db.prepare(`
+      SELECT * FROM billing_items 
+      WHERE client_name = ?
+      ORDER BY is_processed ASC, created_at DESC
+    `).all(clientName);
+    
+    res.json(items.map(item => ({
+      id: item.id,
+      clientName: item.client_name,
+      description: item.description,
+      technician: item.technician,
+      isProcessed: item.is_processed === 1,
+      createdAt: item.created_at,
+    })));
+  } catch (error) {
+    console.error('Error fetching client billing items:', error);
+    res.status(500).json({ error: 'Erreur lors du chargement des éléments de facturation' });
+  }
+});
+
+app.post('/api/billing-items', (req, res) => {
+  try {
+    const { clientName, description, technician } = req.body;
+    
+    if (!clientName || !description || !technician) {
+      return res.status(400).json({ error: 'Tous les champs sont requis' });
+    }
+
+    const id = randomUUID();
+    
+    db.prepare(`
+      INSERT INTO billing_items (id, client_name, description, technician)
+      VALUES (?, ?, ?, ?)
+    `).run(id, clientName, description, technician);
+
+    res.json({ 
+      success: true,
+      id,
+      clientName,
+      description,
+      technician,
+      isProcessed: false,
+      createdAt: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('Error creating billing item:', error);
+    res.status(500).json({ error: 'Erreur lors de la création de l\'élément de facturation' });
+  }
+});
+
+app.patch('/api/billing-items/:id/process', (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    db.prepare(`
+      UPDATE billing_items 
+      SET is_processed = 1 
+      WHERE id = ?
+    `).run(id);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error marking billing item as processed:', error);
+    res.status(500).json({ error: 'Erreur lors de la mise à jour' });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`API running on http://localhost:${PORT}`);
   console.log('Daily Excel backup scheduled at 18:00 (0 18 * * *)');

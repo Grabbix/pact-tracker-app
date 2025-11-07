@@ -46,6 +46,7 @@ const ClientDetail = () => {
   const [showAddContractDialog, setShowAddContractDialog] = useState(false);
   const [contractTypeToCreate, setContractTypeToCreate] = useState<"signed" | "quote">("signed");
   const [arxAccounts, setArxAccounts] = useState<ArxAccount[]>([]);
+  const [billingItems, setBillingItems] = useState<any[]>([]);
   
   const [formData, setFormData] = useState({
     name: "",
@@ -84,13 +85,15 @@ const ClientDetail = () => {
       const clientId = clientData.id;
       setActualClientId(clientId);
       
-      const [allContractsData, arxAccountsData] = await Promise.all([
+      const [allContractsData, arxAccountsData, billingItemsData] = await Promise.all([
         api.getContracts(true), // Include archived
-        api.getArxAccounts(clientId).catch(() => []) // Fetch ARX accounts, fallback to empty array
+        api.getArxAccounts(clientId).catch(() => []), // Fetch ARX accounts, fallback to empty array
+        api.getClientBillingItems(clientData.name).catch(() => []) // Fetch billing items
       ]);
       setClient(clientData);
       setContracts(allContractsData.filter(c => c.clientId === clientId));
       setArxAccounts(arxAccountsData);
+      setBillingItems(billingItemsData);
     } catch (error) {
       console.error("Error fetching client data:", error);
       toast.error("Erreur lors du chargement des données");
@@ -538,6 +541,72 @@ const ClientDetail = () => {
                         <div className="flex items-center gap-4 text-sm text-muted-foreground">
                           <span>Créé le {format(new Date(contract.createdDate), "dd MMMM yyyy", { locale: fr })}</span>
                           <span>{contract.usedHours}/{contract.totalHours}h utilisées</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        </Card>
+
+        {/* Facturation Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Facturation</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Tabs defaultValue="pending" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="pending">
+                  À traiter ({billingItems.filter(item => !item.isProcessed).length})
+                </TabsTrigger>
+                <TabsTrigger value="processed">
+                  Traités ({billingItems.filter(item => item.isProcessed).length})
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="pending" className="mt-4">
+                {billingItems.filter(item => !item.isProcessed).length === 0 ? (
+                  <p className="text-muted-foreground text-center py-8">Aucun élément à facturer</p>
+                ) : (
+                  <div className="space-y-2">
+                    {billingItems.filter(item => !item.isProcessed).map((item) => (
+                      <div
+                        key={item.id}
+                        className="p-4 border rounded-lg bg-accent/5"
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <h3 className="font-medium">{item.description}</h3>
+                        </div>
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                          <span>Technicien: {item.technician}</span>
+                          <span>Date: {format(new Date(item.createdAt), "dd MMMM yyyy", { locale: fr })}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="processed" className="mt-4">
+                {billingItems.filter(item => item.isProcessed).length === 0 ? (
+                  <p className="text-muted-foreground text-center py-8">Aucun élément traité</p>
+                ) : (
+                  <div className="space-y-2">
+                    {billingItems.filter(item => item.isProcessed).map((item) => (
+                      <div
+                        key={item.id}
+                        className="p-4 border rounded-lg opacity-75"
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <h3 className="font-medium">{item.description}</h3>
+                          <Badge variant="secondary">Traité</Badge>
+                        </div>
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                          <span>Technicien: {item.technician}</span>
+                          <span>Date: {format(new Date(item.createdAt), "dd MMMM yyyy", { locale: fr })}</span>
                         </div>
                       </div>
                     ))}

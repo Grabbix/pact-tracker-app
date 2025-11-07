@@ -283,7 +283,18 @@ export const ArxAccountsSection = ({ clientId }: ArxAccountsSectionProps) => {
                                     dataKey="recorded_at" 
                                     tickFormatter={(value) => format(new Date(value), 'dd/MM', { locale: fr })}
                                   />
-                                  <YAxis label={{ value: 'Go', angle: -90, position: 'insideLeft' }} />
+                                  <YAxis 
+                                    label={{ value: 'Go', angle: -90, position: 'insideLeft' }}
+                                    domain={(() => {
+                                      const allValues = historyData.flatMap(d => [
+                                        d.used_space_gb || 0,
+                                        d.analyzed_size_gb || 0
+                                      ]);
+                                      const min = Math.min(...allValues);
+                                      const max = Math.max(...allValues);
+                                      return [Math.max(0, min - 15), max + 15];
+                                    })()}
+                                  />
                                   <Tooltip 
                                     labelFormatter={(value) => format(new Date(value), 'dd/MM/yyyy HH:mm', { locale: fr })}
                                     formatter={(value: number) => `${value.toFixed(2)} Go`}

@@ -273,4 +273,38 @@ export const api = {
     if (!response.ok) throw new Error('Failed to fetch ARX account history');
     return response.json();
   },
+
+  async getBillingItems() {
+    const response = await fetch(`${API_BASE_URL}/api/billing-items`);
+    if (!response.ok) throw new Error('Failed to fetch billing items');
+    return response.json();
+  },
+
+  async createBillingItem(data: {
+    clientName: string;
+    description: string;
+    technician: string;
+  }) {
+    const response = await fetch(`${API_BASE_URL}/api/billing-items`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) throw new Error('Failed to create billing item');
+    return response.json();
+  },
+
+  async markBillingItemProcessed(id: string) {
+    const response = await fetch(`${API_BASE_URL}/api/billing-items/${id}/process`, {
+      method: 'PATCH',
+    });
+    if (!response.ok) throw new Error('Failed to mark billing item as processed');
+    return response.json();
+  },
+
+  async getClientBillingItems(clientName: string) {
+    const response = await fetch(`${API_BASE_URL}/api/billing-items/client/${encodeURIComponent(clientName)}`);
+    if (!response.ok) throw new Error('Failed to fetch client billing items');
+    return response.json();
+  },
 };

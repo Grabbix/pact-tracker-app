@@ -92,6 +92,15 @@ db.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_arx_history_account_date 
     ON arx_account_history(account_id, recorded_at DESC);
+
+  CREATE TABLE IF NOT EXISTS billing_items (
+    id TEXT PRIMARY KEY,
+    client_name TEXT NOT NULL,
+    description TEXT NOT NULL,
+    technician TEXT NOT NULL,
+    is_processed INTEGER DEFAULT 0,
+    created_at TEXT DEFAULT (datetime('now'))
+  );
 `);
 
 // Add renewal_quote_id and linked_contract_id columns if they don't exist

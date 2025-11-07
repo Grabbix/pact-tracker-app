@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { FileText, Settings, Building2 } from "lucide-react";
+import { FileText, Settings, Building2, Receipt } from "lucide-react";
 
 const Home = () => {
   const navigate = useNavigate();
@@ -15,7 +15,7 @@ const Home = () => {
           </p>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-8">
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
           <Button
             onClick={() => navigate("/contracts")}
             className="h-64 flex flex-col gap-6 text-xl hover:scale-105 transition-transform"
@@ -32,6 +32,15 @@ const Home = () => {
           >
             <Building2 className="w-24 h-24" />
             <span>Clients</span>
+          </Button>
+
+          <Button
+            onClick={() => navigate("/billing")}
+            className="h-64 flex flex-col gap-6 text-xl hover:scale-105 transition-transform"
+            variant="outline"
+          >
+            <Receipt className="w-24 h-24" />
+            <span>Facturation</span>
           </Button>
 
           <Button
