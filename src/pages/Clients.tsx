@@ -3,15 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Building2, Search, ArrowLeft, Plus, Trash2 } from "lucide-react";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Building2, Search, ArrowLeft, Plus, Trash2, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { api } from "@/lib/api";
 import { Client } from "@/types/client";
@@ -35,6 +27,7 @@ const Clients = () => {
   const [clients, setClients] = useState<Client[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
+  const [contracts, setContracts] = useState<any[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -64,8 +57,12 @@ const Clients = () => {
   const fetchClients = async () => {
     try {
       setLoading(true);
-      const data = await api.getClients();
-      setClients(data);
+      const [clientsData, contractsData] = await Promise.all([
+        api.getClients(),
+        api.getContracts(false)
+      ]);
+      setClients(clientsData);
+      setContracts(contractsData);
     } catch (error) {
       console.error("Error fetching clients:", error);
       toast.error("Erreur lors du chargement des clients");
@@ -77,6 +74,14 @@ const Clients = () => {
   const filteredClients = clients.filter(client =>
     client.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const getClientActiveContract = (clientName: string) => {
+    return contracts.find(
+      contract => contract.clientName === clientName && 
+      contract.status === "active" && 
+      !contract.isArchived
+    );
+  };
 
   const handleOpenDialog = (client?: Client) => {
     if (client) {
@@ -449,89 +454,76 @@ const Clients = () => {
             Aucun client trouvé
           </div>
         ) : (
-          <div className="border rounded-lg">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Client</TableHead>
-                  <TableHead>Contrat actif</TableHead>
-                  <TableHead>ARX</TableHead>
-                  <TableHead>Mailinblack</TableHead>
-                  <TableHead>ESET</TableHead>
-                  <TableHead>Fortinet</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredClients.map((client) => (
-                  <TableRow 
-                    key={client.id} 
-                    className="cursor-pointer hover:bg-muted/50"
-                    onClick={() => navigate(`/clients/${client.name}`)}
-                  >
-                    <TableCell className="font-medium">{client.name}</TableCell>
-                    <TableCell>
-                      {client.activeContractsCount && client.activeContractsCount > 0 ? (
-                        <Badge variant="outline" className="bg-green-500/10 text-green-700 border-green-500/20">
-                          Actif
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="bg-muted text-muted-foreground">
-                          Aucun
-                        </Badge>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {client.arx ? (
-                        <div className="flex flex-col gap-1">
-                          <Badge variant="outline" className="w-fit">Oui</Badge>
-                          {client.arxQuota && (
-                            <span className="text-xs text-muted-foreground">{client.arxQuota} Go</span>
+          <div className="space-y-3">
+            {filteredClients.map((client) => {
+              const activeContract = getClientActiveContract(client.name);
+              const remainingHours = activeContract 
+                ? activeContract.totalHours - activeContract.usedHours 
+                : null;
+              
+              return (
+                <Card 
+                  key={client.id} 
+                  className="cursor-pointer hover:bg-muted/50 transition-colors"
+                  onClick={() => navigate(`/clients/${client.name}`)}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1 space-y-2">
+                        <div className="flex items-center gap-3">
+                          <h3 className="font-semibold text-lg">{client.name}</h3>
+                          {activeContract ? (
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline" className="bg-green-500/10 text-green-700 border-green-500/20">
+                                Contrat actif
+                              </Badge>
+                              {remainingHours !== null && (
+                                <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                                  <Clock className="h-3 w-3" />
+                                  <span>{remainingHours}h / {activeContract.totalHours}h restantes</span>
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <Badge variant="outline" className="bg-muted text-muted-foreground">
+                              Aucun contrat
+                            </Badge>
                           )}
                         </div>
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {client.mailinblack ? (
-                        <Badge variant="outline">Oui</Badge>
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {client.eset ? (
-                        <div className="flex flex-col gap-1">
-                          <Badge variant="outline" className="w-fit">Oui</Badge>
-                          {client.esetVersion && (
-                            <span className="text-xs text-muted-foreground">{client.esetVersion}</span>
+                        
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {client.arx && (
+                            <Badge variant="secondary">
+                              ARX{client.arxQuota ? ` : ${client.arxQuota} Go` : ''}
+                            </Badge>
+                          )}
+                          {client.eset && (
+                            <Badge variant="secondary">
+                              ESET{client.esetVersion ? ` : ${client.esetVersion}` : ''}
+                            </Badge>
+                          )}
+                          {client.mailinblack && (
+                            <Badge variant="secondary">Mailinblack</Badge>
+                          )}
+                          {client.fortinet && (
+                            <Badge variant="secondary">Fortinet</Badge>
                           )}
                         </div>
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {client.fortinet ? (
-                        <Badge variant="outline">Oui</Badge>
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
+                      </div>
+                      
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={(e) => openDeleteDialog(client, e)}
+                        className="ml-4"
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         )}
       </div>

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Plus, Check } from "lucide-react";
+import { ArrowLeft, Plus, Check, ChevronsUpDown } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -11,12 +11,18 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -53,6 +59,9 @@ const Billing = () => {
     description: "",
     technician: "",
   });
+  
+  const [clientOpen, setClientOpen] = useState(false);
+  const [technicianOpen, setTechnicianOpen] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -84,6 +93,16 @@ const Billing = () => {
     }
 
     try {
+      // Check if client exists, if not create it
+      const clientExists = clients.some(c => c.name.toLowerCase() === formData.clientName.toLowerCase());
+      if (!clientExists) {
+        await api.createClient({ 
+          name: formData.clientName,
+          contacts: []
+        });
+        toast.success("Nouveau client créé");
+      }
+      
       await api.createBillingItem(formData);
       toast.success("Élément ajouté avec succès");
       setShowAddDialog(false);
@@ -220,23 +239,47 @@ const Billing = () => {
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="client">Client</Label>
-              <Select
-                value={formData.clientName}
-                onValueChange={(value) =>
-                  setFormData({ ...formData, clientName: value })
-                }
-              >
-                <SelectTrigger id="client">
-                  <SelectValue placeholder="Sélectionner un client" />
-                </SelectTrigger>
-                <SelectContent>
-                  {clients.map((client) => (
-                    <SelectItem key={client.id} value={client.name}>
-                      {client.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Popover open={clientOpen} onOpenChange={setClientOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={clientOpen}
+                    className="w-full justify-between"
+                  >
+                    {formData.clientName || "Sélectionner ou créer un client"}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-full p-0" align="start">
+                  <Command>
+                    <CommandInput 
+                      placeholder="Rechercher ou créer un client..." 
+                      value={formData.clientName}
+                      onValueChange={(value) => setFormData({ ...formData, clientName: value })}
+                    />
+                    <CommandList>
+                      <CommandEmpty>
+                        Appuyez sur Entrée pour créer "{formData.clientName}"
+                      </CommandEmpty>
+                      <CommandGroup>
+                        {clients.map((client) => (
+                          <CommandItem
+                            key={client.id}
+                            value={client.name}
+                            onSelect={(value) => {
+                              setFormData({ ...formData, clientName: value });
+                              setClientOpen(false);
+                            }}
+                          >
+                            {client.name}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
 
             <div className="space-y-2">
@@ -253,23 +296,47 @@ const Billing = () => {
 
             <div className="space-y-2">
               <Label htmlFor="technician">Technicien</Label>
-              <Select
-                value={formData.technician}
-                onValueChange={(value) =>
-                  setFormData({ ...formData, technician: value })
-                }
-              >
-                <SelectTrigger id="technician">
-                  <SelectValue placeholder="Sélectionner un technicien" />
-                </SelectTrigger>
-                <SelectContent>
-                  {technicians.map((tech) => (
-                    <SelectItem key={tech} value={tech}>
-                      {tech}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Popover open={technicianOpen} onOpenChange={setTechnicianOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={technicianOpen}
+                    className="w-full justify-between"
+                  >
+                    {formData.technician || "Sélectionner ou créer un technicien"}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-full p-0" align="start">
+                  <Command>
+                    <CommandInput 
+                      placeholder="Rechercher ou créer un technicien..." 
+                      value={formData.technician}
+                      onValueChange={(value) => setFormData({ ...formData, technician: value })}
+                    />
+                    <CommandList>
+                      <CommandEmpty>
+                        Appuyez sur Entrée pour créer "{formData.technician}"
+                      </CommandEmpty>
+                      <CommandGroup>
+                        {technicians.map((tech) => (
+                          <CommandItem
+                            key={tech}
+                            value={tech}
+                            onSelect={(value) => {
+                              setFormData({ ...formData, technician: value });
+                              setTechnicianOpen(false);
+                            }}
+                          >
+                            {tech}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
           <DialogFooter>
