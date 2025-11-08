@@ -3,7 +3,16 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Building2, Search, ArrowLeft, Plus, Phone, Mail, User, MapPin, Edit, Trash2 } from "lucide-react";
+import { Building2, Search, ArrowLeft, Plus, Trash2 } from "lucide-react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import { api } from "@/lib/api";
 import { Client } from "@/types/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -440,23 +449,77 @@ const Clients = () => {
             Aucun client trouvé
           </div>
         ) : (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {filteredClients.map((client) => (
-              <Card key={client.id} className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => navigate(`/clients/${client.name}`)}>
-                <CardHeader>
-                  <CardTitle className="flex items-center justify-between">
-                    <span className="truncate">{client.name}</span>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleOpenDialog(client);
-                        }}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
+          <div className="border rounded-lg">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Client</TableHead>
+                  <TableHead>Contrat actif</TableHead>
+                  <TableHead>ARX</TableHead>
+                  <TableHead>Mailinblack</TableHead>
+                  <TableHead>ESET</TableHead>
+                  <TableHead>Fortinet</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredClients.map((client) => (
+                  <TableRow 
+                    key={client.id} 
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => navigate(`/clients/${client.name}`)}
+                  >
+                    <TableCell className="font-medium">{client.name}</TableCell>
+                    <TableCell>
+                      {client.activeContractsCount && client.activeContractsCount > 0 ? (
+                        <Badge variant="outline" className="bg-green-500/10 text-green-700 border-green-500/20">
+                          Actif
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="bg-muted text-muted-foreground">
+                          Aucun
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {client.arx ? (
+                        <div className="flex flex-col gap-1">
+                          <Badge variant="outline" className="w-fit">Oui</Badge>
+                          {client.arxQuota && (
+                            <span className="text-xs text-muted-foreground">{client.arxQuota} Go</span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {client.mailinblack ? (
+                        <Badge variant="outline">Oui</Badge>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {client.eset ? (
+                        <div className="flex flex-col gap-1">
+                          <Badge variant="outline" className="w-fit">Oui</Badge>
+                          {client.esetVersion && (
+                            <span className="text-xs text-muted-foreground">{client.esetVersion}</span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {client.fortinet ? (
+                        <Badge variant="outline">Oui</Badge>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
                       <Button
                         variant="ghost"
                         size="sm"
@@ -464,92 +527,11 @@ const Clients = () => {
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
-                      <Building2 className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-                    </div>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {client.address && (
-                    <div className="flex items-start gap-2 text-sm">
-                      <MapPin className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-                      <a 
-                        href={`https://maps.google.com/?q=${encodeURIComponent(client.address)}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-muted-foreground hover:underline hover:text-foreground transition-colors"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {client.address}
-                      </a>
-                    </div>
-                  )}
-                  {client.phoneStandard && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <Phone className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                      <a 
-                        href={`tel:${client.phoneStandard}`}
-                        className="text-muted-foreground hover:underline hover:text-foreground transition-colors"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {client.phoneStandard}
-                      </a>
-                    </div>
-                  )}
-                  {client.contacts.length > 0 && (
-                    <div className="space-y-2 pt-2 border-t">
-                      <div className="text-xs font-medium text-muted-foreground">Contacts:</div>
-                      {client.contacts.slice(0, 2).map((contact) => (
-                        <div key={contact.id} className="space-y-1">
-                          <div className="flex items-center gap-2 text-sm">
-                            <User className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                            <span className="truncate font-medium">{contact.name}</span>
-                          </div>
-                          {contact.email && (
-                            <div className="flex items-center gap-2 text-xs ml-5">
-                              <Mail className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                              <a 
-                                href={`mailto:${contact.email}`}
-                                className="truncate text-muted-foreground hover:underline hover:text-foreground transition-colors"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                {contact.email}
-                              </a>
-                            </div>
-                          )}
-                          {contact.phone && (
-                            <div className="flex items-center gap-2 text-xs ml-5">
-                              <Phone className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                              <a 
-                                href={`tel:${contact.phone}`}
-                                className="truncate text-muted-foreground hover:underline hover:text-foreground transition-colors"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                {contact.phone}
-                              </a>
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                      {client.contacts.length > 2 && (
-                        <div className="text-xs text-muted-foreground">
-                          +{client.contacts.length - 2} autre(s)
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  <div className="flex gap-4 pt-2 border-t text-sm">
-                    <div>
-                      <div className="font-medium">{client.activeContractsCount || 0}</div>
-                      <div className="text-xs text-muted-foreground">Contrats actifs</div>
-                    </div>
-                    <div>
-                      <div className="font-medium">{client.archivedContractsCount || 0}</div>
-                      <div className="text-xs text-muted-foreground">Archivés</div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </div>
         )}
       </div>
@@ -559,22 +541,12 @@ const Clients = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Supprimer le client</AlertDialogTitle>
             <AlertDialogDescription>
-              {clientToDelete && (
-                <>
-                  Êtes-vous sûr de vouloir supprimer <strong>{clientToDelete.name}</strong> ?
-                  {(clientToDelete.activeContractsCount || 0) + (clientToDelete.archivedContractsCount || 0) > 0 && (
-                    <div className="mt-2 p-2 bg-destructive/10 border border-destructive/20 rounded">
-                      <strong>Attention :</strong> En supprimant ce client vous allez également supprimer{" "}
-                      {(clientToDelete.activeContractsCount || 0) + (clientToDelete.archivedContractsCount || 0)} contrat(s) associé(s).
-                    </div>
-                  )}
-                </>
-              )}
+              Êtes-vous sûr de vouloir supprimer le client "{clientToDelete?.name}" ? Cette action est irréversible.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Annuler</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteClient} className="bg-destructive hover:bg-destructive/90">
+            <AlertDialogAction onClick={handleDeleteClient} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               Supprimer
             </AlertDialogAction>
           </AlertDialogFooter>
