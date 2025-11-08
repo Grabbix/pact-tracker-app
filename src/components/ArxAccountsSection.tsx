@@ -285,6 +285,7 @@ export const ArxAccountsSection = ({ clientId }: ArxAccountsSectionProps) => {
                                   />
                                   <YAxis 
                                     label={{ value: 'Go', angle: -90, position: 'insideLeft' }}
+                                    tickFormatter={(value) => `${value.toFixed(0)} Go`}
                                     domain={(() => {
                                       const allValues = historyData.flatMap(d => [
                                         d.used_space_gb || 0,

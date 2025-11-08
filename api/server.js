@@ -1878,16 +1878,13 @@ cron.schedule('30 8 * * *', async () => {
         const usedSpaceGb = accountData.Quota?.UsedSpace ? accountData.Quota.UsedSpace / 1000000000 : null;
         const allowedSpaceGb = accountData.Quota?.AllowedSpace ? accountData.Quota.AllowedSpace / 1000000000 : null;
 
-        // Fetch analyzed size data using last backup date - UTILISER LA STRUCTURE QUI FONCTIONNE
+        // Fetch analyzed size data using latest endpoint
         let analyzedSizeGb = null;
         if (accountData.LastBackupStartTime) {
           try {
-            const lastBackupDate = new Date(accountData.LastBackupStartTime);
-            const formattedDate = lastBackupDate.toISOString().split('T')[0];
-            
-            console.log(`Fetching analyzed size for ${account.account_name} since ${formattedDate}`);
+            console.log(`Fetching analyzed size for ${account.account_name} using latest endpoint`);
             const dataResponse = await fetch(
-              `https://api.arx.one/s9/${account.account_name}/data?eventID=2.1.1.3.1&minimumTime=${formattedDate}&kind=Default&skip=0&includeDescendants=false`,
+              `https://api.arx.one/s9/${account.account_name}/data/latest?eventID=2.1.1.3.1&skip=0&includeDescendants=false&includeFullInformation=false`,
               {
                 headers: {
                   'Authorization': `Bearer ${arxApiKey}`,
@@ -1898,11 +1895,13 @@ cron.schedule('30 8 * * *', async () => {
 
             if (dataResponse.ok) {
               const dataEvents = await dataResponse.json();
-              if (dataEvents && dataEvents.length > 0 && dataEvents[0].LiteralValues['analyzed-size']) {
-                const analyzedSizeStr = dataEvents[0].LiteralValues['analyzed-size'];
-                const analyzedSizeBytes = parseInt(analyzedSizeStr.replace(' B', ''));
-                analyzedSizeGb = analyzedSizeBytes / 1000000000;
-                console.log(`Analyzed size: ${analyzedSizeGb} GB`);
+              const analyzedSizeStr = dataEvents?.[0]?.LiteralValues?.['analyzed-size'];
+              if (analyzedSizeStr) {
+                const analyzedSizeBytes = parseInt(String(analyzedSizeStr).replace(/[^\d]/g, ''), 10);
+                if (!Number.isNaN(analyzedSizeBytes)) {
+                  analyzedSizeGb = analyzedSizeBytes / 1000000000;
+                  console.log(`Analyzed size: ${analyzedSizeGb} GB`);
+                }
               }
             }
           } catch (error) {
