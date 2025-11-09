@@ -61,6 +61,24 @@ if (!fs.existsSync(backupDir)) {
 app.use(cors());
 app.use(express.json());
 
+// Helper function to log cron jobs
+function logCronJob(type, message, status = 'info') {
+  try {
+    const id = randomUUID();
+    db.prepare(`
+      INSERT INTO cron_logs (id, type, message, status)
+      VALUES (?, ?, ?, ?)
+    `).run(id, type, message, status);
+    
+    // Nettoyer les logs de plus de 30 jours
+    db.prepare(`
+      DELETE FROM cron_logs WHERE timestamp < datetime('now', '-30 days')
+    `).run();
+  } catch (error) {
+    console.error('Error logging cron job:', error);
+  }
+}
+
 // Helper function to generate contract number based on client name
 function generateContractNumber(clientName) {
   // Clean and prepare the client name
@@ -1522,15 +1540,34 @@ app.post('/api/contracts/export-all-excel', (req, res) => {
   }
 });
 
+// Endpoint pour récupérer les logs des cron jobs
+app.get('/api/admin/cron-logs', (req, res) => {
+  try {
+    const logs = db.prepare(`
+      SELECT * FROM cron_logs 
+      ORDER BY timestamp DESC 
+      LIMIT 100
+    `).all();
+    
+    res.json(logs);
+  } catch (error) {
+    console.error('Error fetching cron logs:', error);
+    res.status(500).json({ error: 'Erreur lors du chargement des logs' });
+  }
+});
+
 // Endpoint pour déclencher manuellement la sync ARX
 app.post('/api/admin/trigger-arx-sync', async (req, res) => {
   console.log('Manual ARX sync triggered from admin panel');
+  logCronJob('arx_sync', 'Démarrage de la synchronisation manuelle ARX', 'info');
+  
   try {
     const accounts = db.prepare('SELECT * FROM arx_accounts').all();
     const arxApiKey = process.env.ARX_API_KEY;
     
     if (!arxApiKey) {
       console.error('ARX_API_KEY not configured');
+      logCronJob('arx_sync', 'ARX_API_KEY non configurée', 'error');
       return res.status(500).json({ error: 'ARX_API_KEY not configured' });
     }
     
@@ -1655,14 +1692,18 @@ app.post('/api/admin/trigger-arx-sync', async (req, res) => {
       }
     }
     
+    const message = `Synchronisation terminée: ${successCount} succès, ${errorCount} erreurs`;
+    logCronJob('arx_sync', message, errorCount > 0 ? 'error' : 'success');
+    
     res.json({ 
       success: true,
-      message: `Synchronisation terminée: ${successCount} succès, ${errorCount} erreurs`,
+      message,
       successCount,
       errorCount
     });
   } catch (error) {
     console.error('Error during manual ARX sync:', error);
+    logCronJob('arx_sync', `Erreur: ${error.message}`, 'error');
     res.status(500).json({ error: 'Erreur lors de la synchronisation ARX' });
   }
 });
@@ -1670,6 +1711,7 @@ app.post('/api/admin/trigger-arx-sync', async (req, res) => {
 // Cron job pour l'export quotidien à 18h
 cron.schedule('0 18 * * *', () => {
   console.log('Starting daily Excel backup at 18:00...');
+  logCronJob('excel_backup', 'Démarrage du backup Excel quotidien', 'info');
   try {
     const query = `
       SELECT c.*, 
@@ -1818,22 +1860,30 @@ cron.schedule('0 18 * * *', () => {
     });
 
     console.log(`Daily backup completed: ${exportedCount} contracts exported to ${backupDir}`);
+    logCronJob('excel_backup', `Backup terminé avec succès: ${exportedCount} contrats exportés`, 'success');
   } catch (error) {
     console.error('Error during daily backup:', error);
+    logCronJob('excel_backup', `Erreur lors du backup: ${error.message}`, 'error');
   }
 });
 
 // Planifier la synchronisation des comptes ARX à 8h30
 cron.schedule('30 8 * * *', async () => {
   console.log('Starting daily ARX accounts sync at 8:30...');
+  logCronJob('arx_sync', 'Démarrage de la synchronisation ARX automatique', 'info');
+  
   try {
     const accounts = db.prepare('SELECT * FROM arx_accounts').all();
     const arxApiKey = process.env.ARX_API_KEY;
     
     if (!arxApiKey) {
       console.error('ARX_API_KEY not configured, skipping sync');
+      logCronJob('arx_sync', 'ARX_API_KEY non configurée', 'error');
       return;
     }
+    
+    let successCount = 0;
+    let errorCount = 0;
     
     for (const account of accounts) {
       try {
@@ -1943,14 +1993,19 @@ cron.schedule('30 8 * * *', async () => {
         `).run(account.id);
 
         console.log(`Successfully synced ARX account: ${account.account_name}`);
+        successCount++;
       } catch (error) {
         console.error(`Error syncing ARX account ${account.account_name}:`, error);
+        errorCount++;
       }
     }
     
-    console.log('Daily ARX sync completed');
+    const message = `Synchronisation automatique terminée: ${successCount} succès, ${errorCount} erreurs sur ${accounts.length} comptes`;
+    console.log(message);
+    logCronJob('arx_sync', message, errorCount > 0 ? 'error' : 'success');
   } catch (error) {
     console.error('Error during daily ARX sync:', error);
+    logCronJob('arx_sync', `Erreur lors de la synchronisation: ${error.message}`, 'error');
   }
 });
 

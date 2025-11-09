@@ -6,50 +6,60 @@ const Home = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted flex items-center justify-center p-4">
-      <div className="max-w-4xl w-full">
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold mb-4">Gestion d'entreprise</h1>
-          <p className="text-muted-foreground text-lg">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background/80 to-muted/50 flex items-center justify-center p-8">
+      <div className="max-w-6xl w-full">
+        <div className="text-center mb-16">
+          <h1 className="text-5xl font-bold mb-6 bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+            Gestion d'entreprise
+          </h1>
+          <p className="text-muted-foreground text-xl">
             Choisissez le module que vous souhaitez utiliser
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+        <div className="grid md:grid-cols-2 gap-8">
           <Button
             onClick={() => navigate("/contracts")}
-            className="h-64 flex flex-col gap-6 text-xl hover:scale-105 transition-transform"
+            className="h-56 flex flex-col gap-6 text-xl hover:scale-[1.02] transition-all shadow-lg hover:shadow-2xl bg-card border-2 hover:border-primary/50"
             variant="outline"
           >
-            <FileText className="w-24 h-24" />
-            <span>Contrats de maintenance</span>
+            <div className="p-6 rounded-full bg-primary/10">
+              <FileText className="w-16 h-16 text-primary" />
+            </div>
+            <span className="font-semibold">Contrats de maintenance</span>
           </Button>
 
           <Button
             onClick={() => navigate("/clients")}
-            className="h-64 flex flex-col gap-6 text-xl hover:scale-105 transition-transform"
+            className="h-56 flex flex-col gap-6 text-xl hover:scale-[1.02] transition-all shadow-lg hover:shadow-2xl bg-card border-2 hover:border-primary/50"
             variant="outline"
           >
-            <Building2 className="w-24 h-24" />
-            <span>Clients</span>
+            <div className="p-6 rounded-full bg-primary/10">
+              <Building2 className="w-16 h-16 text-primary" />
+            </div>
+            <span className="font-semibold">Clients</span>
           </Button>
 
           <Button
             onClick={() => navigate("/billing")}
-            className="h-64 flex flex-col gap-6 text-xl hover:scale-105 transition-transform"
+            className="h-56 flex flex-col gap-6 text-xl hover:scale-[1.02] transition-all shadow-lg hover:shadow-2xl bg-card border-2 hover:border-primary/50"
             variant="outline"
           >
-            <Receipt className="w-24 h-24" />
-            <span>Facturation</span>
+            <div className="p-6 rounded-full bg-primary/10">
+              <Receipt className="w-16 h-16 text-primary" />
+            </div>
+            <span className="font-semibold">Facturation</span>
           </Button>
 
           <Button
             onClick={() => navigate("/management")}
-            className="h-64 flex flex-col gap-6 text-xl hover:scale-105 transition-transform"
+            className="h-56 flex flex-col gap-6 text-xl hover:scale-[1.02] transition-all shadow-lg hover:shadow-2xl bg-card border-2 hover:border-primary/50"
             variant="outline"
           >
-            <Settings className="w-24 h-24" />
-            <span>Gestion</span>
+            <div className="p-6 rounded-full bg-primary/10">
+              <Settings className="w-16 h-16 text-primary" />
+            </div>
+            <span className="font-semibold">Gestion</span>
           </Button>
         </div>
       </div>
