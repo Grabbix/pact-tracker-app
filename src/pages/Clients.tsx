@@ -533,7 +533,17 @@ const Clients = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Supprimer le client</AlertDialogTitle>
             <AlertDialogDescription>
-              Êtes-vous sûr de vouloir supprimer le client "{clientToDelete?.name}" ? Cette action est irréversible.
+              Êtes-vous sûr de vouloir supprimer le client "{clientToDelete?.name}" ?
+              {clientToDelete && (clientToDelete.activeContractsCount > 0 || clientToDelete.archivedContractsCount > 0) && (
+                <>
+                  <br />
+                  <span className="text-destructive font-semibold">
+                    Cela supprimera également {clientToDelete.activeContractsCount + clientToDelete.archivedContractsCount} contrat(s), toutes les interventions et éléments de facturation associés.
+                  </span>
+                </>
+              )}
+              <br />
+              Cette action est irréversible.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

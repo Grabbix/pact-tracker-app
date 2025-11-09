@@ -574,6 +574,9 @@ app.delete('/api/clients/:id', (req, res) => {
   try {
     const { id } = req.params;
     
+    // Récupérer le nom du client pour supprimer les billing_items
+    const client = db.prepare('SELECT name FROM clients WHERE id = ?').get(id);
+    
     // Compter les contrats liés
     const contractCount = db.prepare('SELECT COUNT(*) as count FROM contracts WHERE client_id = ?').get(id);
     
@@ -583,6 +586,9 @@ app.delete('/api/clients/:id', (req, res) => {
       db.prepare('DELETE FROM interventions WHERE contract_id = ?').run(contract.id);
     });
     db.prepare('DELETE FROM contracts WHERE client_id = ?').run(id);
+    
+    // Supprimer les éléments de facturation associés au client
+    db.prepare('DELETE FROM billing_items WHERE client_name = ?').run(client.name);
     
     // Supprimer les contacts du client
     db.prepare('DELETE FROM contact_persons WHERE client_id = ?').run(id);
