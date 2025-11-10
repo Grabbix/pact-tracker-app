@@ -62,13 +62,13 @@ app.use(cors());
 app.use(express.json());
 
 // Helper function to log cron jobs
-function logCronJob(type, message, status = 'info') {
+function logCronJob(type, message, status = 'info', details = null) {
   try {
     const id = randomUUID();
     db.prepare(`
-      INSERT INTO cron_logs (id, type, message, status)
-      VALUES (?, ?, ?, ?)
-    `).run(id, type, message, status);
+      INSERT INTO cron_logs (id, type, message, status, details)
+      VALUES (?, ?, ?, ?, ?)
+    `).run(id, type, message, status, details ? JSON.stringify(details) : null);
     
     // Nettoyer les logs de plus de 30 jours
     db.prepare(`
@@ -782,24 +782,28 @@ app.post('/api/clients/:clientId/arx-accounts/:accountId/refresh', async (req, r
     `).run(status, accountData.LastBackupStartTime, usedSpaceGb, allowedSpaceGb, analyzedSizeGb, accountId);
 
     // Check if there's already an entry for today
-    const todayEntry = db.prepare(`
-      SELECT id FROM arx_account_history
-      WHERE account_id = ? AND date(recorded_at) = date('now')
-    `).get(accountId);
+    // Check if we already have an entry for the backup date
+    if (accountData.LastBackupStartTime) {
+      const backupDate = new Date(accountData.LastBackupStartTime).toISOString().split('T')[0];
+      const existingEntry = db.prepare(`
+        SELECT id FROM arx_account_history
+        WHERE account_id = ? AND date(recorded_at) = ?
+      `).get(accountId, backupDate);
 
-    if (todayEntry) {
-      // Update today's entry
-      db.prepare(`
-        UPDATE arx_account_history
-        SET status = ?, last_backup_date = ?, used_space_gb = ?, allowed_space_gb = ?, analyzed_size_gb = ?, recorded_at = datetime('now')
-        WHERE id = ?
-      `).run(status, accountData.LastBackupStartTime, usedSpaceGb, allowedSpaceGb, analyzedSizeGb, todayEntry.id);
-    } else {
-      // Insert new entry for today
-      db.prepare(`
-        INSERT INTO arx_account_history (id, account_id, recorded_at, status, last_backup_date, used_space_gb, allowed_space_gb, analyzed_size_gb)
-        VALUES (?, ?, datetime('now'), ?, ?, ?, ?, ?)
-      `).run(randomUUID(), accountId, status, accountData.LastBackupStartTime, usedSpaceGb, allowedSpaceGb, analyzedSizeGb);
+      if (existingEntry) {
+        // Update existing entry
+        db.prepare(`
+          UPDATE arx_account_history
+          SET status = ?, last_backup_date = ?, used_space_gb = ?, allowed_space_gb = ?, analyzed_size_gb = ?
+          WHERE id = ?
+        `).run(status, accountData.LastBackupStartTime, usedSpaceGb, allowedSpaceGb, analyzedSizeGb, existingEntry.id);
+      } else {
+        // Insert new entry
+        db.prepare(`
+          INSERT INTO arx_account_history (id, account_id, recorded_at, status, last_backup_date, used_space_gb, allowed_space_gb, analyzed_size_gb)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(randomUUID(), accountId, accountData.LastBackupStartTime, status, accountData.LastBackupStartTime, usedSpaceGb, allowedSpaceGb, analyzedSizeGb);
+      }
     }
 
     // Delete entries older than 40 days
@@ -1562,6 +1566,175 @@ app.get('/api/admin/cron-logs', (req, res) => {
   }
 });
 
+// Endpoint pour déclencher manuellement le backup Excel
+app.post('/api/admin/trigger-backup', async (req, res) => {
+  console.log('Manual Excel backup triggered from admin panel');
+  logCronJob('excel_backup', 'Démarrage du backup Excel manuel', 'info');
+  
+  try {
+    const query = `
+      SELECT c.*, 
+        GROUP_CONCAT(
+          json_object(
+            'id', i.id,
+            'date', i.date,
+            'description', i.description,
+            'hours_used', i.hours_used,
+            'technician', i.technician,
+            'is_billable', i.is_billable,
+            'location', i.location
+          )
+        ) as interventions_json
+      FROM contracts c
+      LEFT JOIN interventions i ON c.id = i.contract_id
+      GROUP BY c.id
+      ORDER BY c.created_date DESC
+    `;
+
+    const rows = db.prepare(query).all();
+
+    const contracts = rows.map(row => {
+      let interventions = [];
+      
+      if (row.interventions_json) {
+        try {
+          const parsed = JSON.parse(`[${row.interventions_json}]`);
+          interventions = parsed
+            .filter(i => i.id !== null)
+            .map(i => ({
+              id: i.id,
+              date: i.date,
+              description: i.description,
+              hoursUsed: i.hours_used,
+              technician: i.technician,
+              isBillable: i.is_billable === 1,
+              location: i.location,
+            }));
+        } catch (e) {
+          console.error("Error parsing interventions:", e);
+        }
+      }
+
+      return {
+        id: row.id,
+        clientName: row.client_name,
+        totalHours: row.total_hours,
+        usedHours: row.used_hours,
+        createdDate: row.created_date,
+        status: row.status,
+        isArchived: row.is_archived === 1,
+        contractType: row.contract_type,
+        signedDate: row.signed_date,
+        interventions,
+      };
+    });
+
+    let exportedCount = 0;
+
+    contracts.forEach(contract => {
+      const billableInterventions = contract.interventions
+        .filter(i => i.isBillable !== false)
+        .map(intervention => ({
+          Date: new Date(intervention.date).toLocaleDateString('fr-FR'),
+          Description: intervention.description,
+          Technicien: intervention.technician,
+          Heures: intervention.hoursUsed,
+          Localisation: intervention.location || 'Non spécifié'
+        }));
+
+      const nonBillableInterventions = contract.interventions
+        .filter(i => i.isBillable === false)
+        .map(intervention => ({
+          Date: new Date(intervention.date).toLocaleDateString('fr-FR'),
+          Description: intervention.description,
+          Technicien: intervention.technician,
+          Minutes: Math.round(intervention.hoursUsed * 60),
+          Localisation: intervention.location || 'Non spécifié'
+        }));
+
+      const summary = [
+        ['Client', contract.clientName],
+        ['Contrat N°', contract.id],
+        ['Date de création', new Date(contract.createdDate).toLocaleDateString('fr-FR')],
+        ['Heures totales', contract.totalHours],
+        ['Heures utilisées', contract.usedHours],
+        ['Heures restantes', (contract.totalHours - contract.usedHours).toFixed(1)],
+        ['Progression', `${((contract.usedHours / contract.totalHours) * 100).toFixed(1)}%`],
+        ['Statut', contract.isArchived ? 'Archivé' : contract.status]
+      ];
+
+      const wb = XLSX.utils.book_new();
+      const summaryWs = XLSX.utils.aoa_to_sheet(summary);
+      XLSX.utils.book_append_sheet(wb, summaryWs, 'Résumé');
+
+      if (billableInterventions.length > 0) {
+        const billableWs = XLSX.utils.json_to_sheet(billableInterventions);
+        XLSX.utils.book_append_sheet(wb, billableWs, 'Interventions comptées');
+      }
+
+      if (nonBillableInterventions.length > 0) {
+        const nonBillableWs = XLSX.utils.json_to_sheet(nonBillableInterventions);
+        XLSX.utils.book_append_sheet(wb, nonBillableWs, 'Interventions non comptées');
+      }
+
+      // Créer le dossier client si nécessaire
+      const clientFolderName = contract.clientName.replace(/[\/\\?%*:|"<>]/g, '-');
+      const clientFolderPath = path.join(backupDir, clientFolderName);
+      
+      if (!fs.existsSync(clientFolderPath)) {
+        fs.mkdirSync(clientFolderPath, { recursive: true });
+      }
+
+      // Supprimer tous les fichiers existants pour ce contrat (même client + même heures)
+      const existingFiles = fs.readdirSync(clientFolderPath);
+      const contractFilePattern = `${clientFolderName}_${contract.totalHours}h_`;
+      existingFiles.forEach(file => {
+        if (file.includes(contractFilePattern)) {
+          const oldFilePath = path.join(clientFolderPath, file);
+          try {
+            fs.unlinkSync(oldFilePath);
+          } catch (err) {
+            console.error(`Error deleting old file ${file}:`, err);
+          }
+        }
+      });
+
+      // Déterminer le statut pour le nom du fichier
+      let statusPrefix = 'actif';
+      if (contract.isArchived) {
+        statusPrefix = 'archive';
+      } else if (contract.contractType === 'quote') {
+        statusPrefix = 'devis';
+      }
+
+      // Formater la date de signature
+      const signedDateStr = contract.signedDate 
+        ? new Date(contract.signedDate).toLocaleDateString('fr-FR').replace(/\//g, '-')
+        : 'non-signe';
+
+      const fileName = `[${statusPrefix}]${clientFolderName}_${contract.totalHours}h_${signedDateStr}.xlsx`;
+      const filePath = path.join(clientFolderPath, fileName);
+      XLSX.writeFile(wb, filePath);
+      exportedCount++;
+    });
+
+    const message = `Backup manuel terminé: ${exportedCount} contrats exportés`;
+    console.log(message);
+    logCronJob('excel_backup', message, 'success');
+    
+    res.json({ 
+      success: true,
+      message,
+      count: exportedCount,
+      path: backupDir
+    });
+  } catch (error) {
+    console.error('Error during manual backup:', error);
+    logCronJob('excel_backup', `Erreur lors du backup manuel: ${error.message}`, 'error');
+    res.status(500).json({ error: 'Erreur lors du backup Excel' });
+  }
+});
+
 // Endpoint pour déclencher manuellement la sync ARX
 app.post('/api/admin/trigger-arx-sync', async (req, res) => {
   console.log('Manual ARX sync triggered from admin panel');
@@ -1579,23 +1752,33 @@ app.post('/api/admin/trigger-arx-sync', async (req, res) => {
     
     let successCount = 0;
     let errorCount = 0;
+    const apiCallDetails = [];
     
     for (const account of accounts) {
       try {
         console.log(`Syncing ARX account: ${account.account_name}`);
+        const accountDetail = {
+          accountName: account.account_name,
+          status: 'success',
+          apiCalls: []
+        };
         
-        const arxResponse = await fetch(
-          `https://api.arx.one/s9/${account.account_name}/supervision/events?hierarchy=Self`,
-          {
-            headers: {
-              'Authorization': `Bearer ${arxApiKey}`,
-              'Content-Type': 'application/json',
-            },
-          }
-        );
+        // Call 1: supervision/events
+        const supervisionUrl = `https://api.arx.one/s9/${account.account_name}/supervision/events?hierarchy=Self`;
+        accountDetail.apiCalls.push({ url: supervisionUrl, type: 'supervision' });
+        
+        const arxResponse = await fetch(supervisionUrl, {
+          headers: {
+            'Authorization': `Bearer ${arxApiKey}`,
+            'Content-Type': 'application/json',
+          },
+        });
 
         if (!arxResponse.ok) {
           console.error(`ARX API error for ${account.account_name}: ${arxResponse.status}`);
+          accountDetail.status = 'error';
+          accountDetail.error = `HTTP ${arxResponse.status}`;
+          apiCallDetails.push(accountDetail);
           errorCount++;
           continue;
         }
@@ -1604,6 +1787,9 @@ app.post('/api/admin/trigger-arx-sync', async (req, res) => {
         
         if (!arxData || arxData.length === 0) {
           console.error(`No data for ${account.account_name}`);
+          accountDetail.status = 'error';
+          accountDetail.error = 'Aucune donnée retournée';
+          apiCallDetails.push(accountDetail);
           errorCount++;
           continue;
         }
@@ -1633,15 +1819,15 @@ app.post('/api/admin/trigger-arx-sync', async (req, res) => {
             const formattedDate = lastBackupDate.toISOString().split('T')[0];
             
             console.log(`Fetching analyzed size for ${account.account_name} since ${formattedDate}`);
-            const dataResponse = await fetch(
-              `https://api.arx.one/s9/${account.account_name}/data?eventID=2.1.1.3.1&minimumTime=${formattedDate}&kind=Default&skip=0&includeDescendants=false`,
-              {
-                headers: {
-                  'Authorization': `Bearer ${arxApiKey}`,
-                  'Content-Type': 'application/json',
-                },
-              }
-            );
+            const dataUrl = `https://api.arx.one/s9/${account.account_name}/data?eventID=2.1.1.3.1&minimumTime=${formattedDate}&kind=Default&skip=0&includeDescendants=false`;
+            accountDetail.apiCalls.push({ url: dataUrl, type: 'analyzed-size' });
+            
+            const dataResponse = await fetch(dataUrl, {
+              headers: {
+                'Authorization': `Bearer ${arxApiKey}`,
+                'Content-Type': 'application/json',
+              },
+            });
 
             if (dataResponse.ok) {
               const dataEvents = await dataResponse.json();
@@ -1664,24 +1850,26 @@ app.post('/api/admin/trigger-arx-sync', async (req, res) => {
           WHERE id = ?
         `).run(status, accountData.LastBackupStartTime, usedSpaceGb, allowedSpaceGb, analyzedSizeGb, account.id);
 
-        // Insert into history (one entry per day)
-        const today = new Date().toISOString().split('T')[0];
-        const existingEntry = db.prepare(`
-          SELECT id FROM arx_account_history 
-          WHERE account_id = ? AND DATE(recorded_at) = ?
-        `).get(account.id, today);
+        // Insert into history using last_backup_date as recorded_at
+        if (accountData.LastBackupStartTime) {
+          const backupDate = new Date(accountData.LastBackupStartTime).toISOString().split('T')[0];
+          const existingEntry = db.prepare(`
+            SELECT id FROM arx_account_history 
+            WHERE account_id = ? AND DATE(recorded_at) = ?
+          `).get(account.id, backupDate);
 
-        if (existingEntry) {
-          db.prepare(`
-            UPDATE arx_account_history 
-            SET status = ?, last_backup_date = ?, used_space_gb = ?, allowed_space_gb = ?, analyzed_size_gb = ?
-            WHERE id = ?
-          `).run(status, accountData.LastBackupStartTime, usedSpaceGb, allowedSpaceGb, analyzedSizeGb, existingEntry.id);
-        } else {
-          db.prepare(`
-            INSERT INTO arx_account_history (id, account_id, status, last_backup_date, used_space_gb, allowed_space_gb, analyzed_size_gb)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-          `).run(randomUUID(), account.id, status, accountData.LastBackupStartTime, usedSpaceGb, allowedSpaceGb, analyzedSizeGb);
+          if (existingEntry) {
+            db.prepare(`
+              UPDATE arx_account_history 
+              SET status = ?, last_backup_date = ?, used_space_gb = ?, allowed_space_gb = ?, analyzed_size_gb = ?
+              WHERE id = ?
+            `).run(status, accountData.LastBackupStartTime, usedSpaceGb, allowedSpaceGb, analyzedSizeGb, existingEntry.id);
+          } else {
+            db.prepare(`
+              INSERT INTO arx_account_history (id, account_id, recorded_at, status, last_backup_date, used_space_gb, allowed_space_gb, analyzed_size_gb)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            `).run(randomUUID(), account.id, accountData.LastBackupStartTime, status, accountData.LastBackupStartTime, usedSpaceGb, allowedSpaceGb, analyzedSizeGb);
+          }
         }
 
         // Clean history older than 40 days
@@ -1690,16 +1878,30 @@ app.post('/api/admin/trigger-arx-sync', async (req, res) => {
           WHERE account_id = ? AND recorded_at < datetime('now', '-40 days')
         `).run(account.id);
 
+        accountDetail.data = {
+          status,
+          usedSpaceGb: usedSpaceGb?.toFixed(2),
+          allowedSpaceGb: allowedSpaceGb?.toFixed(2),
+          analyzedSizeGb: analyzedSizeGb?.toFixed(2),
+          lastBackupDate: accountData.LastBackupStartTime
+        };
+        apiCallDetails.push(accountDetail);
+
         console.log(`Successfully synced ARX account: ${account.account_name}`);
         successCount++;
       } catch (error) {
         console.error(`Error syncing ARX account ${account.account_name}:`, error);
+        apiCallDetails.push({
+          accountName: account.account_name,
+          status: 'error',
+          error: error.message
+        });
         errorCount++;
       }
     }
     
     const message = `Synchronisation terminée: ${successCount} succès, ${errorCount} erreurs`;
-    logCronJob('arx_sync', message, errorCount > 0 ? 'error' : 'success');
+    logCronJob('arx_sync', message, errorCount > 0 ? 'error' : 'success', apiCallDetails);
     
     res.json({ 
       success: true,
@@ -1890,13 +2092,23 @@ cron.schedule('30 8 * * *', async () => {
     
     let successCount = 0;
     let errorCount = 0;
+    const apiCallDetails = [];
     
     for (const account of accounts) {
       try {
         console.log(`Syncing ARX account: ${account.account_name}`);
+        const accountDetail = {
+          accountName: account.account_name,
+          status: 'success',
+          apiCalls: []
+        };
+        
+        // Call 1: supervision/events
+        const supervisionUrl = `https://api.arx.one/s9/${account.account_name}/supervision/events?hierarchy=Self`;
+        accountDetail.apiCalls.push({ url: supervisionUrl, type: 'supervision' });
         
         const arxResponse = await fetch(
-          `https://api.arx.one/s9/${account.account_name}/supervision/events?hierarchy=Self`,
+          supervisionUrl,
           {
             headers: {
               'Authorization': `Bearer ${arxApiKey}`,
@@ -1907,6 +2119,10 @@ cron.schedule('30 8 * * *', async () => {
 
         if (!arxResponse.ok) {
           console.error(`ARX API error for ${account.account_name}: ${arxResponse.status}`);
+          accountDetail.status = 'error';
+          accountDetail.error = `HTTP ${arxResponse.status}`;
+          apiCallDetails.push(accountDetail);
+          errorCount++;
           continue;
         }
 
@@ -1914,6 +2130,10 @@ cron.schedule('30 8 * * *', async () => {
         
         if (!arxData || arxData.length === 0) {
           console.error(`No data for ${account.account_name}`);
+          accountDetail.status = 'error';
+          accountDetail.error = 'Aucune donnée retournée';
+          apiCallDetails.push(accountDetail);
+          errorCount++;
           continue;
         }
 
@@ -1939,15 +2159,15 @@ cron.schedule('30 8 * * *', async () => {
         if (accountData.LastBackupStartTime) {
           try {
             console.log(`Fetching analyzed size for ${account.account_name} using latest endpoint`);
-            const dataResponse = await fetch(
-              `https://api.arx.one/s9/${account.account_name}/data/latest?eventID=2.1.1.3.1&skip=0&includeDescendants=false&includeFullInformation=false`,
-              {
-                headers: {
-                  'Authorization': `Bearer ${arxApiKey}`,
-                  'Content-Type': 'application/json',
-                },
-              }
-            );
+            const dataUrl = `https://api.arx.one/s9/${account.account_name}/data/latest?eventID=2.1.1.3.1&skip=0&includeDescendants=false&includeFullInformation=false`;
+            accountDetail.apiCalls.push({ url: dataUrl, type: 'analyzed-size' });
+            
+            const dataResponse = await fetch(dataUrl, {
+              headers: {
+                'Authorization': `Bearer ${arxApiKey}`,
+                'Content-Type': 'application/json',
+              },
+            });
 
             if (dataResponse.ok) {
               const dataEvents = await dataResponse.json();
@@ -1972,43 +2192,59 @@ cron.schedule('30 8 * * *', async () => {
           WHERE id = ?
         `).run(status, accountData.LastBackupStartTime, usedSpaceGb, allowedSpaceGb, analyzedSizeGb, account.id);
 
-        // Insert into history (one entry per day)
-        const today = new Date().toISOString().split('T')[0];
-        const existingEntry = db.prepare(`
-          SELECT id FROM arx_account_history 
-          WHERE account_id = ? AND DATE(recorded_at) = ?
-        `).get(account.id, today);
+        // Insert into history using last_backup_date as recorded_at
+        if (accountData.LastBackupStartTime) {
+          const backupDate = new Date(accountData.LastBackupStartTime).toISOString().split('T')[0];
+          const existingEntry = db.prepare(`
+            SELECT id FROM arx_account_history 
+            WHERE account_id = ? AND DATE(recorded_at) = ?
+          `).get(account.id, backupDate);
 
-        if (existingEntry) {
-          db.prepare(`
-            UPDATE arx_account_history 
-            SET status = ?, last_backup_date = ?, used_space_gb = ?, allowed_space_gb = ?, analyzed_size_gb = ?
-            WHERE id = ?
-          `).run(status, accountData.LastBackupStartTime, usedSpaceGb, allowedSpaceGb, analyzedSizeGb, existingEntry.id);
-        } else {
-          db.prepare(`
-            INSERT INTO arx_account_history (id, account_id, status, last_backup_date, used_space_gb, allowed_space_gb, analyzed_size_gb)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-          `).run(randomUUID(), account.id, status, accountData.LastBackupStartTime, usedSpaceGb, allowedSpaceGb, analyzedSizeGb);
+          if (existingEntry) {
+            db.prepare(`
+              UPDATE arx_account_history 
+              SET status = ?, last_backup_date = ?, used_space_gb = ?, allowed_space_gb = ?, analyzed_size_gb = ?
+              WHERE id = ?
+            `).run(status, accountData.LastBackupStartTime, usedSpaceGb, allowedSpaceGb, analyzedSizeGb, existingEntry.id);
+          } else {
+            db.prepare(`
+              INSERT INTO arx_account_history (id, account_id, recorded_at, status, last_backup_date, used_space_gb, allowed_space_gb, analyzed_size_gb)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            `).run(randomUUID(), account.id, accountData.LastBackupStartTime, status, accountData.LastBackupStartTime, usedSpaceGb, allowedSpaceGb, analyzedSizeGb);
+          }
         }
 
-        // Clean history older than 40 days
+        // Delete entries older than 40 days
         db.prepare(`
-          DELETE FROM arx_account_history 
+          DELETE FROM arx_account_history
           WHERE account_id = ? AND recorded_at < datetime('now', '-40 days')
         `).run(account.id);
+
+        accountDetail.data = {
+          status,
+          usedSpaceGb: usedSpaceGb?.toFixed(2),
+          allowedSpaceGb: allowedSpaceGb?.toFixed(2),
+          analyzedSizeGb: analyzedSizeGb?.toFixed(2),
+          lastBackupDate: accountData.LastBackupStartTime
+        };
+        apiCallDetails.push(accountDetail);
 
         console.log(`Successfully synced ARX account: ${account.account_name}`);
         successCount++;
       } catch (error) {
         console.error(`Error syncing ARX account ${account.account_name}:`, error);
+        apiCallDetails.push({
+          accountName: account.account_name,
+          status: 'error',
+          error: error.message
+        });
         errorCount++;
       }
     }
     
     const message = `Synchronisation automatique terminée: ${successCount} succès, ${errorCount} erreurs sur ${accounts.length} comptes`;
     console.log(message);
-    logCronJob('arx_sync', message, errorCount > 0 ? 'error' : 'success');
+    logCronJob('arx_sync', message, errorCount > 0 ? 'error' : 'success', apiCallDetails);
   } catch (error) {
     console.error('Error during daily ARX sync:', error);
     logCronJob('arx_sync', `Erreur lors de la synchronisation: ${error.message}`, 'error');

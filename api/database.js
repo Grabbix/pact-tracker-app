@@ -107,7 +107,8 @@ db.exec(`
     timestamp TEXT NOT NULL DEFAULT (datetime('now')),
     type TEXT NOT NULL,
     message TEXT NOT NULL,
-    status TEXT NOT NULL
+    status TEXT NOT NULL,
+    details TEXT
   );
 
   CREATE INDEX IF NOT EXISTS idx_cron_logs_timestamp ON cron_logs(timestamp DESC);
