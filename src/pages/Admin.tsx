@@ -14,6 +14,7 @@ interface CronLog {
   message: string;
   status: 'success' | 'error' | 'info';
   details?: string;
+  trigger_type: 'manual' | 'cron';
 }
 
 const Admin = () => {
@@ -112,6 +113,13 @@ const Admin = () => {
       default:
         return type;
     }
+  };
+
+  const getTriggerBadge = (triggerType: string) => {
+    if (triggerType === 'manual') {
+      return <Badge variant="outline" className="ml-2">Manuel</Badge>;
+    }
+    return <Badge variant="secondary" className="ml-2">Auto</Badge>;
   };
 
   const toggleLogExpansion = (logId: string) => {
@@ -243,6 +251,7 @@ const Admin = () => {
                               <div className="flex-1">
                                 <div className="flex items-center gap-2 mb-1">
                                   <span className="text-sm font-medium">{getTypeLabel(log.type)}</span>
+                                  {getTriggerBadge(log.trigger_type)}
                                   <Badge className={getStatusColor(log.status)}>
                                     {log.status}
                                   </Badge>

@@ -32,6 +32,13 @@ const Clients = () => {
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
+  const [filters, setFilters] = useState({
+    activeContract: false,
+    mailinblack: false,
+    eset: false,
+    arx: false,
+    fortinet: false,
+  });
 
   const [formData, setFormData] = useState({
     name: "",
@@ -71,9 +78,28 @@ const Clients = () => {
     }
   };
 
-  const filteredClients = clients.filter(client =>
-    client.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredClients = clients.filter((client) => {
+    const matchesSearch = client.name.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    if (!matchesSearch) return false;
+    
+    // If no filters active, show all
+    const hasActiveFilters = Object.values(filters).some(f => f);
+    if (!hasActiveFilters) return true;
+    
+    // Check each active filter
+    if (filters.activeContract) {
+      const contract = getClientActiveContract(client.name);
+      if (!contract) return false;
+    }
+    
+    if (filters.mailinblack && !client.mailinblack) return false;
+    if (filters.eset && !client.eset) return false;
+    if (filters.arx && !client.arx) return false;
+    if (filters.fortinet && !client.fortinet) return false;
+    
+    return true;
+  });
 
   const getClientActiveContract = (clientName: string) => {
     return contracts.find(
@@ -435,7 +461,7 @@ const Clients = () => {
           </Dialog>
         </div>
 
-        <div className="mb-6">
+        <div className="space-y-4 mb-6">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
             <Input
@@ -444,6 +470,44 @@ const Clients = () => {
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10"
             />
+          </div>
+          
+          <div className="flex flex-wrap gap-2">
+            <Badge
+              variant={filters.activeContract ? "default" : "outline"}
+              className="cursor-pointer hover:bg-primary/80 transition-colors"
+              onClick={() => setFilters({ ...filters, activeContract: !filters.activeContract })}
+            >
+              Contrat actif
+            </Badge>
+            <Badge
+              variant={filters.mailinblack ? "default" : "outline"}
+              className="cursor-pointer hover:bg-primary/80 transition-colors"
+              onClick={() => setFilters({ ...filters, mailinblack: !filters.mailinblack })}
+            >
+              Mailinblack
+            </Badge>
+            <Badge
+              variant={filters.eset ? "default" : "outline"}
+              className="cursor-pointer hover:bg-primary/80 transition-colors"
+              onClick={() => setFilters({ ...filters, eset: !filters.eset })}
+            >
+              ESET
+            </Badge>
+            <Badge
+              variant={filters.arx ? "default" : "outline"}
+              className="cursor-pointer hover:bg-primary/80 transition-colors"
+              onClick={() => setFilters({ ...filters, arx: !filters.arx })}
+            >
+              ARX
+            </Badge>
+            <Badge
+              variant={filters.fortinet ? "default" : "outline"}
+              className="cursor-pointer hover:bg-primary/80 transition-colors"
+              onClick={() => setFilters({ ...filters, fortinet: !filters.fortinet })}
+            >
+              Fortinet
+            </Badge>
           </div>
         </div>
 
@@ -454,7 +518,7 @@ const Clients = () => {
             Aucun client trouvé
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-4">
             {filteredClients.map((client) => {
               const activeContract = getClientActiveContract(client.name);
               const remainingHours = activeContract 
@@ -468,8 +532,8 @@ const Clients = () => {
                   onClick={() => navigate(`/clients/${client.name}`)}
                 >
                   <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1 space-y-2">
+                    <div className="flex items-center justify-between min-h-[80px]">
+                      <div className="flex-1 space-y-3">
                         <div className="flex items-center gap-3">
                           <h3 className="font-semibold text-lg">{client.name}</h3>
                           {activeContract ? (
@@ -491,7 +555,7 @@ const Clients = () => {
                           )}
                         </div>
                         
-                        <div className="flex items-center gap-2 flex-wrap">
+                        <div className="flex items-center gap-2 flex-wrap min-h-[28px]">
                           {client.arx && (
                             <Badge variant="secondary">
                               ARX{client.arxQuota ? ` : ${client.arxQuota} Go` : ''}
@@ -515,7 +579,7 @@ const Clients = () => {
                         variant="ghost"
                         size="sm"
                         onClick={(e) => openDeleteDialog(client, e)}
-                        className="ml-4"
+                        className="ml-4 flex-shrink-0"
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>

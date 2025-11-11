@@ -62,13 +62,13 @@ app.use(cors());
 app.use(express.json());
 
 // Helper function to log cron jobs
-function logCronJob(type, message, status = 'info', details = null) {
+function logCronJob(type, message, status = 'info', details = null, triggerType = 'cron') {
   try {
     const id = randomUUID();
     db.prepare(`
-      INSERT INTO cron_logs (id, type, message, status, details)
-      VALUES (?, ?, ?, ?, ?)
-    `).run(id, type, message, status, details ? JSON.stringify(details) : null);
+      INSERT INTO cron_logs (id, type, message, status, details, trigger_type)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(id, type, message, status, details ? JSON.stringify(details) : null, triggerType);
     
     // Nettoyer les logs de plus de 30 jours
     db.prepare(`
@@ -700,26 +700,39 @@ app.post('/api/clients/:clientId/arx-accounts/:accountId/refresh', async (req, r
       return res.status(500).json({ error: 'ARX_API_KEY non configurée' });
     }
     
+    const accountDetail = {
+      accountName: account.account_name,
+      status: 'success',
+      apiCalls: [],
+      data: {}
+    };
+    
     // Fetch data from ARX API
     console.log(`Fetching ARX data for account: ${account.account_name}`);
-    const arxResponse = await fetch(
-      `https://api.arx.one/s9/${account.account_name}/supervision/events?hierarchy=Self`,
-      {
-        headers: {
-          'Authorization': `Bearer ${arxApiKey}`,
-          'Content-Type': 'application/json',
-        },
-      }
-    );
+    const supervisionUrl = `https://api.arx.one/s9/${account.account_name}/supervision/events?hierarchy=Self`;
+    accountDetail.apiCalls.push({ type: 'GET', url: supervisionUrl });
+    
+    const arxResponse = await fetch(supervisionUrl, {
+      headers: {
+        'Authorization': `Bearer ${arxApiKey}`,
+        'Content-Type': 'application/json',
+      },
+    });
 
     if (!arxResponse.ok) {
       console.error(`ARX API error: ${arxResponse.status} ${arxResponse.statusText}`);
+      accountDetail.status = 'error';
+      accountDetail.error = `ARX API error: ${arxResponse.statusText}`;
+      logCronJob('arx_sync', `Refresh manuel: ${account.account_name}`, 'error', [accountDetail], 'manual');
       return res.status(500).json({ error: 'Erreur lors de la récupération des données ARX' });
     }
 
     const arxData = await arxResponse.json();
     
     if (!arxData || arxData.length === 0) {
+      accountDetail.status = 'error';
+      accountDetail.error = 'Aucune donnée retournée';
+      logCronJob('arx_sync', `Refresh manuel: ${account.account_name}`, 'error', [accountDetail], 'manual');
       return res.status(404).json({ error: 'Aucune donnée retournée par l\'API ARX' });
     }
 
@@ -750,15 +763,15 @@ app.post('/api/clients/:clientId/arx-accounts/:accountId/refresh', async (req, r
       if (accountData.LastBackupStartTime) {
         const formattedDate = new Date(accountData.LastBackupStartTime).toISOString().split('T')[0];
         console.log(`Fetching analyzed size for ${account.account_name} since ${formattedDate}`);
-        const dataResponse = await fetch(
-          `https://api.arx.one/s9/${account.account_name}/data/latest?eventID=2.1.1.3.1&skip=0&includeDescendants=false&includeFullInformation=false`,
-          {
-            headers: {
-              'Authorization': `Bearer ${arxApiKey}`,
-              'Content-Type': 'application/json',
-            },
-          }
-        );
+        const dataUrl = `https://api.arx.one/s9/${account.account_name}/data/latest?eventID=2.1.1.3.1&skip=0&includeDescendants=false&includeFullInformation=false`;
+        accountDetail.apiCalls.push({ type: 'GET', url: dataUrl });
+        
+        const dataResponse = await fetch(dataUrl, {
+          headers: {
+            'Authorization': `Bearer ${arxApiKey}`,
+            'Content-Type': 'application/json',
+          },
+        });
         if (dataResponse.ok) {
           const dataEvents = await dataResponse.json();
           const analyzedSizeStr = dataEvents?.[0]?.LiteralValues?.['analyzed-size'];
@@ -814,6 +827,16 @@ app.post('/api/clients/:clientId/arx-accounts/:accountId/refresh', async (req, r
 
     console.log(`Successfully updated ARX account ${account.account_name}`);
     
+    accountDetail.data = {
+      status,
+      usedSpaceGb: usedSpaceGb?.toFixed(2),
+      allowedSpaceGb: allowedSpaceGb?.toFixed(2),
+      analyzedSizeGb: analyzedSizeGb?.toFixed(2),
+      lastBackupDate: accountData.LastBackupStartTime
+    };
+    
+    logCronJob('arx_sync', `Refresh manuel: ${account.account_name}`, 'success', [accountDetail], 'manual');
+    
     res.json({
       success: true,
       status,
@@ -824,6 +847,7 @@ app.post('/api/clients/:clientId/arx-accounts/:accountId/refresh', async (req, r
     });
   } catch (error) {
     console.error('Error refreshing ARX account:', error);
+    logCronJob('arx_sync', `Refresh manuel erreur: ${error.message}`, 'error', null, 'manual');
     res.status(500).json({ error: 'Erreur lors de l\'actualisation du compte ARX' });
   }
 });
@@ -1720,7 +1744,7 @@ app.post('/api/admin/trigger-backup', async (req, res) => {
 
     const message = `Backup manuel terminé: ${exportedCount} contrats exportés`;
     console.log(message);
-    logCronJob('excel_backup', message, 'success');
+    logCronJob('excel_backup', message, 'success', null, 'manual');
     
     res.json({ 
       success: true,
@@ -1730,7 +1754,7 @@ app.post('/api/admin/trigger-backup', async (req, res) => {
     });
   } catch (error) {
     console.error('Error during manual backup:', error);
-    logCronJob('excel_backup', `Erreur lors du backup manuel: ${error.message}`, 'error');
+    logCronJob('excel_backup', `Erreur lors du backup manuel: ${error.message}`, 'error', null, 'manual');
     res.status(500).json({ error: 'Erreur lors du backup Excel' });
   }
 });
@@ -1738,7 +1762,7 @@ app.post('/api/admin/trigger-backup', async (req, res) => {
 // Endpoint pour déclencher manuellement la sync ARX
 app.post('/api/admin/trigger-arx-sync', async (req, res) => {
   console.log('Manual ARX sync triggered from admin panel');
-  logCronJob('arx_sync', 'Démarrage de la synchronisation manuelle ARX', 'info');
+  logCronJob('arx_sync', 'Démarrage de la synchronisation manuelle ARX', 'info', null, 'manual');
   
   try {
     const accounts = db.prepare('SELECT * FROM arx_accounts').all();
@@ -1746,7 +1770,7 @@ app.post('/api/admin/trigger-arx-sync', async (req, res) => {
     
     if (!arxApiKey) {
       console.error('ARX_API_KEY not configured');
-      logCronJob('arx_sync', 'ARX_API_KEY non configurée', 'error');
+      logCronJob('arx_sync', 'ARX_API_KEY non configurée', 'error', null, 'manual');
       return res.status(500).json({ error: 'ARX_API_KEY not configured' });
     }
     
@@ -1901,7 +1925,7 @@ app.post('/api/admin/trigger-arx-sync', async (req, res) => {
     }
     
     const message = `Synchronisation terminée: ${successCount} succès, ${errorCount} erreurs`;
-    logCronJob('arx_sync', message, errorCount > 0 ? 'error' : 'success', apiCallDetails);
+    logCronJob('arx_sync', message, errorCount > 0 ? 'error' : 'success', apiCallDetails, 'manual');
     
     res.json({ 
       success: true,
@@ -1911,7 +1935,7 @@ app.post('/api/admin/trigger-arx-sync', async (req, res) => {
     });
   } catch (error) {
     console.error('Error during manual ARX sync:', error);
-    logCronJob('arx_sync', `Erreur: ${error.message}`, 'error');
+    logCronJob('arx_sync', `Erreur: ${error.message}`, 'error', null, 'manual');
     res.status(500).json({ error: 'Erreur lors de la synchronisation ARX' });
   }
 });
