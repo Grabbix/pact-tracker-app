@@ -27,16 +27,16 @@ export const exportContractToPDF = (contract: Contract, includeNonBillable: bool
   // Logo
   const logo = new Image();
   logo.src = '/gigapro.png';
-  doc.addImage(logo, 'PNG', 15, 12, 45, 18);
+  doc.addImage(logo, 'PNG', 15, 12, 45, 40.6);
 
   // Company info (right side)
   doc.setFontSize(9);
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'normal');
   const companyInfo = [
-    'GigaPro Solutions',
-    'Support technique professionnel',
-    'contact@gigapro.fr'
+    'Giga Pro',
+    'Benoît BRAMI & Benoît CADE',
+    'contact@giga-pro.fr'
   ];
   companyInfo.forEach((line, i) => {
     doc.text(line, pageWidth - 15, 15 + (i * 5), { align: 'right' });
@@ -309,8 +309,8 @@ export const exportContractToPDF = (contract: Contract, includeNonBillable: bool
     doc.setTextColor(100, 100, 100);
     
     // Left: Company info
-    doc.text('GigaPro Solutions - Support technique professionnel', 15, footerY + 6);
-    doc.text('Email: contact@gigapro.fr | Web: www.gigapro.fr', 15, footerY + 11);
+    doc.text('Giga Pro - L’informatique pour les professionnels', 15, footerY + 6);
+    doc.text('Email: contact@gigapro.fr | Web: www.giga-pro.fr', 15, footerY + 11);
     
     // Right: Page number and date
     doc.text(`Page ${i} sur ${pageCount}`, pageWidth - 15, footerY + 6, { align: 'right' });
