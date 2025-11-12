@@ -27,8 +27,8 @@ export const exportContractToPDF = (contract: Contract, includeNonBillable: bool
   // Logo - centered vertically in header
   const logo = new Image();
   logo.src = '/gigapro.png';
-  const logoHeight = 12;
-  const logoWidth = 13.3;
+  const logoHeight = 45;
+  const logoWidth = 40.6;
   const logoY = (20 - logoHeight) / 2;
   doc.addImage(logo, 'PNG', 15, logoY, logoWidth, logoHeight);
 
@@ -243,7 +243,7 @@ export const exportContractToPDF = (contract: Contract, includeNonBillable: bool
       doc.setFontSize(9);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(146, 64, 14);
-      doc.text('ℹ Interventions non comptabilisées', 20, nonBillStartY + 1);
+      doc.text('Interventions non comptabilisées', 20, nonBillStartY + 1);
       
       doc.setFontSize(7);
       doc.setFont('helvetica', 'normal');
