@@ -144,4 +144,24 @@ try {
   // Column already exists
 }
 
+// Add trigger_type column to cron_logs if it doesn't exist
+try {
+  db.exec(`
+    ALTER TABLE cron_logs ADD COLUMN trigger_type TEXT DEFAULT 'cron';
+  `);
+  console.log('Added trigger_type column to cron_logs table');
+} catch (e) {
+  // Column already exists
+}
+
+// Add details column to cron_logs if it doesn't exist
+try {
+  db.exec(`
+    ALTER TABLE cron_logs ADD COLUMN details TEXT;
+  `);
+  console.log('Added details column to cron_logs table');
+} catch (e) {
+  // Column already exists
+}
+
 module.exports = db;
