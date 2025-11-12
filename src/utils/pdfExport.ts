@@ -18,159 +18,151 @@ export const exportContractToPDF = (contract: Contract, includeNonBillable: bool
   // ========== HEADER SECTION ==========
   // Background header bar
   doc.setFillColor(darkBlue[0], darkBlue[1], darkBlue[2]);
-  doc.rect(0, 0, pageWidth, 35, 'F');
+  doc.rect(0, 0, pageWidth, 20, 'F');
   
   // Accent line
   doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-  doc.rect(0, 35, pageWidth, 2, 'F');
+  doc.rect(0, 20, pageWidth, 1.5, 'F');
 
   // Logo - centered vertically in header
   const logo = new Image();
   logo.src = '/gigapro.png';
-  const logoHeight = 20;
-  const logoWidth = 22.2;
-  const logoY = (35 - logoHeight) / 2;
+  const logoHeight = 12;
+  const logoWidth = 13.3;
+  const logoY = (20 - logoHeight) / 2;
   doc.addImage(logo, 'PNG', 15, logoY, logoWidth, logoHeight);
 
   // Company info (right side)
-  doc.setFontSize(8);
+  doc.setFontSize(7);
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'normal');
   const companyInfo = [
     'Giga Pro',
-    'Benoît BRAMI & Benoît CADE',
     'contact@giga-pro.fr'
   ];
   companyInfo.forEach((line, i) => {
-    doc.text(line, pageWidth - 15, 12 + (i * 4), { align: 'right' });
+    doc.text(line, pageWidth - 15, 8 + (i * 4), { align: 'right' });
   });
 
   // ========== DOCUMENT TITLE ==========
-  doc.setFontSize(18);
+  doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(darkBlue[0], darkBlue[1], darkBlue[2]);
-  doc.text("Rapport de Contrat", 15, 48);
+  doc.text("Rapport de Contrat", 15, 30);
   
-  doc.setFontSize(9);
+  doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(textGray[0], textGray[1], textGray[2]);
   doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR', { 
     day: 'numeric', 
     month: 'long', 
     year: 'numeric' 
-  })}`, 15, 54);
+  })}`, 15, 35);
 
   // ========== CLIENT INFO CARD ==========
-  const cardY = 62;
+  const cardY = 42;
   const contractRef = contract.contractNumber ? `CT-${String(contract.contractNumber).padStart(4, '0')}` : contract.id;
   
   // Card background
   doc.setFillColor(lightGray[0], lightGray[1], lightGray[2]);
-  doc.roundedRect(15, cardY, pageWidth - 30, 28, 2, 2, 'F');
+  doc.roundedRect(15, cardY, pageWidth - 30, 20, 2, 2, 'F');
   
   // Card border
   doc.setDrawColor(primaryColor[0], primaryColor[1], primaryColor[2]);
   doc.setLineWidth(0.3);
-  doc.roundedRect(15, cardY, pageWidth - 30, 28, 2, 2, 'S');
+  doc.roundedRect(15, cardY, pageWidth - 30, 20, 2, 2, 'S');
   
   // Client info content
   doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(darkBlue[0], darkBlue[1], darkBlue[2]);
-  doc.text(contract.clientName, 20, cardY + 9);
+  doc.text(contract.clientName, 20, cardY + 7);
   
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(textGray[0], textGray[1], textGray[2]);
-  doc.text(`Contrat N° ${contractRef}`, 20, cardY + 15);
-  doc.text(`Date de création: ${new Date(contract.createdDate).toLocaleDateString('fr-FR')}`, 20, cardY + 20);
+  doc.text(`Contrat N° ${contractRef}`, 20, cardY + 12);
+  doc.text(`Date de création: ${new Date(contract.createdDate).toLocaleDateString('fr-FR')}`, 20, cardY + 16);
   
   // Status badge
-  const statusX = pageWidth - 45;
+  const statusX = pageWidth - 38;
   doc.setFillColor(accentGreen[0], accentGreen[1], accentGreen[2]);
-  doc.roundedRect(statusX, cardY + 6, 25, 6, 1.5, 1.5, 'F');
+  doc.roundedRect(statusX, cardY + 6, 20, 5, 1.5, 1.5, 'F');
   doc.setFontSize(7);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(255, 255, 255);
-  doc.text('ACTIF', statusX + 12.5, cardY + 10, { align: 'center' });
+  doc.text('ACTIF', statusX + 10, cardY + 9.5, { align: 'center' });
 
-  // ========== HOURS SUMMARY CARDS ==========
-  const cardsY = cardY + 35;
-  const cardWidth = (pageWidth - 45) / 3;
+  // ========== COMPACT HOURS & PROGRESS SECTION ==========
+  const summaryY = cardY + 25;
+  const summaryHeight = 18;
   const percentage = ((contract.usedHours / contract.totalHours) * 100).toFixed(1);
   const remainingHours = (contract.totalHours - contract.usedHours).toFixed(1);
   
-  // Card 1: Total Hours
-  doc.setFillColor(lightBlue[0], lightBlue[1], lightBlue[2]);
-  doc.roundedRect(15, cardsY, cardWidth, 20, 2, 2, 'F');
+  // Background box
+  doc.setFillColor(250, 250, 250);
+  doc.roundedRect(15, summaryY, pageWidth - 30, summaryHeight, 2, 2, 'F');
+  doc.setDrawColor(220, 220, 220);
+  doc.setLineWidth(0.2);
+  doc.roundedRect(15, summaryY, pageWidth - 30, summaryHeight, 2, 2, 'S');
+  
+  // Hours info - compact inline
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(textGray[0], textGray[1], textGray[2]);
-  doc.text('Total d\'heures', 15 + cardWidth/2, cardsY + 6, { align: 'center' });
-  doc.setFontSize(13);
+  doc.text('Total:', 20, summaryY + 6);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-  doc.text(`${contract.totalHours}h`, 15 + cardWidth/2, cardsY + 14, { align: 'center' });
+  doc.text(`${contract.totalHours}h`, 35, summaryY + 6);
   
-  // Card 2: Used Hours
-  doc.setFillColor(lightBlue[0], lightBlue[1], lightBlue[2]);
-  doc.roundedRect(15 + cardWidth + 5, cardsY, cardWidth, 20, 2, 2, 'F');
-  doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(textGray[0], textGray[1], textGray[2]);
-  doc.text('Heures utilisées', 15 + cardWidth + 5 + cardWidth/2, cardsY + 6, { align: 'center' });
-  doc.setFontSize(13);
+  doc.text('Utilisées:', 50, summaryY + 6);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-  doc.text(`${contract.usedHours}h`, 15 + cardWidth + 5 + cardWidth/2, cardsY + 14, { align: 'center' });
+  doc.text(`${contract.usedHours}h`, 70, summaryY + 6);
   
-  // Card 3: Remaining Hours
   const remainingColor = parseFloat(remainingHours) > 5 ? accentGreen : [239, 68, 68];
-  doc.setFillColor(lightBlue[0], lightBlue[1], lightBlue[2]);
-  doc.roundedRect(15 + (cardWidth + 5) * 2, cardsY, cardWidth, 20, 2, 2, 'F');
-  doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(textGray[0], textGray[1], textGray[2]);
-  doc.text('Heures restantes', 15 + (cardWidth + 5) * 2 + cardWidth/2, cardsY + 6, { align: 'center' });
-  doc.setFontSize(13);
+  doc.text('Restantes:', 85, summaryY + 6);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(remainingColor[0], remainingColor[1], remainingColor[2]);
-  doc.text(`${remainingHours}h`, 15 + (cardWidth + 5) * 2 + cardWidth/2, cardsY + 14, { align: 'center' });
-
-  // ========== PROGRESS BAR ==========
-  const progressY = cardsY + 27;
-  const progressBarWidth = pageWidth - 30;
-  const progressBarHeight = 14;
+  doc.text(`${remainingHours}h`, 105, summaryY + 6);
   
-  // Progress bar label
-  doc.setFontSize(8);
-  doc.setFont('helvetica', 'bold');
+  // Compact progress bar
+  const progressBarY = summaryY + 10;
+  const progressBarWidth = pageWidth - 50;
+  const progressBarHeight = 6;
+  
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'normal');
   doc.setTextColor(textGray[0], textGray[1], textGray[2]);
-  doc.text('Progression du contrat', 15, progressY + 1);
+  doc.text('Progression:', 20, progressBarY + 1);
   
   // Progress bar background
   doc.setFillColor(lightGray[0], lightGray[1], lightGray[2]);
-  doc.roundedRect(15, progressY + 4, progressBarWidth, progressBarHeight, 2, 2, 'F');
+  doc.roundedRect(20, progressBarY + 2, progressBarWidth, progressBarHeight, 1.5, 1.5, 'F');
   
   // Progress bar fill
   const fillWidth = (progressBarWidth * parseFloat(percentage)) / 100;
   const progressColor = parseFloat(percentage) < 80 ? accentGreen : parseFloat(percentage) < 95 ? [250, 204, 21] : [239, 68, 68];
   doc.setFillColor(progressColor[0], progressColor[1], progressColor[2]);
-  doc.roundedRect(15, progressY + 4, fillWidth, progressBarHeight, 2, 2, 'F');
+  doc.roundedRect(20, progressBarY + 2, fillWidth, progressBarHeight, 1.5, 1.5, 'F');
   
   // Progress percentage text
-  doc.setFontSize(9);
+  doc.setFontSize(7);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(255, 255, 255);
-  if (fillWidth > 20) {
-    doc.text(`${percentage}%`, 15 + fillWidth - 4, progressY + 13, { align: 'right' });
+  if (fillWidth > 15) {
+    doc.text(`${percentage}%`, 20 + fillWidth - 2, progressBarY + 6.5, { align: 'right' });
   } else {
     doc.setTextColor(textGray[0], textGray[1], textGray[2]);
-    doc.text(`${percentage}%`, 15 + fillWidth + 4, progressY + 13);
+    doc.text(`${percentage}%`, 20 + fillWidth + 2, progressBarY + 6.5);
   }
 
   // ========== INTERVENTIONS SECTION ==========
-  const tableStartY = progressY + 25;
+  const tableStartY = summaryY + 25;
   
   // Section title
   doc.setFontSize(11);
@@ -251,7 +243,7 @@ export const exportContractToPDF = (contract: Contract, includeNonBillable: bool
       doc.setFontSize(9);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(146, 64, 14);
-      doc.text('ℹ  Interventions non comptabilisées', 20, nonBillStartY + 1);
+      doc.text('ℹ Interventions non comptabilisées', 20, nonBillStartY + 1);
       
       doc.setFontSize(7);
       doc.setFont('helvetica', 'normal');
