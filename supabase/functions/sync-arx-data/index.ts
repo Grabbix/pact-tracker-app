@@ -120,9 +120,9 @@ Deno.serve(async (req) => {
         const lastBackupDate = new Date(accountData.lastBackupStartTime);
         const formattedDate = lastBackupDate.toISOString().split('T')[0];
         
-        console.log(`Fetching analyzed size for ${accountName} since ${formattedDate}`);
+        console.log(`Fetching analyzed size for ${accountName}`);
         const dataResponse = await fetch(
-          `https://api.arx.one/s9/${accountName}/data?eventID=2.1.1.3.1&minimumTime=${formattedDate}&kind=Default&skip=0&includeDescendants=false`,
+          `https://api.arx.one/s9/${accountName}/data/latest?eventID=2.1.1.3.1&skip=0&includeDescendants=false&includeFullInformation=false`,
           {
             headers: {
               'Authorization': `Bearer ${arxApiKey}`,
