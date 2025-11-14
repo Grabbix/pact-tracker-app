@@ -86,6 +86,7 @@ const handler = async (req: Request): Promise<Response> => {
             user: settings.smtp_user,
             password: settings.smtp_password,
             secure: settings.smtp_secure,
+            from: settings.smtp_from,
           },
         },
       });
