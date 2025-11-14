@@ -11,6 +11,7 @@ interface SmtpConfig {
   user: string;
   password: string;
   secure: boolean;
+  from: string;
 }
 
 interface EmailRequest {
@@ -42,7 +43,7 @@ const handler = async (req: Request): Promise<Response> => {
       : `Content-Type: text/plain; charset=utf-8\r\n\r\n${text}`;
 
     const emailMessage = [
-      `From: ${smtpConfig.user}`,
+      `From: ${smtpConfig.from}`,
       `To: ${to}`,
       `Subject: ${subject}`,
       `MIME-Version: 1.0`,
@@ -82,7 +83,7 @@ const handler = async (req: Request): Promise<Response> => {
     await sendCommand(btoa(smtpConfig.password));
 
     // Envoyer l'email
-    await sendCommand(`MAIL FROM:<${smtpConfig.user}>`);
+    await sendCommand(`MAIL FROM:<${smtpConfig.from}>`);
     await sendCommand(`RCPT TO:<${to}>`);
     await sendCommand("DATA");
     await sendCommand(emailMessage + "\r\n.");

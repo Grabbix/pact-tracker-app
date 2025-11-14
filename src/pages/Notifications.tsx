@@ -17,6 +17,7 @@ interface NotificationSettings {
   smtp_user: string;
   smtp_password: string;
   smtp_secure: boolean;
+  smtp_from: string;
   email_to: string;
   triggers: {
     contract_full: boolean;
@@ -34,6 +35,7 @@ const Notifications = () => {
     smtp_user: "",
     smtp_password: "",
     smtp_secure: false,
+    smtp_from: "",
     email_to: "",
     triggers: {
       contract_full: true,
@@ -65,6 +67,7 @@ const Notifications = () => {
           smtp_user: data.smtp_user || "",
           smtp_password: data.smtp_password || "",
           smtp_secure: data.smtp_secure || false,
+          smtp_from: data.smtp_from || "",
           email_to: data.email_to || "",
           triggers: data.triggers || { contract_full: true },
         });
@@ -83,6 +86,7 @@ const Notifications = () => {
         smtp_user: settings.smtp_user,
         smtp_password: settings.smtp_password,
         smtp_secure: settings.smtp_secure,
+        smtp_from: settings.smtp_from,
         email_to: settings.email_to,
         triggers: settings.triggers,
       };
@@ -134,6 +138,7 @@ const Notifications = () => {
             user: settings.smtp_user,
             password: settings.smtp_password,
             secure: settings.smtp_secure,
+            from: settings.smtp_from,
           },
         },
       });
@@ -204,15 +209,27 @@ const Notifications = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="smtp_user">Utilisateur</Label>
+                  <Label htmlFor="smtp_user">Utilisateur (authentification)</Label>
                   <Input
                     id="smtp_user"
                     placeholder="user@example.com"
                     value={settings.smtp_user}
                     onChange={(e) =>
                       setSettings({ ...settings, smtp_user: e.target.value })
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="smtp_from">Adresse expéditrice</Label>
+                  <Input
+                    id="smtp_from"
+                    type="email"
+                    placeholder="noreply@example.com"
+                    value={settings.smtp_from}
+                    onChange={(e) =>
+                      setSettings({ ...settings, smtp_from: e.target.value })
                     }
                   />
                 </div>
