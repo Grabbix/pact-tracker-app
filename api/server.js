@@ -2367,6 +2367,91 @@ app.patch('/api/billing-items/:id/process', (req, res) => {
   }
 });
 
+// Routes pour la configuration des notifications
+app.get('/api/notification-settings', (req, res) => {
+  try {
+    const settings = db.prepare('SELECT * FROM notification_settings LIMIT 1').get();
+    
+    if (!settings) {
+      return res.json(null);
+    }
+    
+    res.json({
+      id: settings.id,
+      smtp_host: settings.smtp_host,
+      smtp_port: settings.smtp_port,
+      smtp_user: settings.smtp_user,
+      smtp_password: settings.smtp_password,
+      smtp_secure: settings.smtp_secure === 1,
+      smtp_from: settings.smtp_from,
+      email_to: settings.email_to,
+      triggers: JSON.parse(settings.triggers),
+      created_at: settings.created_at,
+      updated_at: settings.updated_at
+    });
+  } catch (error) {
+    console.error('Error fetching notification settings:', error);
+    res.status(500).json({ error: 'Erreur lors du chargement des paramètres' });
+  }
+});
+
+app.post('/api/notification-settings', (req, res) => {
+  try {
+    const { smtp_host, smtp_port, smtp_user, smtp_password, smtp_secure, smtp_from, email_to, triggers } = req.body;
+    
+    const existing = db.prepare('SELECT id FROM notification_settings LIMIT 1').get();
+    
+    if (existing) {
+      db.prepare(`
+        UPDATE notification_settings 
+        SET smtp_host = ?, smtp_port = ?, smtp_user = ?, smtp_password = ?, smtp_secure = ?, 
+            smtp_from = ?, email_to = ?, triggers = ?, updated_at = datetime('now')
+        WHERE id = ?
+      `).run(smtp_host, smtp_port, smtp_user, smtp_password, smtp_secure ? 1 : 0, smtp_from, email_to, JSON.stringify(triggers), existing.id);
+    } else {
+      const id = randomUUID();
+      db.prepare(`
+        INSERT INTO notification_settings (id, smtp_host, smtp_port, smtp_user, smtp_password, smtp_secure, smtp_from, email_to, triggers)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(id, smtp_host, smtp_port, smtp_user, smtp_password, smtp_secure ? 1 : 0, smtp_from, email_to, JSON.stringify(triggers));
+    }
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error saving notification settings:', error);
+    res.status(500).json({ error: 'Erreur lors de la sauvegarde des paramètres' });
+  }
+});
+
+app.post('/api/notification-settings/test', async (req, res) => {
+  try {
+    const { smtp, to } = req.body;
+    const nodemailer = require('nodemailer');
+    
+    const transporter = nodemailer.createTransport({
+      host: smtp.host,
+      port: smtp.port,
+      secure: smtp.secure,
+      auth: {
+        user: smtp.user,
+        pass: smtp.password
+      }
+    });
+    
+    await transporter.sendMail({
+      from: smtp.from,
+      to: to,
+      subject: '[Test] Configuration email',
+      text: 'Ceci est un email de test. Si vous recevez ce message, la configuration SMTP est correcte.'
+    });
+    
+    res.json({ success: true, message: 'Email de test envoyé avec succès' });
+  } catch (error) {
+    console.error('Error sending test email:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`API running on http://localhost:${PORT}`);
   console.log('Daily Excel backup scheduled at 18:00 (0 18 * * *)');

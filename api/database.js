@@ -113,6 +113,33 @@ db.exec(`
   );
 
   CREATE INDEX IF NOT EXISTS idx_cron_logs_timestamp ON cron_logs(timestamp DESC);
+
+  CREATE TABLE IF NOT EXISTS notification_settings (
+    id TEXT PRIMARY KEY,
+    smtp_host TEXT NOT NULL,
+    smtp_port INTEGER NOT NULL DEFAULT 587,
+    smtp_user TEXT NOT NULL,
+    smtp_password TEXT NOT NULL,
+    smtp_secure INTEGER DEFAULT 0,
+    smtp_from TEXT NOT NULL,
+    email_to TEXT NOT NULL,
+    triggers TEXT NOT NULL DEFAULT '{"contract_full":true}',
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS notification_logs (
+    id TEXT PRIMARY KEY,
+    contract_id TEXT,
+    notification_type TEXT NOT NULL,
+    email_to TEXT NOT NULL,
+    subject TEXT NOT NULL,
+    content TEXT NOT NULL,
+    sent_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (contract_id) REFERENCES contracts(id) ON DELETE SET NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_notification_logs_sent ON notification_logs(sent_at DESC);
 `);
 
 // Add renewal_quote_id and linked_contract_id columns if they don't exist
