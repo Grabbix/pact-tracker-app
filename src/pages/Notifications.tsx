@@ -6,7 +6,6 @@ import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, Save, Send } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -48,16 +47,8 @@ const Notifications = () => {
 
   const loadSettings = async () => {
     try {
-      const { data, error } = await supabase
-        .from("notification_settings" as any)
-        .select("*")
-        .limit(1)
-        .maybeSingle() as any;
-
-      if (error) {
-        console.error("Error loading settings:", error);
-        return;
-      }
+      const response = await fetch('/api/notification-settings');
+      const data = await response.json();
 
       if (data) {
         setSettings({
@@ -80,30 +71,25 @@ const Notifications = () => {
   const handleSave = async () => {
     setLoading(true);
     try {
-      const payload = {
-        smtp_host: settings.smtp_host,
-        smtp_port: settings.smtp_port,
-        smtp_user: settings.smtp_user,
-        smtp_password: settings.smtp_password,
-        smtp_secure: settings.smtp_secure,
-        smtp_from: settings.smtp_from,
-        email_to: settings.email_to,
-        triggers: settings.triggers,
-      };
+      const response = await fetch('/api/notification-settings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          smtp_host: settings.smtp_host,
+          smtp_port: settings.smtp_port,
+          smtp_user: settings.smtp_user,
+          smtp_password: settings.smtp_password,
+          smtp_secure: settings.smtp_secure,
+          smtp_from: settings.smtp_from,
+          email_to: settings.email_to,
+          triggers: settings.triggers,
+        }),
+      });
 
-      if (settings.id) {
-        const { error } = await supabase
-          .from("notification_settings" as any)
-          .update(payload)
-          .eq("id", settings.id);
-
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from("notification_settings" as any)
-          .insert([payload]);
-
-        if (error) throw error;
+      if (!response.ok) {
+        throw new Error('Erreur lors de la sauvegarde');
       }
 
       toast({
@@ -127,12 +113,14 @@ const Notifications = () => {
   const handleTestEmail = async () => {
     setTestLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("send-notification", {
-        body: {
+      const response = await fetch('/api/notification-settings/test', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
           to: settings.email_to,
-          subject: "[Test] Configuration email",
-          text: "Ceci est un email de test pour vérifier la configuration SMTP.",
-          smtpConfig: {
+          smtp: {
             host: settings.smtp_host,
             port: settings.smtp_port,
             user: settings.smtp_user,
@@ -140,14 +128,18 @@ const Notifications = () => {
             secure: settings.smtp_secure,
             from: settings.smtp_from,
           },
-        },
+        }),
       });
 
-      if (error) throw error;
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Erreur lors de l\'envoi');
+      }
 
       toast({
-        title: "Email envoyé",
-        description: "L'email de test a été envoyé avec succès.",
+        title: "Email de test envoyé",
+        description: "Vérifiez votre boîte de réception.",
       });
     } catch (error: any) {
       console.error("Error sending test email:", error);
