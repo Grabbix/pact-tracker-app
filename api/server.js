@@ -1213,8 +1213,8 @@ app.post('/api/interventions', async (req, res) => {
             setImmediate(async () => {
               try {
                 const nodemailer = require('nodemailer');
-                const jsPDF = require('jspdf');
-                require('jspdf-autotable');
+                const PDFDocument = require('pdfkit');
+                const fs = require('fs');
                 
                 // Create transporter
                 const transporter = nodemailer.createTransport({
@@ -1247,58 +1247,67 @@ app.post('/api/interventions', async (req, res) => {
                   GROUP BY c.id
                 `).get(contractId);
 
-                // Generate PDF
-                const doc = new jsPDF();
-                const primaryColor = [59, 130, 246];
-                
-                // Header
-                doc.setFillColor(...primaryColor);
-                doc.rect(0, 0, 210, 40, 'F');
-                doc.setTextColor(255, 255, 255);
-                doc.setFontSize(24);
-                doc.text('RAPPORT DE CONTRAT', 105, 20, { align: 'center' });
-                doc.setFontSize(10);
-                doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR')}`, 105, 30, { align: 'center' });
-                
-                // Contract info
-                doc.setTextColor(0, 0, 0);
-                doc.setFontSize(12);
-                let yPos = 50;
-                doc.text(`Client: ${fullContract.client_name}`, 20, yPos);
-                yPos += 10;
-                doc.text(`Contrat N°: ${fullContract.contract_number}`, 20, yPos);
-                yPos += 10;
-                doc.text(`Date de création: ${new Date(fullContract.created_date).toLocaleDateString('fr-FR')}`, 20, yPos);
-                yPos += 15;
-                
-                // Hours summary
-                doc.setFontSize(14);
-                doc.text('Résumé des heures', 20, yPos);
-                yPos += 10;
-                doc.setFontSize(11);
-                doc.text(`Total: ${fullContract.total_hours}h`, 20, yPos);
-                doc.text(`Utilisées: ${newUsedHours}h`, 80, yPos);
-                doc.text(`Restantes: ${Math.max(0, fullContract.total_hours - newUsedHours)}h`, 140, yPos);
-                yPos += 15;
-
-                // Interventions table
+                // Generate PDF using PDFKit
                 const interventions = fullContract.interventions ? JSON.parse(`[${fullContract.interventions}]`).filter(i => i.isBillable) : [];
-                const tableData = interventions.map(i => [
-                  new Date(i.date).toLocaleDateString('fr-FR'),
-                  i.description,
-                  i.location || '',
-                  `${i.hoursUsed}h`
-                ]);
+                
+                const pdfBuffer = await new Promise((resolve, reject) => {
+                  const doc = new PDFDocument({ margin: 50 });
+                  const chunks = [];
+                  
+                  doc.on('data', chunk => chunks.push(chunk));
+                  doc.on('end', () => resolve(Buffer.concat(chunks)));
+                  doc.on('error', reject);
 
-                doc.autoTable({
-                  startY: yPos,
-                  head: [['Date', 'Description', 'Lieu', 'Heures']],
-                  body: tableData,
-                  theme: 'striped',
-                  headStyles: { fillColor: primaryColor },
+                  // Header
+                  doc.rect(0, 0, doc.page.width, 80).fill('#3b82f6');
+                  doc.fillColor('#ffffff').fontSize(24).text('RAPPORT DE CONTRAT', 0, 30, { align: 'center' });
+                  doc.fontSize(10).text(`Généré le ${new Date().toLocaleDateString('fr-FR')}`, 0, 55, { align: 'center' });
+
+                  // Contract info
+                  doc.fillColor('#000000').fontSize(12);
+                  doc.text(`Client: ${fullContract.client_name}`, 50, 100);
+                  doc.text(`Contrat N°: ${fullContract.contract_number}`, 50, 120);
+                  doc.text(`Date de création: ${new Date(fullContract.created_date).toLocaleDateString('fr-FR')}`, 50, 140);
+
+                  // Hours summary
+                  doc.fontSize(14).text('Résumé des heures', 50, 170);
+                  doc.fontSize(11);
+                  doc.text(`Total: ${fullContract.total_hours}h | Utilisées: ${newUsedHours}h | Restantes: ${Math.max(0, fullContract.total_hours - newUsedHours)}h`, 50, 190);
+
+                  // Interventions table
+                  doc.fontSize(14).text('Interventions facturables', 50, 220);
+                  let y = 245;
+                  doc.fontSize(10);
+                  
+                  // Table header
+                  doc.fillColor('#3b82f6').rect(50, y, 495, 20).fill();
+                  doc.fillColor('#ffffff').text('Date', 55, y + 5).text('Description', 130, y + 5)
+                     .text('Lieu', 350, y + 5).text('Heures', 480, y + 5);
+                  
+                  y += 20;
+                  doc.fillColor('#000000');
+                  
+                  // Table rows
+                  interventions.forEach((intervention, idx) => {
+                    if (y > 700) {
+                      doc.addPage();
+                      y = 50;
+                    }
+                    
+                    if (idx % 2 === 0) {
+                      doc.fillColor('#f0f0f0').rect(50, y, 495, 20).fill();
+                      doc.fillColor('#000000');
+                    }
+                    
+                    doc.text(new Date(intervention.date).toLocaleDateString('fr-FR'), 55, y + 5, { width: 70 });
+                    doc.text(intervention.description, 130, y + 5, { width: 210 });
+                    doc.text(intervention.location || '', 350, y + 5, { width: 120 });
+                    doc.text(`${intervention.hoursUsed}h`, 480, y + 5);
+                    y += 20;
+                  });
+
+                  doc.end();
                 });
-
-                const pdfBuffer = Buffer.from(doc.output('arraybuffer'));
 
                 // Send email with PDF attachment
                 await transporter.sendMail({
@@ -2610,8 +2619,7 @@ app.post('/api/contracts/:id/send-pdf', async (req, res) => {
     }
 
     const nodemailer = require('nodemailer');
-    const jsPDF = require('jspdf');
-    require('jspdf-autotable');
+    const PDFDocument = require('pdfkit');
     
     // Create transporter
     const transporter = nodemailer.createTransporter({
@@ -2648,89 +2656,109 @@ app.post('/api/contracts/:id/send-pdf', async (req, res) => {
       return res.status(404).json({ error: 'Contrat non trouvé' });
     }
 
-    // Generate PDF
-    const doc = new jsPDF();
-    const primaryColor = [59, 130, 246];
-    
-    // Header
-    doc.setFillColor(...primaryColor);
-    doc.rect(0, 0, 210, 40, 'F');
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(24);
-    doc.text('RAPPORT DE CONTRAT', 105, 20, { align: 'center' });
-    doc.setFontSize(10);
-    doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR')}`, 105, 30, { align: 'center' });
-    
-    // Contract info
-    doc.setTextColor(0, 0, 0);
-    doc.setFontSize(12);
-    let yPos = 50;
-    doc.text(`Client: ${contract.client_name}`, 20, yPos);
-    yPos += 10;
-    doc.text(`Contrat N°: ${contract.contract_number}`, 20, yPos);
-    yPos += 10;
-    doc.text(`Date de création: ${new Date(contract.created_date).toLocaleDateString('fr-FR')}`, 20, yPos);
-    yPos += 15;
-    
-    // Hours summary
-    doc.setFontSize(14);
-    doc.text('Résumé des heures', 20, yPos);
-    yPos += 10;
-    doc.setFontSize(11);
-    doc.text(`Total: ${contract.total_hours}h`, 20, yPos);
-    doc.text(`Utilisées: ${contract.used_hours}h`, 80, yPos);
-    doc.text(`Restantes: ${Math.max(0, contract.total_hours - contract.used_hours)}h`, 140, yPos);
-    yPos += 15;
-
-    // Interventions table
+    // Generate PDF using PDFKit
     const allInterventions = contract.interventions ? JSON.parse(`[${contract.interventions}]`) : [];
     const billableInterventions = allInterventions.filter(i => i.isBillable);
     
-    if (billableInterventions.length > 0) {
-      const tableData = billableInterventions.map(i => [
-        new Date(i.date).toLocaleDateString('fr-FR'),
-        i.description,
-        i.location || '',
-        `${i.hoursUsed}h`
-      ]);
-
-      doc.autoTable({
-        startY: yPos,
-        head: [['Date', 'Description', 'Lieu', 'Heures']],
-        body: tableData,
-        theme: 'striped',
-        headStyles: { fillColor: primaryColor },
-      });
+    const pdfBuffer = await new Promise((resolve, reject) => {
+      const doc = new PDFDocument({ margin: 50 });
+      const chunks = [];
       
-      yPos = doc.lastAutoTable.finalY + 10;
-    }
+      doc.on('data', chunk => chunks.push(chunk));
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
+      doc.on('error', reject);
 
-    // Non-billable interventions if requested
-    if (includeNonBillable) {
-      const nonBillable = allInterventions.filter(i => !i.isBillable);
-      if (nonBillable.length > 0) {
-        doc.setFontSize(14);
-        doc.text('Interventions non comptées', 20, yPos);
-        yPos += 10;
+      // Header
+      doc.rect(0, 0, doc.page.width, 80).fill('#3b82f6');
+      doc.fillColor('#ffffff').fontSize(24).text('RAPPORT DE CONTRAT', 0, 30, { align: 'center' });
+      doc.fontSize(10).text(`Généré le ${new Date().toLocaleDateString('fr-FR')}`, 0, 55, { align: 'center' });
+
+      // Contract info
+      doc.fillColor('#000000').fontSize(12);
+      doc.text(`Client: ${contract.client_name}`, 50, 100);
+      doc.text(`Contrat N°: ${contract.contract_number}`, 50, 120);
+      doc.text(`Date de création: ${new Date(contract.created_date).toLocaleDateString('fr-FR')}`, 50, 140);
+
+      // Hours summary
+      doc.fontSize(14).text('Résumé des heures', 50, 170);
+      doc.fontSize(11);
+      doc.text(`Total: ${contract.total_hours}h | Utilisées: ${contract.used_hours}h | Restantes: ${Math.max(0, contract.total_hours - contract.used_hours)}h`, 50, 190);
+
+      // Billable interventions table
+      if (billableInterventions.length > 0) {
+        doc.fontSize(14).text('Interventions facturables', 50, 220);
+        let y = 245;
+        doc.fontSize(10);
         
-        const nbTableData = nonBillable.map(i => [
-          new Date(i.date).toLocaleDateString('fr-FR'),
-          i.description,
-          i.location || '',
-          `${Math.round(i.hoursUsed * 60)} min`
-        ]);
-
-        doc.autoTable({
-          startY: yPos,
-          head: [['Date', 'Description', 'Lieu', 'Durée']],
-          body: nbTableData,
-          theme: 'plain',
-          headStyles: { fillColor: [156, 163, 175] },
+        // Table header
+        doc.fillColor('#3b82f6').rect(50, y, 495, 20).fill();
+        doc.fillColor('#ffffff').text('Date', 55, y + 5).text('Description', 130, y + 5)
+           .text('Lieu', 350, y + 5).text('Heures', 480, y + 5);
+        
+        y += 20;
+        doc.fillColor('#000000');
+        
+        // Table rows
+        billableInterventions.forEach((intervention, idx) => {
+          if (y > 700) {
+            doc.addPage();
+            y = 50;
+          }
+          
+          if (idx % 2 === 0) {
+            doc.fillColor('#f0f0f0').rect(50, y, 495, 20).fill();
+            doc.fillColor('#000000');
+          }
+          
+          doc.text(new Date(intervention.date).toLocaleDateString('fr-FR'), 55, y + 5, { width: 70 });
+          doc.text(intervention.description, 130, y + 5, { width: 210 });
+          doc.text(intervention.location || '', 350, y + 5, { width: 120 });
+          doc.text(`${intervention.hoursUsed}h`, 480, y + 5);
+          y += 20;
         });
       }
-    }
 
-    const pdfBuffer = Buffer.from(doc.output('arraybuffer'));
+      // Non-billable interventions if requested
+      if (includeNonBillable) {
+        const nonBillable = allInterventions.filter(i => !i.isBillable);
+        if (nonBillable.length > 0) {
+          if (billableInterventions.length > 0) doc.addPage();
+          
+          doc.fontSize(14).fillColor('#000000').text('Interventions non comptées', 50, 50);
+          let y = 75;
+          doc.fontSize(10);
+          
+          // Table header
+          doc.fillColor('#9ca3af').rect(50, y, 495, 20).fill();
+          doc.fillColor('#ffffff').text('Date', 55, y + 5).text('Description', 130, y + 5)
+             .text('Lieu', 350, y + 5).text('Durée', 480, y + 5);
+          
+          y += 20;
+          doc.fillColor('#000000');
+          
+          // Table rows
+          nonBillable.forEach((intervention, idx) => {
+            if (y > 700) {
+              doc.addPage();
+              y = 50;
+            }
+            
+            if (idx % 2 === 0) {
+              doc.fillColor('#f0f0f0').rect(50, y, 495, 20).fill();
+              doc.fillColor('#000000');
+            }
+            
+            doc.text(new Date(intervention.date).toLocaleDateString('fr-FR'), 55, y + 5, { width: 70 });
+            doc.text(intervention.description, 130, y + 5, { width: 210 });
+            doc.text(intervention.location || '', 350, y + 5, { width: 120 });
+            doc.text(`${Math.round(intervention.hoursUsed * 60)} min`, 480, y + 5);
+            y += 20;
+          });
+        }
+      }
+
+      doc.end();
+    });
 
     // Send email
     await transporter.sendMail({
