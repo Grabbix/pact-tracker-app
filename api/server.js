@@ -1177,7 +1177,7 @@ function syncOverageToRenewalQuote(contractId) {
 }
 
 // Routes pour les interventions
-app.post('/api/interventions', (req, res) => {
+app.post('/api/interventions', async (req, res) => {
   try {
     const { contractId, date, description, hoursUsed, technician, isBillable, location } = req.body;
     const id = randomUUID();
@@ -1191,16 +1191,157 @@ app.post('/api/interventions', (req, res) => {
 
     // Only update used_hours if intervention is billable
     if (isBillable) {
-      const contract = db.prepare('SELECT used_hours FROM contracts WHERE id = ?').get(contractId);
+      const contract = db.prepare('SELECT used_hours, total_hours, contract_number, client_name FROM contracts WHERE id = ?').get(contractId);
       
       if (contract) {
+        const newUsedHours = contract.used_hours + hoursUsed;
         const updateStmt = db.prepare(`
           UPDATE contracts SET used_hours = ? WHERE id = ?
         `);
-        updateStmt.run(contract.used_hours + hoursUsed, contractId);
+        updateStmt.run(newUsedHours, contractId);
         
         // Synchroniser avec le devis de renouvellement si existe
         syncOverageToRenewalQuote(contractId);
+
+        // Check if contract just became full (>= 100%) and send notification
+        if (newUsedHours >= contract.total_hours && contract.used_hours < contract.total_hours) {
+          // Contract just became full, trigger notification
+          const notificationSettings = db.prepare('SELECT * FROM notification_settings ORDER BY created_at DESC LIMIT 1').get();
+          
+          if (notificationSettings && JSON.parse(notificationSettings.triggers).contract_full) {
+            // Run email sending in background
+            setImmediate(async () => {
+              try {
+                const nodemailer = require('nodemailer');
+                const jsPDF = require('jspdf');
+                require('jspdf-autotable');
+                
+                // Create transporter
+                const transporter = nodemailer.createTransport({
+                  host: notificationSettings.smtp_host,
+                  port: notificationSettings.smtp_port,
+                  secure: notificationSettings.smtp_secure === 1,
+                  auth: {
+                    user: notificationSettings.smtp_user,
+                    pass: notificationSettings.smtp_password,
+                  },
+                });
+
+                // Get full contract data with interventions
+                const fullContract = db.prepare(`
+                  SELECT c.*, 
+                    GROUP_CONCAT(
+                      json_object(
+                        'id', i.id,
+                        'date', i.date,
+                        'description', i.description,
+                        'hoursUsed', i.hours_used,
+                        'technician', i.technician,
+                        'isBillable', i.is_billable,
+                        'location', i.location
+                      )
+                    ) as interventions
+                  FROM contracts c
+                  LEFT JOIN interventions i ON c.id = i.contract_id
+                  WHERE c.id = ?
+                  GROUP BY c.id
+                `).get(contractId);
+
+                // Generate PDF
+                const doc = new jsPDF();
+                const primaryColor = [59, 130, 246];
+                
+                // Header
+                doc.setFillColor(...primaryColor);
+                doc.rect(0, 0, 210, 40, 'F');
+                doc.setTextColor(255, 255, 255);
+                doc.setFontSize(24);
+                doc.text('RAPPORT DE CONTRAT', 105, 20, { align: 'center' });
+                doc.setFontSize(10);
+                doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR')}`, 105, 30, { align: 'center' });
+                
+                // Contract info
+                doc.setTextColor(0, 0, 0);
+                doc.setFontSize(12);
+                let yPos = 50;
+                doc.text(`Client: ${fullContract.client_name}`, 20, yPos);
+                yPos += 10;
+                doc.text(`Contrat N°: ${fullContract.contract_number}`, 20, yPos);
+                yPos += 10;
+                doc.text(`Date de création: ${new Date(fullContract.created_date).toLocaleDateString('fr-FR')}`, 20, yPos);
+                yPos += 15;
+                
+                // Hours summary
+                doc.setFontSize(14);
+                doc.text('Résumé des heures', 20, yPos);
+                yPos += 10;
+                doc.setFontSize(11);
+                doc.text(`Total: ${fullContract.total_hours}h`, 20, yPos);
+                doc.text(`Utilisées: ${newUsedHours}h`, 80, yPos);
+                doc.text(`Restantes: ${Math.max(0, fullContract.total_hours - newUsedHours)}h`, 140, yPos);
+                yPos += 15;
+
+                // Interventions table
+                const interventions = fullContract.interventions ? JSON.parse(`[${fullContract.interventions}]`).filter(i => i.isBillable) : [];
+                const tableData = interventions.map(i => [
+                  new Date(i.date).toLocaleDateString('fr-FR'),
+                  i.description,
+                  i.location || '',
+                  `${i.hoursUsed}h`
+                ]);
+
+                doc.autoTable({
+                  startY: yPos,
+                  head: [['Date', 'Description', 'Lieu', 'Heures']],
+                  body: tableData,
+                  theme: 'striped',
+                  headStyles: { fillColor: primaryColor },
+                });
+
+                const pdfBuffer = Buffer.from(doc.output('arraybuffer'));
+
+                // Send email with PDF attachment
+                await transporter.sendMail({
+                  from: notificationSettings.smtp_from,
+                  to: notificationSettings.email_to,
+                  subject: `⚠️ Alerte: Contrat ${fullContract.contract_number} plein - ${fullContract.client_name}`,
+                  html: `
+                    <h2 style="color: #3b82f6;">Contrat plein</h2>
+                    <p>Le contrat <strong>${fullContract.contract_number}</strong> pour le client <strong>${fullContract.client_name}</strong> a atteint 100% de ses heures.</p>
+                    <ul>
+                      <li>Total d'heures: <strong>${fullContract.total_hours}h</strong></li>
+                      <li>Heures utilisées: <strong>${newUsedHours}h</strong></li>
+                      <li>Heures restantes: <strong>${Math.max(0, fullContract.total_hours - newUsedHours)}h</strong></li>
+                    </ul>
+                    <p>Vous trouverez le rapport complet du contrat en pièce jointe.</p>
+                  `,
+                  attachments: [{
+                    filename: `Contrat_${fullContract.contract_number}_${fullContract.client_name.replace(/[^a-z0-9]/gi, '_')}.pdf`,
+                    content: pdfBuffer
+                  }]
+                });
+
+                // Log success
+                logCronJob('notification', `Email envoyé: contrat ${fullContract.contract_number} plein`, 'success', {
+                  contractId,
+                  contractNumber: fullContract.contract_number,
+                  clientName: fullContract.client_name,
+                  usedHours: newUsedHours,
+                  totalHours: fullContract.total_hours,
+                  to: notificationSettings.email_to
+                }, 'auto');
+
+              } catch (emailError) {
+                console.error('Error sending contract full notification:', emailError);
+                // Log failure
+                logCronJob('notification', `Échec envoi email: contrat ${contract.contract_number}`, 'error', {
+                  contractId,
+                  error: emailError.message
+                }, 'auto');
+              }
+            });
+          }
+        }
       }
     }
 
@@ -2448,6 +2589,181 @@ app.post('/api/notification-settings/test', async (req, res) => {
     res.json({ success: true, message: 'Email de test envoyé avec succès' });
   } catch (error) {
     console.error('Error sending test email:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Send PDF by email (manual send)
+app.post('/api/contracts/:id/send-pdf', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { to, includeNonBillable } = req.body;
+    
+    const notificationSettings = db.prepare('SELECT * FROM notification_settings ORDER BY created_at DESC LIMIT 1').get();
+    
+    if (!notificationSettings) {
+      return res.status(400).json({ error: 'Configuration email non trouvée' });
+    }
+
+    if (!to) {
+      return res.status(400).json({ error: 'Email destinataire requis' });
+    }
+
+    const nodemailer = require('nodemailer');
+    const jsPDF = require('jspdf');
+    require('jspdf-autotable');
+    
+    // Create transporter
+    const transporter = nodemailer.createTransporter({
+      host: notificationSettings.smtp_host,
+      port: notificationSettings.smtp_port,
+      secure: notificationSettings.smtp_secure === 1,
+      auth: {
+        user: notificationSettings.smtp_user,
+        pass: notificationSettings.smtp_password,
+      },
+    });
+
+    // Get full contract data
+    const contract = db.prepare(`
+      SELECT c.*, 
+        GROUP_CONCAT(
+          json_object(
+            'id', i.id,
+            'date', i.date,
+            'description', i.description,
+            'hoursUsed', i.hours_used,
+            'technician', i.technician,
+            'isBillable', i.is_billable,
+            'location', i.location
+          )
+        ) as interventions
+      FROM contracts c
+      LEFT JOIN interventions i ON c.id = i.contract_id
+      WHERE c.id = ?
+      GROUP BY c.id
+    `).get(id);
+
+    if (!contract) {
+      return res.status(404).json({ error: 'Contrat non trouvé' });
+    }
+
+    // Generate PDF
+    const doc = new jsPDF();
+    const primaryColor = [59, 130, 246];
+    
+    // Header
+    doc.setFillColor(...primaryColor);
+    doc.rect(0, 0, 210, 40, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(24);
+    doc.text('RAPPORT DE CONTRAT', 105, 20, { align: 'center' });
+    doc.setFontSize(10);
+    doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR')}`, 105, 30, { align: 'center' });
+    
+    // Contract info
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(12);
+    let yPos = 50;
+    doc.text(`Client: ${contract.client_name}`, 20, yPos);
+    yPos += 10;
+    doc.text(`Contrat N°: ${contract.contract_number}`, 20, yPos);
+    yPos += 10;
+    doc.text(`Date de création: ${new Date(contract.created_date).toLocaleDateString('fr-FR')}`, 20, yPos);
+    yPos += 15;
+    
+    // Hours summary
+    doc.setFontSize(14);
+    doc.text('Résumé des heures', 20, yPos);
+    yPos += 10;
+    doc.setFontSize(11);
+    doc.text(`Total: ${contract.total_hours}h`, 20, yPos);
+    doc.text(`Utilisées: ${contract.used_hours}h`, 80, yPos);
+    doc.text(`Restantes: ${Math.max(0, contract.total_hours - contract.used_hours)}h`, 140, yPos);
+    yPos += 15;
+
+    // Interventions table
+    const allInterventions = contract.interventions ? JSON.parse(`[${contract.interventions}]`) : [];
+    const billableInterventions = allInterventions.filter(i => i.isBillable);
+    
+    if (billableInterventions.length > 0) {
+      const tableData = billableInterventions.map(i => [
+        new Date(i.date).toLocaleDateString('fr-FR'),
+        i.description,
+        i.location || '',
+        `${i.hoursUsed}h`
+      ]);
+
+      doc.autoTable({
+        startY: yPos,
+        head: [['Date', 'Description', 'Lieu', 'Heures']],
+        body: tableData,
+        theme: 'striped',
+        headStyles: { fillColor: primaryColor },
+      });
+      
+      yPos = doc.lastAutoTable.finalY + 10;
+    }
+
+    // Non-billable interventions if requested
+    if (includeNonBillable) {
+      const nonBillable = allInterventions.filter(i => !i.isBillable);
+      if (nonBillable.length > 0) {
+        doc.setFontSize(14);
+        doc.text('Interventions non comptées', 20, yPos);
+        yPos += 10;
+        
+        const nbTableData = nonBillable.map(i => [
+          new Date(i.date).toLocaleDateString('fr-FR'),
+          i.description,
+          i.location || '',
+          `${Math.round(i.hoursUsed * 60)} min`
+        ]);
+
+        doc.autoTable({
+          startY: yPos,
+          head: [['Date', 'Description', 'Lieu', 'Durée']],
+          body: nbTableData,
+          theme: 'plain',
+          headStyles: { fillColor: [156, 163, 175] },
+        });
+      }
+    }
+
+    const pdfBuffer = Buffer.from(doc.output('arraybuffer'));
+
+    // Send email
+    await transporter.sendMail({
+      from: notificationSettings.smtp_from,
+      to: to,
+      subject: `Rapport de contrat ${contract.contract_number} - ${contract.client_name}`,
+      html: `
+        <h2>Rapport de contrat</h2>
+        <p>Veuillez trouver ci-joint le rapport du contrat <strong>${contract.contract_number}</strong> pour <strong>${contract.client_name}</strong>.</p>
+        <ul>
+          <li>Total d'heures: <strong>${contract.total_hours}h</strong></li>
+          <li>Heures utilisées: <strong>${contract.used_hours}h</strong></li>
+          <li>Heures restantes: <strong>${Math.max(0, contract.total_hours - contract.used_hours)}h</strong></li>
+        </ul>
+      `,
+      attachments: [{
+        filename: `Contrat_${contract.contract_number}_${contract.client_name.replace(/[^a-z0-9]/gi, '_')}.pdf`,
+        content: pdfBuffer
+      }]
+    });
+
+    // Log manual send
+    logCronJob('notification', `Email envoyé manuellement: contrat ${contract.contract_number}`, 'success', {
+      contractId: id,
+      contractNumber: contract.contract_number,
+      clientName: contract.client_name,
+      to: to
+    }, 'manual');
+
+    res.json({ success: true, message: 'Email envoyé avec succès' });
+  } catch (error) {
+    console.error('Error sending PDF by email:', error);
+    logCronJob('notification', `Échec envoi email manuel`, 'error', { error: error.message }, 'manual');
     res.status(500).json({ error: error.message });
   }
 });
