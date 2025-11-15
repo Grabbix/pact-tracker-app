@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -7,6 +7,7 @@ import { AddInterventionDialog } from "@/components/AddInterventionDialog";
 import { EditInterventionDialog } from "@/components/EditInterventionDialog";
 import { RenewContractDialog } from "@/components/RenewContractDialog";
 import { EditClientNameDialog } from "@/components/EditClientNameDialog";
+import { SendPdfDialog } from "@/components/SendPdfDialog";
 import { exportContractToPDF } from "@/utils/pdfExport";
 import { exportContractToExcel } from "@/utils/excelExport";
 import { 
@@ -35,6 +36,8 @@ import {
 import { toast } from "sonner";
 import { Intervention } from "@/types/contract";
 import { useContracts } from "@/hooks/useContracts";
+import { Client } from "@/types/client";
+import { api } from "@/lib/api";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -55,11 +58,27 @@ const ContractDetail = () => {
   const [editingClientName, setEditingClientName] = useState(false);
   const [isCreatingQuote, setIsCreatingQuote] = useState(false);
   const [isSigningQuote, setIsSigningQuote] = useState(false);
+  const [clientData, setClientData] = useState<Client | null>(null);
   
   // Find contract by contract number (from URL) or by UUID (backward compatibility)
   const contract = contracts.find(c => 
     (c.contractNumber && String(c.contractNumber) === id) || c.id === id
   );
+
+  // Fetch client data when contract is loaded
+  useEffect(() => {
+    const fetchClientData = async () => {
+      if (contract?.clientId) {
+        try {
+          const data = await api.getClient(contract.clientId);
+          setClientData(data);
+        } catch (error) {
+          console.error("Error fetching client data:", error);
+        }
+      }
+    };
+    fetchClientData();
+  }, [contract?.clientId]);
 
   if (loading) {
     return (
@@ -268,6 +287,11 @@ const ContractDetail = () => {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
+              <SendPdfDialog 
+                contractId={contract.id}
+                contractNumber={contract.contractNumber}
+                clientContacts={clientData?.contacts || []}
+              />
             </div>
           </div>
         </div>
