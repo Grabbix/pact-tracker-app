@@ -242,6 +242,16 @@ export const api = {
     return response.json();
   },
 
+  async sendContractPdf(contractId: string, to: string, pdfBase64: string) {
+    const response = await fetch(`${API_BASE_URL}/api/contracts/${contractId}/send-pdf`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ to, pdfBase64 }),
+    });
+    if (!response.ok) throw new Error('Failed to send contract PDF');
+    return response.json();
+  },
+
   async createArxAccount(clientId: string, accountName: string) {
     const response = await fetch(`${API_BASE_URL}/api/clients/${clientId}/arx-accounts`, {
       method: 'POST',

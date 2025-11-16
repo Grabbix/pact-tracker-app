@@ -15,14 +15,16 @@ import { Mail } from "lucide-react";
 import { toast } from "sonner";
 import { ContactPerson } from "@/types/client";
 import { Checkbox } from "@/components/ui/checkbox";
+import { exportContractToPDF } from "@/utils/pdfExport";
+import { Contract } from "@/types/contract";
+import { api } from "@/lib/api";
 
 interface SendPdfDialogProps {
-  contractId: string;
-  contractNumber?: number;
+  contract: Contract;
   clientContacts?: ContactPerson[];
 }
 
-export const SendPdfDialog = ({ contractId, contractNumber, clientContacts }: SendPdfDialogProps) => {
+export const SendPdfDialog = ({ contract, clientContacts }: SendPdfDialogProps) => {
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [includeNonBillable, setIncludeNonBillable] = useState(false);
@@ -36,21 +38,14 @@ export const SendPdfDialog = ({ contractId, contractNumber, clientContacts }: Se
 
     setSending(true);
     try {
-      const response = await fetch(`/api/contracts/${contractId}/send-pdf`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          to: email,
-          includeNonBillable,
-        }),
-      });
+      // Generate PDF using the same template as exports
+      const pdfDoc = exportContractToPDF(contract, includeNonBillable);
+      
+      // Convert PDF to base64
+      const pdfBase64 = pdfDoc.output('datauristring').split(',')[1];
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Erreur lors de l'envoi");
-      }
+      // Send via API
+      await api.sendContractPdf(contract.id, email, pdfBase64);
 
       toast.success("Email envoyé avec succès");
       setOpen(false);
@@ -76,7 +71,7 @@ export const SendPdfDialog = ({ contractId, contractNumber, clientContacts }: Se
         <DialogHeader>
           <DialogTitle>Envoyer le PDF par email</DialogTitle>
           <DialogDescription>
-            Envoyez le rapport PDF du contrat {contractNumber ? `N°${contractNumber}` : ""} par email
+            Envoyez le rapport PDF du contrat {contract.contractNumber ? `N°${contract.contractNumber}` : ""} par email
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">

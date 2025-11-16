@@ -2,7 +2,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { Contract } from "@/types/contract";
 
-export const exportContractToPDF = (contract: Contract, includeNonBillable: boolean = true) => {
+export const exportContractToPDF = (contract: Contract, includeNonBillable: boolean = true): jsPDF => {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.width;
   const pageHeight = doc.internal.pageSize.height;
@@ -342,5 +342,15 @@ export const exportContractToPDF = (contract: Contract, includeNonBillable: bool
   // Save the PDF with contract number if available
   const clientName = contract.clientName.replace(/[^a-zA-Z0-9]/g, '-');
   const date = new Date().toISOString().split('T')[0];
-  doc.save(`Rapport_${contractRef}_${clientName}_${date}.pdf`);
+  
+  // Return the PDF document for further use (like sending by email)
+  return doc;
+};
+
+// Helper function to download the PDF
+export const downloadContractPDF = (contract: Contract, includeNonBillable: boolean = true) => {
+  const doc = exportContractToPDF(contract, includeNonBillable);
+  const contractRef = contract.contractNumber ? `CT-${String(contract.contractNumber).padStart(4, '0')}` : contract.id;
+  const fileName = `Contrat_${contractRef}_${contract.clientName.replace(/[^a-z0-9]/gi, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
+  doc.save(fileName);
 };
