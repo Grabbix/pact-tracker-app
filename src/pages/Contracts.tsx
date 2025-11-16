@@ -4,7 +4,7 @@ import { AddContractDialog } from "@/components/AddContractDialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, FileText, Archive, Download, ArrowLeft, CheckCircle, TrendingUp, FileSpreadsheet, AlertTriangle } from "lucide-react";
+import { Search, FileText, Archive, Download, ArrowLeft, CheckCircle, TrendingUp, FileSpreadsheet, AlertTriangle, ArrowUpDown } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,6 +22,7 @@ const Contracts = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterNearExpiry, setFilterNearExpiry] = useState(false);
   const [filterOverage, setFilterOverage] = useState(false);
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const navigate = useNavigate();
 
   // Filter by contract type
@@ -40,7 +41,7 @@ const Contracts = () => {
   );
 
   const filterContractsBySearch = (contractList: typeof contracts) => {
-    return contractList.filter(contract => {
+    const filtered = contractList.filter(contract => {
       const matchesSearch = contract.clientName.toLowerCase().includes(searchQuery.toLowerCase());
       const percentage = (contract.usedHours / contract.totalHours) * 100;
       
@@ -52,6 +53,18 @@ const Contracts = () => {
       }
       
       return matchesSearch && matchesFilter;
+    });
+
+    // Sort by progression percentage
+    return filtered.sort((a, b) => {
+      const percentageA = (a.usedHours / a.totalHours) * 100;
+      const percentageB = (b.usedHours / b.totalHours) * 100;
+      
+      if (sortOrder === "asc") {
+        return percentageA - percentageB;
+      } else {
+        return percentageB - percentageA;
+      }
     });
   };
 
@@ -161,16 +174,27 @@ const Contracts = () => {
           </div>
         </div>
 
-        {/* Search */}
-        <div className="mb-6 relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-          <Input
-            type="text"
-            placeholder="Rechercher un client..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 max-w-md"
-          />
+        {/* Search and Sort */}
+        <div className="flex flex-col sm:flex-row gap-4 mb-6">
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Rechercher un client..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+          
+          <Button
+            variant={sortOrder === "desc" ? "default" : "outline"}
+            onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
+            className="whitespace-nowrap"
+          >
+            <ArrowUpDown className="mr-2 h-4 w-4" />
+            {sortOrder === "desc" ? "Plus pleins d'abord" : "Plus vides d'abord"}
+          </Button>
         </div>
 
         {/* Stats */}
