@@ -8,7 +8,7 @@ import { EditInterventionDialog } from "@/components/EditInterventionDialog";
 import { RenewContractDialog } from "@/components/RenewContractDialog";
 import { EditClientNameDialog } from "@/components/EditClientNameDialog";
 import { SendPdfDialog } from "@/components/SendPdfDialog";
-import { exportContractToPDF } from "@/utils/pdfExport";
+import { exportContractToPDF, downloadContractPDF } from "@/utils/pdfExport";
 import { exportContractToExcel } from "@/utils/excelExport";
 import { 
   ArrowLeft, 
@@ -127,7 +127,7 @@ const ContractDetail = () => {
   };
 
   const handleExportPDF = (includeNonBillable: boolean = true) => {
-    exportContractToPDF(contract, includeNonBillable);
+    downloadContractPDF(contract, includeNonBillable);
     toast.success("PDF exporté avec succès");
   };
 
@@ -288,8 +288,7 @@ const ContractDetail = () => {
                 </DropdownMenuContent>
               </DropdownMenu>
               <SendPdfDialog 
-                contractId={contract.id}
-                contractNumber={contract.contractNumber}
+                contract={contract}
                 clientContacts={clientData?.contacts || []}
               />
             </div>

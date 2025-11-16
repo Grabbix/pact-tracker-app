@@ -36,6 +36,7 @@ const fs = require('fs');
 const path = require('path');
 const XLSX = require('xlsx');
 const cron = require('node-cron');
+const nodemailer = require('nodemailer');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -1212,9 +1213,7 @@ app.post('/api/interventions', async (req, res) => {
             // Run email sending in background
             setImmediate(async () => {
               try {
-                const nodemailer = require('nodemailer');
                 const PDFDocument = require('pdfkit');
-                const fs = require('fs');
                 
                 // Create transporter
                 const transporter = nodemailer.createTransport({
@@ -2576,7 +2575,6 @@ app.post('/api/notification-settings', (req, res) => {
 app.post('/api/notification-settings/test', async (req, res) => {
   try {
     const { smtp, to } = req.body;
-    const nodemailer = require('nodemailer');
     
     const transporter = nodemailer.createTransport({
       host: smtp.host,
@@ -2618,11 +2616,14 @@ app.post('/api/contracts/:id/send-pdf', async (req, res) => {
       return res.status(400).json({ error: 'Email destinataire requis' });
     }
 
-    const nodemailer = require('nodemailer');
-    const PDFDocument = require('pdfkit');
+    const { pdfBase64 } = req.body;
+    
+    if (!pdfBase64) {
+      return res.status(400).json({ error: 'PDF requis' });
+    }
     
     // Create transporter
-    const transporter = nodemailer.createTransporter({
+    const transporter = nodemailer.createTransport({
       host: notificationSettings.smtp_host,
       port: notificationSettings.smtp_port,
       secure: notificationSettings.smtp_secure === 1,
@@ -2632,133 +2633,15 @@ app.post('/api/contracts/:id/send-pdf', async (req, res) => {
       },
     });
 
-    // Get full contract data
-    const contract = db.prepare(`
-      SELECT c.*, 
-        GROUP_CONCAT(
-          json_object(
-            'id', i.id,
-            'date', i.date,
-            'description', i.description,
-            'hoursUsed', i.hours_used,
-            'technician', i.technician,
-            'isBillable', i.is_billable,
-            'location', i.location
-          )
-        ) as interventions
-      FROM contracts c
-      LEFT JOIN interventions i ON c.id = i.contract_id
-      WHERE c.id = ?
-      GROUP BY c.id
-    `).get(id);
+    // Get contract info for email
+    const contract = db.prepare('SELECT * FROM contracts WHERE id = ?').get(id);
 
     if (!contract) {
       return res.status(404).json({ error: 'Contrat non trouvé' });
     }
 
-    // Generate PDF using PDFKit
-    const allInterventions = contract.interventions ? JSON.parse(`[${contract.interventions}]`) : [];
-    const billableInterventions = allInterventions.filter(i => i.isBillable);
-    
-    const pdfBuffer = await new Promise((resolve, reject) => {
-      const doc = new PDFDocument({ margin: 50 });
-      const chunks = [];
-      
-      doc.on('data', chunk => chunks.push(chunk));
-      doc.on('end', () => resolve(Buffer.concat(chunks)));
-      doc.on('error', reject);
-
-      // Header
-      doc.rect(0, 0, doc.page.width, 80).fill('#3b82f6');
-      doc.fillColor('#ffffff').fontSize(24).text('RAPPORT DE CONTRAT', 0, 30, { align: 'center' });
-      doc.fontSize(10).text(`Généré le ${new Date().toLocaleDateString('fr-FR')}`, 0, 55, { align: 'center' });
-
-      // Contract info
-      doc.fillColor('#000000').fontSize(12);
-      doc.text(`Client: ${contract.client_name}`, 50, 100);
-      doc.text(`Contrat N°: ${contract.contract_number}`, 50, 120);
-      doc.text(`Date de création: ${new Date(contract.created_date).toLocaleDateString('fr-FR')}`, 50, 140);
-
-      // Hours summary
-      doc.fontSize(14).text('Résumé des heures', 50, 170);
-      doc.fontSize(11);
-      doc.text(`Total: ${contract.total_hours}h | Utilisées: ${contract.used_hours}h | Restantes: ${Math.max(0, contract.total_hours - contract.used_hours)}h`, 50, 190);
-
-      // Billable interventions table
-      if (billableInterventions.length > 0) {
-        doc.fontSize(14).text('Interventions facturables', 50, 220);
-        let y = 245;
-        doc.fontSize(10);
-        
-        // Table header
-        doc.fillColor('#3b82f6').rect(50, y, 495, 20).fill();
-        doc.fillColor('#ffffff').text('Date', 55, y + 5).text('Description', 130, y + 5)
-           .text('Lieu', 350, y + 5).text('Heures', 480, y + 5);
-        
-        y += 20;
-        doc.fillColor('#000000');
-        
-        // Table rows
-        billableInterventions.forEach((intervention, idx) => {
-          if (y > 700) {
-            doc.addPage();
-            y = 50;
-          }
-          
-          if (idx % 2 === 0) {
-            doc.fillColor('#f0f0f0').rect(50, y, 495, 20).fill();
-            doc.fillColor('#000000');
-          }
-          
-          doc.text(new Date(intervention.date).toLocaleDateString('fr-FR'), 55, y + 5, { width: 70 });
-          doc.text(intervention.description, 130, y + 5, { width: 210 });
-          doc.text(intervention.location || '', 350, y + 5, { width: 120 });
-          doc.text(`${intervention.hoursUsed}h`, 480, y + 5);
-          y += 20;
-        });
-      }
-
-      // Non-billable interventions if requested
-      if (includeNonBillable) {
-        const nonBillable = allInterventions.filter(i => !i.isBillable);
-        if (nonBillable.length > 0) {
-          if (billableInterventions.length > 0) doc.addPage();
-          
-          doc.fontSize(14).fillColor('#000000').text('Interventions non comptées', 50, 50);
-          let y = 75;
-          doc.fontSize(10);
-          
-          // Table header
-          doc.fillColor('#9ca3af').rect(50, y, 495, 20).fill();
-          doc.fillColor('#ffffff').text('Date', 55, y + 5).text('Description', 130, y + 5)
-             .text('Lieu', 350, y + 5).text('Durée', 480, y + 5);
-          
-          y += 20;
-          doc.fillColor('#000000');
-          
-          // Table rows
-          nonBillable.forEach((intervention, idx) => {
-            if (y > 700) {
-              doc.addPage();
-              y = 50;
-            }
-            
-            if (idx % 2 === 0) {
-              doc.fillColor('#f0f0f0').rect(50, y, 495, 20).fill();
-              doc.fillColor('#000000');
-            }
-            
-            doc.text(new Date(intervention.date).toLocaleDateString('fr-FR'), 55, y + 5, { width: 70 });
-            doc.text(intervention.description, 130, y + 5, { width: 210 });
-            doc.text(intervention.location || '', 350, y + 5, { width: 120 });
-            doc.text(`${Math.round(intervention.hoursUsed * 60)} min`, 480, y + 5);
-            y += 20;
-          });
-        }
-      }
-
-      doc.end();
-    });
+    // Convert base64 to buffer
+    const pdfBuffer = Buffer.from(pdfBase64, 'base64');
 
     // Send email
     await transporter.sendMail({
