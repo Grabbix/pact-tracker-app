@@ -1739,6 +1739,111 @@ app.get('/api/admin/cron-logs', (req, res) => {
   }
 });
 
+// Route pour déclencher l'alerte hebdomadaire des contrats
+app.post('/api/admin/trigger-contract-alert', async (req, res) => {
+  console.log('Manual trigger for weekly contract alert');
+  logCronJob('contract_alert', 'Démarrage de l\'alerte hebdomadaire des contrats', 'info', null, 'manual');
+  
+  try {
+    // Get notification settings
+    const notificationSettings = db.prepare('SELECT * FROM notification_settings LIMIT 1').get();
+    
+    if (!notificationSettings) {
+      const errorMsg = 'Aucun paramètre de notification configuré';
+      logCronJob('contract_alert', errorMsg, 'error', null, 'manual');
+      return res.status(400).json({ error: errorMsg });
+    }
+
+    // Get all active contracts at 100% or more
+    const query = `
+      SELECT c.*, 
+        GROUP_CONCAT(
+          json_object(
+            'id', i.id,
+            'date', i.date,
+            'description', i.description,
+            'hours_used', i.hours_used,
+            'technician', i.technician
+          )
+        ) as interventions_json
+      FROM contracts c
+      LEFT JOIN interventions i ON c.id = i.contract_id
+      WHERE c.is_archived = 0 
+        AND c.contract_type != 'quote'
+        AND (c.used_hours * 1.0 / c.total_hours) >= 1.0
+      GROUP BY c.id
+      ORDER BY c.client_name ASC
+    `;
+
+    const rows = db.prepare(query).all();
+    
+    if (rows.length === 0) {
+      const successMsg = 'Aucun contrat à 100% ou en dépassement';
+      logCronJob('contract_alert', successMsg, 'success', null, 'manual');
+      return res.json({ success: true, message: successMsg, count: 0 });
+    }
+
+    // Build email text content
+    let emailText = `Alerte hebdomadaire - Contrats à 100% ou en dépassement\n`;
+    emailText += `Date: ${new Date().toLocaleDateString('fr-FR')}\n`;
+    emailText += `Nombre de contrats concernés: ${rows.length}\n\n`;
+    emailText += `${'='.repeat(80)}\n\n`;
+
+    rows.forEach((row, index) => {
+      const percentage = (row.used_hours / row.total_hours) * 100;
+      const overageHours = row.used_hours - row.total_hours;
+      
+      // Check if renewal quote exists
+      const hasRenewalQuote = row.renewal_quote_id ? 'OUI' : 'NON';
+      
+      emailText += `${index + 1}. Client: ${row.client_name}\n`;
+      emailText += `   Contrat N°: ${row.contract_number || row.id}\n`;
+      emailText += `   Heures utilisées / vendues: ${row.used_hours}h / ${row.total_hours}h\n`;
+      emailText += `   Progression: ${percentage.toFixed(1)}%\n`;
+      
+      if (overageHours > 0) {
+        emailText += `   ⚠️ DÉPASSEMENT: ${overageHours.toFixed(1)}h\n`;
+      } else {
+        emailText += `   ⚠️ CONTRAT PLEIN (100%)\n`;
+      }
+      
+      emailText += `   Devis de renouvellement associé: ${hasRenewalQuote}\n`;
+      emailText += `\n${'-'.repeat(80)}\n\n`;
+    });
+
+    // Send email
+    const transporter = nodemailer.createTransport({
+      host: notificationSettings.smtp_host,
+      port: notificationSettings.smtp_port,
+      secure: notificationSettings.smtp_secure === 1,
+      auth: {
+        user: notificationSettings.smtp_user,
+        pass: notificationSettings.smtp_password,
+      },
+    });
+
+    await transporter.sendMail({
+      from: notificationSettings.smtp_from,
+      to: notificationSettings.email_to,
+      subject: `📊 Alerte hebdomadaire - ${rows.length} contrat(s) à 100% ou en dépassement`,
+      text: emailText,
+    });
+
+    const successMsg = `Alerte envoyée avec succès: ${rows.length} contrat(s) concerné(s)`;
+    logCronJob('contract_alert', successMsg, 'success', JSON.stringify({ count: rows.length }), 'manual');
+    
+    res.json({ 
+      success: true, 
+      message: successMsg,
+      count: rows.length 
+    });
+  } catch (error) {
+    console.error('Error sending contract alert:', error);
+    logCronJob('contract_alert', 'Erreur lors de l\'envoi de l\'alerte', 'error', error.message, 'manual');
+    res.status(500).json({ error: 'Erreur lors de l\'envoi de l\'alerte' });
+  }
+});
+
 // Endpoint pour déclencher manuellement le backup Excel
 app.post('/api/admin/trigger-backup', async (req, res) => {
   console.log('Manual Excel backup triggered from admin panel');
@@ -2086,6 +2191,104 @@ app.post('/api/admin/trigger-arx-sync', async (req, res) => {
     console.error('Error during manual ARX sync:', error);
     logCronJob('arx_sync', `Erreur: ${error.message}`, 'error', null, 'manual');
     res.status(500).json({ error: 'Erreur lors de la synchronisation ARX' });
+  }
+});
+
+// Tâche planifiée hebdomadaire pour l'alerte des contrats (chaque lundi à 9h00)
+cron.schedule('0 9 * * 1', async () => {
+  console.log('Starting weekly contract alert on Monday at 9:00...');
+  logCronJob('contract_alert', 'Démarrage de l\'alerte hebdomadaire des contrats', 'info');
+  
+  try {
+    // Get notification settings
+    const notificationSettings = db.prepare('SELECT * FROM notification_settings LIMIT 1').get();
+    
+    if (!notificationSettings) {
+      const errorMsg = 'Aucun paramètre de notification configuré';
+      logCronJob('contract_alert', errorMsg, 'error');
+      return;
+    }
+
+    // Get all active contracts at 100% or more
+    const query = `
+      SELECT c.*, 
+        GROUP_CONCAT(
+          json_object(
+            'id', i.id,
+            'date', i.date,
+            'description', i.description,
+            'hours_used', i.hours_used,
+            'technician', i.technician
+          )
+        ) as interventions_json
+      FROM contracts c
+      LEFT JOIN interventions i ON c.id = i.contract_id
+      WHERE c.is_archived = 0 
+        AND c.contract_type != 'quote'
+        AND (c.used_hours * 1.0 / c.total_hours) >= 1.0
+      GROUP BY c.id
+      ORDER BY c.client_name ASC
+    `;
+
+    const rows = db.prepare(query).all();
+    
+    if (rows.length === 0) {
+      const successMsg = 'Aucun contrat à 100% ou en dépassement';
+      logCronJob('contract_alert', successMsg, 'success');
+      return;
+    }
+
+    // Build email text content
+    let emailText = `Alerte hebdomadaire - Contrats à 100% ou en dépassement\n`;
+    emailText += `Date: ${new Date().toLocaleDateString('fr-FR')}\n`;
+    emailText += `Nombre de contrats concernés: ${rows.length}\n\n`;
+    emailText += `${'='.repeat(80)}\n\n`;
+
+    rows.forEach((row, index) => {
+      const percentage = (row.used_hours / row.total_hours) * 100;
+      const overageHours = row.used_hours - row.total_hours;
+      
+      // Check if renewal quote exists
+      const hasRenewalQuote = row.renewal_quote_id ? 'OUI' : 'NON';
+      
+      emailText += `${index + 1}. Client: ${row.client_name}\n`;
+      emailText += `   Contrat N°: ${row.contract_number || row.id}\n`;
+      emailText += `   Heures utilisées / vendues: ${row.used_hours}h / ${row.total_hours}h\n`;
+      emailText += `   Progression: ${percentage.toFixed(1)}%\n`;
+      
+      if (overageHours > 0) {
+        emailText += `   ⚠️ DÉPASSEMENT: ${overageHours.toFixed(1)}h\n`;
+      } else {
+        emailText += `   ⚠️ CONTRAT PLEIN (100%)\n`;
+      }
+      
+      emailText += `   Devis de renouvellement associé: ${hasRenewalQuote}\n`;
+      emailText += `\n${'-'.repeat(80)}\n\n`;
+    });
+
+    // Send email
+    const transporter = nodemailer.createTransport({
+      host: notificationSettings.smtp_host,
+      port: notificationSettings.smtp_port,
+      secure: notificationSettings.smtp_secure === 1,
+      auth: {
+        user: notificationSettings.smtp_user,
+        pass: notificationSettings.smtp_password,
+      },
+    });
+
+    await transporter.sendMail({
+      from: notificationSettings.smtp_from,
+      to: notificationSettings.email_to,
+      subject: `📊 Alerte hebdomadaire - ${rows.length} contrat(s) à 100% ou en dépassement`,
+      text: emailText,
+    });
+
+    const successMsg = `Alerte envoyée avec succès: ${rows.length} contrat(s) concerné(s)`;
+    logCronJob('contract_alert', successMsg, 'success', JSON.stringify({ count: rows.length }));
+  } catch (error) {
+    console.error('Error in weekly contract alert:', error);
+    logCronJob('contract_alert', 'Erreur lors de l\'envoi de l\'alerte', 'error', error.message);
   }
 });
 
@@ -2681,6 +2884,8 @@ app.post('/api/contracts/:id/send-pdf', async (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`API running on http://localhost:${PORT}`);
-  console.log('Daily Excel backup scheduled at 18:00 (0 18 * * *)');
-  console.log('Daily ARX sync scheduled at 8:30 (30 8 * * *)');
+  console.log('Scheduled tasks:');
+  console.log('- Weekly contract alert: Monday at 9:00 AM (0 9 * * 1)');
+  console.log('- Daily Excel backup: 18:00 (0 18 * * *)');
+  console.log('- Daily ARX sync: 8:30 AM (30 8 * * *)');
 });
