@@ -3,6 +3,7 @@ import { Contract } from "@/types/contract";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Clock, AlertCircle, CheckCircle, Archive, ArchiveRestore, Pencil } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useContracts } from "@/hooks/useContracts";
@@ -47,6 +48,21 @@ export const ContractCard = ({ contract, isArchived = false }: ContractCardProps
     return "text-success";
   };
 
+  const getStatusBadge = () => {
+    if (percentage > 100) {
+      return { label: "Dépassement", variant: "destructive" as const };
+    }
+    if (percentage >= 90) {
+      return { label: "Proche expiration", variant: "default" as const, className: "bg-warning text-warning-foreground" };
+    }
+    if (percentage >= 70) {
+      return { label: "Attention", variant: "default" as const, className: "bg-orange-500 text-white" };
+    }
+    return { label: "Bon état", variant: "default" as const, className: "bg-success text-success-foreground" };
+  };
+
+  const statusBadge = getStatusBadge();
+
   return (
     <Card 
       className="p-4 hover:shadow-lg transition-all cursor-pointer border-2 border-border/60 hover:border-primary/30"
@@ -67,9 +83,14 @@ export const ContractCard = ({ contract, isArchived = false }: ContractCardProps
               <Pencil className="h-3 w-3" />
             </Button>
           </div>
-          <p className="text-xs text-muted-foreground">
-            {contract.contractNumber ? `Contrat #${contract.contractNumber}` : `Contrat #${contract.id}`}
-          </p>
+          <div className="flex items-center gap-2">
+            <p className="text-xs text-muted-foreground">
+              {contract.contractNumber ? `Contrat #${contract.contractNumber}` : `Contrat #${contract.id}`}
+            </p>
+            <Badge variant={statusBadge.variant} className={statusBadge.className}>
+              {statusBadge.label}
+            </Badge>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           {getStatusIcon()}
