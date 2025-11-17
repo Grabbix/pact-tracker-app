@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { ContractCard } from "@/components/ContractCard";
+import { ContractListItem } from "@/components/ContractListItem";
 import { AddContractDialog } from "@/components/AddContractDialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, FileText, Archive, Download, ArrowLeft, CheckCircle, TrendingUp, FileSpreadsheet, AlertTriangle, ArrowUpDown } from "lucide-react";
+import { Search, FileText, Archive, Download, ArrowLeft, CheckCircle, TrendingUp, FileSpreadsheet, AlertTriangle, ArrowUpDown, LayoutGrid, List } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,6 +24,7 @@ const Contracts = () => {
   const [filterNearExpiry, setFilterNearExpiry] = useState(false);
   const [filterOverage, setFilterOverage] = useState(false);
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const navigate = useNavigate();
 
   // Filter by contract type
@@ -195,6 +197,24 @@ const Contracts = () => {
             <ArrowUpDown className="mr-2 h-4 w-4" />
             {sortOrder === "desc" ? "Plus pleins d'abord" : "Plus vides d'abord"}
           </Button>
+          
+          <Button
+            variant={viewMode === "grid" ? "default" : "outline"}
+            onClick={() => setViewMode(viewMode === "grid" ? "list" : "grid")}
+            className="whitespace-nowrap"
+          >
+            {viewMode === "grid" ? (
+              <>
+                <List className="mr-2 h-4 w-4" />
+                Mode liste
+              </>
+            ) : (
+              <>
+                <LayoutGrid className="mr-2 h-4 w-4" />
+                Mode grille
+              </>
+            )}
+          </Button>
         </div>
 
         {/* Stats */}
@@ -257,11 +277,19 @@ const Contracts = () => {
               </div>
             ) : (
               <>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
-                  {filteredSignedContracts.map((contract) => (
-                    <ContractCard key={contract.id} contract={contract} />
-                  ))}
-                </div>
+                {viewMode === "grid" ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
+                    {filteredSignedContracts.map((contract) => (
+                      <ContractCard key={contract.id} contract={contract} />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="space-y-2 mt-6">
+                    {filteredSignedContracts.map((contract) => (
+                      <ContractListItem key={contract.id} contract={contract} />
+                    ))}
+                  </div>
+                )}
 
                 {filteredSignedContracts.length === 0 && !loading && (
                   <div className="text-center py-12">
@@ -283,21 +311,42 @@ const Contracts = () => {
               </div>
             ) : (
               <>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
-                  {filteredQuoteContracts.map((quote) => (
-                    <div key={quote.id} className="relative">
-                      <ContractCard contract={quote} />
-                      <Button
-                        onClick={() => handleSignQuote(quote.id)}
-                        className="absolute top-4 right-4 gap-2"
-                        size="sm"
-                      >
-                        <CheckCircle className="h-4 w-4" />
-                        Signer
-                      </Button>
-                    </div>
-                  ))}
-                </div>
+                {viewMode === "grid" ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
+                    {filteredQuoteContracts.map((quote) => (
+                      <div key={quote.id} className="relative">
+                        <ContractCard contract={quote} />
+                        <Button
+                          onClick={() => handleSignQuote(quote.id)}
+                          className="absolute top-4 right-4 gap-2"
+                          size="sm"
+                        >
+                          <CheckCircle className="h-4 w-4" />
+                          Signer
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="space-y-2 mt-6">
+                    {filteredQuoteContracts.map((quote) => (
+                      <div key={quote.id} className="relative">
+                        <ContractListItem contract={quote} />
+                        <Button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleSignQuote(quote.id);
+                          }}
+                          className="absolute top-1/2 -translate-y-1/2 right-4 gap-2"
+                          size="sm"
+                        >
+                          <CheckCircle className="h-4 w-4" />
+                          Signer
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
 
                 {filteredQuoteContracts.length === 0 && !loading && (
                   <div className="text-center py-12">
