@@ -1,5 +1,6 @@
 import { Contract } from "@/types/contract";
 import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
 
 interface ContractListItemProps {
@@ -17,15 +18,35 @@ export const ContractListItem = ({ contract }: ContractListItemProps) => {
     return "text-success";
   };
 
+  const getStatusBadge = () => {
+    if (percentage > 100) {
+      return { label: "Dépassement", variant: "destructive" as const };
+    }
+    if (percentage >= 90) {
+      return { label: "Proche expiration", variant: "default" as const, className: "bg-warning text-warning-foreground" };
+    }
+    if (percentage >= 70) {
+      return { label: "Attention", variant: "default" as const, className: "bg-orange-500 text-white" };
+    }
+    return { label: "Bon état", variant: "default" as const, className: "bg-success text-success-foreground" };
+  };
+
+  const statusBadge = getStatusBadge();
+
   return (
     <div 
       className="flex items-center gap-4 p-3 border border-border/60 rounded-lg hover:border-primary/30 hover:shadow-md transition-all cursor-pointer bg-card"
       onClick={() => navigate(`/contract/${contract.contractNumber ? String(contract.contractNumber) : contract.id}`)}
     >
       <div className="flex-1 min-w-0">
-        <h3 className="text-sm font-semibold text-card-foreground truncate">
-          {contract.clientName}
-        </h3>
+        <div className="flex items-center gap-2 mb-1">
+          <h3 className="text-sm font-semibold text-card-foreground truncate">
+            {contract.clientName}
+          </h3>
+          <Badge variant={statusBadge.variant} className={statusBadge.className}>
+            {statusBadge.label}
+          </Badge>
+        </div>
         <p className="text-xs text-muted-foreground">
           {contract.contractNumber ? `#${contract.contractNumber}` : `#${contract.id}`}
         </p>
