@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 interface CronLog {
   id: string;
   timestamp: string;
-  type: 'arx_sync' | 'excel_backup';
+  type: 'arx_sync' | 'excel_backup' | 'contract_alert';
   message: string;
   status: 'success' | 'error' | 'info';
   details?: string;
@@ -21,6 +21,7 @@ const Admin = () => {
   const navigate = useNavigate();
   const [isTriggering, setIsTriggering] = useState(false);
   const [isTriggeringBackup, setIsTriggeringBackup] = useState(false);
+  const [isTriggeringAlert, setIsTriggeringAlert] = useState(false);
   const [cronLogs, setCronLogs] = useState<CronLog[]>([]);
   const [isLoadingLogs, setIsLoadingLogs] = useState(false);
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
@@ -91,6 +92,28 @@ const Admin = () => {
     }
   };
 
+  const handleTriggerContractAlert = async () => {
+    setIsTriggeringAlert(true);
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/trigger-contract-alert`, {
+        method: 'POST',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to trigger contract alert');
+      }
+
+      const result = await response.json();
+      toast.success(result.message || 'Alerte des contrats déclenchée avec succès');
+      setTimeout(() => fetchCronLogs(), 1000);
+    } catch (error) {
+      console.error('Error triggering contract alert:', error);
+      toast.error('Erreur lors du déclenchement de l\'alerte des contrats');
+    } finally {
+      setIsTriggeringAlert(false);
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'success':
@@ -110,6 +133,8 @@ const Admin = () => {
         return 'Sync ARX';
       case 'excel_backup':
         return 'Backup Excel';
+      case 'contract_alert':
+        return 'Alerte Contrats';
       default:
         return type;
     }
@@ -201,6 +226,36 @@ const Admin = () => {
                     <>
                       <Database className="mr-2 h-4 w-4" />
                       Lancer le backup Excel
+                    </>
+                  )}
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Alerte Hebdomadaire Contrats</CardTitle>
+                <CardDescription>
+                  Envoie un mail avec tous les contrats à 100% ou en dépassement
+                  <br />
+                  <span className="text-xs text-muted-foreground">Programmé: chaque lundi à 9h00</span>
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button
+                  onClick={handleTriggerContractAlert}
+                  disabled={isTriggeringAlert}
+                  className="w-full"
+                >
+                  {isTriggeringAlert ? (
+                    <>
+                      <Database className="mr-2 h-4 w-4 animate-spin" />
+                      Envoi en cours...
+                    </>
+                  ) : (
+                    <>
+                      <Database className="mr-2 h-4 w-4" />
+                      Envoyer Alerte Maintenant
                     </>
                   )}
                 </Button>
