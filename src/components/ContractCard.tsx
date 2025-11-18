@@ -49,7 +49,7 @@ export const ContractCard = ({ contract, isArchived = false }: ContractCardProps
   };
 
   const getStatusBadge = () => {
-    if (percentage > 100) {
+    if (percentage >= 100) {
       return { label: "Dépassement", variant: "destructive" as const };
     }
     if (percentage >= 90) {

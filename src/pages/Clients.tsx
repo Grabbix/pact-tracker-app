@@ -105,7 +105,8 @@ const Clients = () => {
     return contracts.find(
       contract => contract.clientName === clientName && 
       contract.status === "active" && 
-      !contract.isArchived
+      !contract.isArchived &&
+      contract.contractType === "signed"
     );
   };
 

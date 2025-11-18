@@ -19,7 +19,7 @@ export const ContractListItem = ({ contract }: ContractListItemProps) => {
   };
 
   const getStatusBadge = () => {
-    if (percentage > 100) {
+    if (percentage >= 100) {
       return { label: "Dépassement", variant: "destructive" as const };
     }
     if (percentage >= 90) {
