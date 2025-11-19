@@ -135,14 +135,6 @@ const Contracts = () => {
             <div className="flex gap-2">
               <Button
                 variant="outline"
-                onClick={() => navigate("/dashboard")}
-                className="gap-2"
-              >
-                <TrendingUp className="h-4 w-4" />
-                Dashboard
-              </Button>
-              <Button
-                variant="outline"
                 onClick={() => navigate("/archives")}
                 className="gap-2"
               >

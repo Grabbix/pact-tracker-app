@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, TrendingUp, FileText, AlertCircle, Clock, DollarSign } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { ArrowLeft, TrendingUp, FileText, AlertCircle, Clock, DollarSign, Target } from "lucide-react";
 import { api } from "@/lib/api";
 import { Contract } from "@/types/contract";
 import { Client } from "@/types/client";
@@ -20,7 +22,7 @@ import {
   LineChart,
   Line
 } from "recharts";
-import { format, subMonths, startOfMonth, endOfMonth, eachMonthOfInterval } from "date-fns";
+import { format, subMonths, startOfMonth, endOfMonth, eachMonthOfInterval, startOfISOWeek, endOfISOWeek, isWithinInterval, parseISO, differenceInWeeks } from "date-fns";
 import { fr } from "date-fns/locale";
 
 const Dashboard = () => {
@@ -76,6 +78,40 @@ const Dashboard = () => {
     }
     return acc;
   }, 0);
+
+  // Weekly stats: hours for current week (Monday-Friday)
+  const now = new Date();
+  const weekStart = startOfISOWeek(now); // ISO week starts on Monday
+  const weekEnd = endOfISOWeek(now);
+  
+  // Get all interventions from all contracts for the current week
+  const currentWeekHours = allContracts.reduce((total, contract) => {
+    const weekInterventions = contract.interventions.filter(intervention => {
+      const interventionDate = parseISO(intervention.date);
+      return isWithinInterval(interventionDate, { start: weekStart, end: weekEnd });
+    });
+    return total + weekInterventions.reduce((sum, i) => sum + i.hoursUsed, 0);
+  }, 0);
+
+  // Calculate average hours per week across all time
+  const allInterventions = allContracts.flatMap(c => c.interventions);
+  
+  let averageWeeklyHours = 0;
+  if (allInterventions.length > 0) {
+    const sortedDates = allInterventions
+      .map(i => parseISO(i.date))
+      .sort((a, b) => a.getTime() - b.getTime());
+    
+    if (sortedDates.length > 0) {
+      const firstDate = sortedDates[0];
+      const totalWeeks = Math.max(1, differenceInWeeks(now, firstDate) + 1);
+      const totalHoursAllTime = allInterventions.reduce((sum, i) => sum + i.hoursUsed, 0);
+      averageWeeklyHours = totalHoursAllTime / totalWeeks;
+    }
+  }
+
+  const weeklyGoal = 70; // 2 technicians × 35h
+  const weeklyProgress = (currentWeekHours / weeklyGoal) * 100;
 
   // Top 5 clients par heures utilisées (ALL TIME - tous contrats)
   const clientsWithHours = clients.map(client => {
@@ -152,14 +188,65 @@ const Dashboard = () => {
       <div className="container mx-auto p-6 max-w-7xl">
         {/* Header */}
         <div className="flex items-center gap-4 mb-8">
-          <Button variant="ghost" onClick={() => navigate("/contracts")}>
+          <Button variant="ghost" size="icon" onClick={() => navigate("/")}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div className="flex items-center gap-3">
-            <TrendingUp className="h-8 w-8 text-primary" />
-            <h1 className="text-3xl font-bold">Dashboard</h1>
+            <div className="p-2 bg-primary/10 rounded-lg">
+              <TrendingUp className="h-6 w-6 text-primary" />
+            </div>
+            <h1 className="text-3xl font-bold tracking-tight">Tableau de bord</h1>
           </div>
         </div>
+
+        {/* Weekly Hours Card - Full Width */}
+        <Card className="mb-8 border-primary/20 shadow-lg">
+          <CardHeader>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-primary/10 rounded-lg">
+                <Target className="h-5 w-5 text-primary" />
+              </div>
+              <CardTitle className="text-xl">Heures de la semaine</CardTitle>
+            </div>
+            <CardDescription>Objectif hebdomadaire : {weeklyGoal}h (2 techniciens × 35h)</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium">Semaine en cours (Lundi - Vendredi)</span>
+                <Badge variant={weeklyProgress >= 100 ? "default" : weeklyProgress >= 80 ? "secondary" : "outline"}>
+                  {currentWeekHours.toFixed(1)}h / {weeklyGoal}h
+                </Badge>
+              </div>
+              <Progress value={Math.min(weeklyProgress, 100)} className="h-3" />
+              <p className="text-xs text-muted-foreground">
+                {weeklyProgress >= 100 
+                  ? `🎯 Objectif atteint ! (+${(currentWeekHours - weeklyGoal).toFixed(1)}h)`
+                  : `${(weeklyGoal - currentWeekHours).toFixed(1)}h restantes pour atteindre l'objectif`
+                }
+              </p>
+            </div>
+            
+            <div className="pt-4 border-t">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">Moyenne globale</p>
+                  <p className="text-xs text-muted-foreground">Toutes les semaines depuis le début</p>
+                </div>
+                <div className="text-right">
+                  <div className="text-2xl font-bold">{averageWeeklyHours.toFixed(1)}h</div>
+                  <p className="text-xs text-muted-foreground">
+                    {averageWeeklyHours >= weeklyGoal ? (
+                      <span className="text-green-600">✓ Au-dessus de l'objectif</span>
+                    ) : (
+                      <span className="text-amber-600">↓ En dessous de l'objectif</span>
+                    )}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
