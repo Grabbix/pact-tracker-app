@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ArrowLeft, TrendingUp, FileText, AlertCircle, Clock, DollarSign, Target } from "lucide-react";
 import { api } from "@/lib/api";
 import { Contract } from "@/types/contract";
@@ -20,7 +22,7 @@ import {
   LineChart,
   Line
 } from "recharts";
-import { format, subMonths, startOfMonth, endOfMonth, eachMonthOfInterval, startOfISOWeek, endOfISOWeek, isWithinInterval, parseISO, differenceInWeeks } from "date-fns";
+import { format, subMonths, startOfMonth, endOfMonth, eachMonthOfInterval, startOfISOWeek, endOfISOWeek, isWithinInterval, parseISO, differenceInWeeks, eachWeekOfInterval, subWeeks } from "date-fns";
 import { fr } from "date-fns/locale";
 
 const Dashboard = () => {
@@ -29,6 +31,7 @@ const Dashboard = () => {
   const [allContracts, setAllContracts] = useState<Contract[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
+  const [weeklyDialogOpen, setWeeklyDialogOpen] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -170,6 +173,30 @@ const Dashboard = () => {
     };
   });
 
+  // Calculate weekly hours for last 12 weeks
+  const last12Weeks = eachWeekOfInterval({
+    start: subWeeks(new Date(), 11),
+    end: new Date()
+  }, { weekStartsOn: 1 }); // Start weeks on Monday
+
+  const weeklyHoursData = last12Weeks.map(weekStart => {
+    const weekEnd = endOfISOWeek(weekStart);
+    
+    const hoursInWeek = allContracts.reduce((total, contract) => {
+      const weekInterventions = contract.interventions.filter(intervention => {
+        const interventionDate = parseISO(intervention.date);
+        return isWithinInterval(interventionDate, { start: weekStart, end: weekEnd });
+      });
+      return total + weekInterventions.reduce((sum, i) => sum + i.hoursUsed, 0);
+    }, 0);
+
+    return {
+      weekStart: format(weekStart, "dd/MM/yyyy", { locale: fr }),
+      weekEnd: format(weekEnd, "dd/MM/yyyy", { locale: fr }),
+      hours: hoursInWeek
+    };
+  }).reverse(); // Most recent first
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -196,7 +223,10 @@ const Dashboard = () => {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 mb-8">
-          <Card>
+          <Card 
+            className="cursor-pointer hover:bg-accent/50 transition-colors"
+            onClick={() => setWeeklyDialogOpen(true)}
+          >
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">Heures Semaine</CardTitle>
               <Target className="h-4 w-4 text-muted-foreground" />
@@ -356,6 +386,35 @@ const Dashboard = () => {
             </CardContent>
           </Card>
         </div>
+
+        {/* Weekly Hours Dialog */}
+        <Dialog open={weeklyDialogOpen} onOpenChange={setWeeklyDialogOpen}>
+          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Heures par semaine (12 dernières semaines)</DialogTitle>
+            </DialogHeader>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Semaine</TableHead>
+                  <TableHead className="text-right">Heures</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {weeklyHoursData.map((week, index) => (
+                  <TableRow key={index}>
+                    <TableCell className="font-medium">
+                      {week.weekStart} - {week.weekEnd}
+                    </TableCell>
+                    <TableCell className="text-right font-bold">
+                      {week.hours.toFixed(1)}h
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
