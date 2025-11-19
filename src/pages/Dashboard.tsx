@@ -1,9 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { ArrowLeft, TrendingUp, FileText, AlertCircle, Clock, DollarSign, Target } from "lucide-react";
 import { api } from "@/lib/api";
 import { Contract } from "@/types/contract";
@@ -110,9 +108,6 @@ const Dashboard = () => {
     }
   }
 
-  const weeklyGoal = 70; // 2 technicians × 35h
-  const weeklyProgress = (currentWeekHours / weeklyGoal) * 100;
-
   // Top 5 clients par heures utilisées (ALL TIME - tous contrats)
   const clientsWithHours = clients.map(client => {
     const clientContracts = allContracts.filter(c => c.clientId === client.id);
@@ -199,57 +194,19 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Weekly Hours Card - Full Width */}
-        <Card className="mb-8 border-primary/20 shadow-lg">
-          <CardHeader>
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-primary/10 rounded-lg">
-                <Target className="h-5 w-5 text-primary" />
-              </div>
-              <CardTitle className="text-xl">Heures de la semaine</CardTitle>
-            </div>
-            <CardDescription>Objectif hebdomadaire : {weeklyGoal}h (2 techniciens × 35h)</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium">Semaine en cours (Lundi - Vendredi)</span>
-                <Badge variant={weeklyProgress >= 100 ? "default" : weeklyProgress >= 80 ? "secondary" : "outline"}>
-                  {currentWeekHours.toFixed(1)}h / {weeklyGoal}h
-                </Badge>
-              </div>
-              <Progress value={Math.min(weeklyProgress, 100)} className="h-3" />
-              <p className="text-xs text-muted-foreground">
-                {weeklyProgress >= 100 
-                  ? `🎯 Objectif atteint ! (+${(currentWeekHours - weeklyGoal).toFixed(1)}h)`
-                  : `${(weeklyGoal - currentWeekHours).toFixed(1)}h restantes pour atteindre l'objectif`
-                }
-              </p>
-            </div>
-            
-            <div className="pt-4 border-t">
-              <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <p className="text-sm font-medium">Moyenne globale</p>
-                  <p className="text-xs text-muted-foreground">Toutes les semaines depuis le début</p>
-                </div>
-                <div className="text-right">
-                  <div className="text-2xl font-bold">{averageWeeklyHours.toFixed(1)}h</div>
-                  <p className="text-xs text-muted-foreground">
-                    {averageWeeklyHours >= weeklyGoal ? (
-                      <span className="text-green-600">✓ Au-dessus de l'objectif</span>
-                    ) : (
-                      <span className="text-amber-600">↓ En dessous de l'objectif</span>
-                    )}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 mb-8">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Heures Semaine</CardTitle>
+              <Target className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{currentWeekHours.toFixed(1)}h</div>
+              <p className="text-xs text-muted-foreground">Moy: {averageWeeklyHours.toFixed(1)}h/sem</p>
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">Contrats Actifs</CardTitle>
