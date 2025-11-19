@@ -13,8 +13,17 @@ const Home = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background/80 to-muted/50 flex items-center justify-center p-8">
-      {/* Settings Menu - Top Right */}
-      <div className="absolute top-6 right-6">
+      {/* Top Right Buttons */}
+      <div className="absolute top-6 right-6 flex gap-2">
+        <Button 
+          variant="outline" 
+          onClick={() => navigate("/dashboard")}
+          className="gap-2 shadow-lg"
+        >
+          <TrendingUp className="h-4 w-4" />
+          Dashboard
+        </Button>
+        
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" size="icon" className="rounded-full shadow-lg">
@@ -44,18 +53,7 @@ const Home = () => {
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-          <Button
-            onClick={() => navigate("/dashboard")}
-            className="h-56 flex flex-col gap-6 text-xl hover:scale-[1.02] transition-all shadow-lg hover:shadow-2xl bg-card border-2 hover:border-primary/50"
-            variant="outline"
-          >
-            <div className="p-6 rounded-full bg-primary/10">
-              <TrendingUp className="w-16 h-16 text-primary" />
-            </div>
-            <span className="font-semibold">Dashboard</span>
-          </Button>
-
+        <div className="grid md:grid-cols-2 gap-8">
           <Button
             onClick={() => navigate("/contracts")}
             className="h-56 flex flex-col gap-6 text-xl hover:scale-[1.02] transition-all shadow-lg hover:shadow-2xl bg-card border-2 hover:border-primary/50"
