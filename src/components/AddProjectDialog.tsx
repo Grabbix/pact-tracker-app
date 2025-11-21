@@ -481,14 +481,12 @@ export const AddProjectDialog = ({ onAdd, clients, onClientCreated }: AddProject
         </DialogHeader>
         <form onSubmit={handleSubmit}>
           <Tabs defaultValue="general" className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="general">Général</TabsTrigger>
               <TabsTrigger value="tasks">Tâches</TabsTrigger>
-              <TabsTrigger value="specific">Spécifique</TabsTrigger>
-              <TabsTrigger value="custom">Champs perso</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="general" className="space-y-4">
+            <TabsContent value="general" className="space-y-4 max-h-[60vh] overflow-y-auto">
               <div className="space-y-2">
                 <Label>Client *</Label>
                 <Popover open={comboOpen} onOpenChange={setComboOpen}>
@@ -608,9 +606,64 @@ export const AddProjectDialog = ({ onAdd, clients, onClientCreated }: AddProject
                   rows={4}
                 />
               </div>
+
+              {/* Type-specific fields */}
+              {projectType !== 'autre' && (
+                <div className="pt-4 border-t">
+                  {renderTypeSpecificFields()}
+                </div>
+              )}
+
+              {/* Custom fields */}
+              <div className="pt-4 border-t space-y-4">
+                <div className="space-y-2">
+                  <Label>Champs personnalisés</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      value={newFieldLabel}
+                      onChange={(e) => setNewFieldLabel(e.target.value)}
+                      placeholder="Nom du champ"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          addCustomField();
+                        }
+                      }}
+                    />
+                    <Button type="button" onClick={addCustomField} size="sm">
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+
+                {customFields.length > 0 && (
+                  <div className="space-y-3">
+                    {customFields.map((field) => (
+                      <div key={field.id} className="space-y-2 p-3 border rounded-md bg-muted/50">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-sm font-medium">{field.label}</Label>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeCustomField(field.id)}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        <Input
+                          value={field.value}
+                          onChange={(e) => updateCustomFieldValue(field.id, e.target.value)}
+                          placeholder="Valeur"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </TabsContent>
 
-            <TabsContent value="tasks" className="space-y-4">
+            <TabsContent value="tasks" className="space-y-4 max-h-[60vh] overflow-y-auto">
               <div className="space-y-2">
                 <Label>Ajouter des tâches</Label>
                 <div className="flex gap-2">
@@ -649,64 +702,6 @@ export const AddProjectDialog = ({ onAdd, clients, onClientCreated }: AddProject
                         >
                           <X className="h-4 w-4" />
                         </Button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </TabsContent>
-
-            <TabsContent value="specific" className="space-y-4">
-              {renderTypeSpecificFields() || (
-                <div className="text-center text-muted-foreground py-8">
-                  Aucun champ spécifique pour ce type de projet
-                </div>
-              )}
-            </TabsContent>
-
-            <TabsContent value="custom" className="space-y-4">
-              <div className="space-y-2">
-                <Label>Ajouter un champ personnalisé</Label>
-                <div className="flex gap-2">
-                  <Input
-                    value={newFieldLabel}
-                    onChange={(e) => setNewFieldLabel(e.target.value)}
-                    placeholder="Nom du champ"
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        addCustomField();
-                      }
-                    }}
-                  />
-                  <Button type="button" onClick={addCustomField} size="sm">
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-
-              {customFields.length > 0 && (
-                <div className="space-y-2">
-                  <Label>Champs personnalisés ({customFields.length})</Label>
-                  <div className="space-y-3">
-                    {customFields.map((field) => (
-                      <div key={field.id} className="space-y-2 p-3 border rounded-md bg-muted/50">
-                        <div className="flex items-center justify-between">
-                          <Label className="text-sm font-medium">{field.label}</Label>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removeCustomField(field.id)}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-                        <Input
-                          value={field.value}
-                          onChange={(e) => updateCustomFieldValue(field.id, e.target.value)}
-                          placeholder="Valeur"
-                        />
                       </div>
                     ))}
                   </div>
