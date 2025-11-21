@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { FileText, Settings, Building2, Receipt, TrendingUp, Bell, Shield } from "lucide-react";
+import { FileText, Settings, Building2, Receipt, TrendingUp, Bell, Shield, FolderKanban } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -88,14 +88,14 @@ const Home = () => {
           </Button>
 
           <Button
-            onClick={() => navigate("/management")}
+            onClick={() => navigate("/projects")}
             className="h-56 flex flex-col gap-6 text-xl hover:scale-[1.02] transition-all shadow-lg hover:shadow-2xl bg-card border-2 hover:border-primary/50"
             variant="outline"
           >
             <div className="p-6 rounded-full bg-primary/10">
-              <Settings className="w-16 h-16 text-primary" />
+              <FolderKanban className="w-16 h-16 text-primary" />
             </div>
-            <span className="font-semibold">Gestion</span>
+            <span className="font-semibold">Projets</span>
           </Button>
         </div>
       </div>
