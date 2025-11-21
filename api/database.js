@@ -140,6 +140,32 @@ db.exec(`
   );
 
   CREATE INDEX IF NOT EXISTS idx_notification_logs_sent ON notification_logs(sent_at DESC);
+
+  CREATE TABLE IF NOT EXISTS projects (
+    id TEXT PRIMARY KEY,
+    client_id TEXT NOT NULL,
+    project_type TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'à organiser',
+    title TEXT NOT NULL,
+    description TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now')),
+    is_archived INTEGER DEFAULT 0,
+    archived_at TEXT,
+    FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS project_notes (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL,
+    note TEXT NOT NULL,
+    created_at TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_projects_client ON projects(client_id);
+  CREATE INDEX IF NOT EXISTS idx_projects_created ON projects(created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_project_notes_project ON project_notes(project_id, created_at DESC);
 `);
 
 // Add renewal_quote_id and linked_contract_id columns if they don't exist

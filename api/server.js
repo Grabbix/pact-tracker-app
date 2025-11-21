@@ -2882,6 +2882,296 @@ app.post('/api/contracts/:id/send-pdf', async (req, res) => {
   }
 });
 
+// Routes pour les projets
+app.get('/api/projects', (req, res) => {
+  try {
+    const includeArchived = req.query.includeArchived === 'true';
+    
+    let query = `
+      SELECT p.*, c.name as client_name,
+        GROUP_CONCAT(
+          json_object(
+            'id', n.id,
+            'note', n.note,
+            'created_at', n.created_at
+          )
+        ) as notes_json
+      FROM projects p
+      LEFT JOIN clients c ON p.client_id = c.id
+      LEFT JOIN project_notes n ON p.id = n.project_id
+    `;
+
+    if (!includeArchived) {
+      query += " WHERE p.is_archived = 0";
+    }
+
+    query += " GROUP BY p.id ORDER BY p.created_at DESC";
+
+    const rows = db.prepare(query).all();
+
+    const projects = rows.map(row => {
+      let notes = [];
+      
+      if (row.notes_json) {
+        try {
+          const parsed = JSON.parse(`[${row.notes_json}]`);
+          notes = parsed
+            .filter(n => n.id !== null)
+            .map(n => ({
+              id: n.id,
+              note: n.note,
+              createdAt: n.created_at,
+            }));
+        } catch (e) {
+          console.error("Error parsing project notes:", e);
+        }
+      }
+
+      return {
+        id: row.id,
+        clientId: row.client_id,
+        clientName: row.client_name,
+        projectType: row.project_type,
+        status: row.status,
+        title: row.title,
+        description: row.description,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+        isArchived: row.is_archived === 1,
+        archivedAt: row.archived_at,
+        notes,
+      };
+    });
+
+    res.json(projects);
+  } catch (error) {
+    console.error('Error fetching projects:', error);
+    res.status(500).json({ error: 'Erreur lors du chargement des projets' });
+  }
+});
+
+app.get('/api/projects/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const row = db.prepare(`
+      SELECT p.*, c.name as client_name,
+        GROUP_CONCAT(
+          json_object(
+            'id', n.id,
+            'note', n.note,
+            'created_at', n.created_at
+          )
+        ) as notes_json
+      FROM projects p
+      LEFT JOIN clients c ON p.client_id = c.id
+      LEFT JOIN project_notes n ON p.id = n.project_id
+      WHERE p.id = ?
+      GROUP BY p.id
+    `).get(id);
+
+    if (!row) {
+      return res.status(404).json({ error: 'Projet non trouvé' });
+    }
+
+    let notes = [];
+    
+    if (row.notes_json) {
+      try {
+        const parsed = JSON.parse(`[${row.notes_json}]`);
+        notes = parsed
+          .filter(n => n.id !== null)
+          .map(n => ({
+            id: n.id,
+            note: n.note,
+            createdAt: n.created_at,
+          }));
+      } catch (e) {
+        console.error("Error parsing project notes:", e);
+      }
+    }
+
+    const project = {
+      id: row.id,
+      clientId: row.client_id,
+      clientName: row.client_name,
+      projectType: row.project_type,
+      status: row.status,
+      title: row.title,
+      description: row.description,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      isArchived: row.is_archived === 1,
+      archivedAt: row.archived_at,
+      notes,
+    };
+
+    res.json(project);
+  } catch (error) {
+    console.error('Error fetching project:', error);
+    res.status(500).json({ error: 'Erreur lors du chargement du projet' });
+  }
+});
+
+app.post('/api/projects', (req, res) => {
+  try {
+    const { clientId, projectType, status, title, description } = req.body;
+    const id = randomUUID();
+    const now = new Date().toISOString();
+
+    db.prepare(`
+      INSERT INTO projects (id, client_id, project_type, status, title, description, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(id, clientId, projectType, status || 'à organiser', title, description || null, now, now);
+
+    res.json({ id, clientId, projectType, status: status || 'à organiser', title, description, createdAt: now });
+  } catch (error) {
+    console.error('Error creating project:', error);
+    res.status(500).json({ error: 'Erreur lors de la création du projet' });
+  }
+});
+
+app.patch('/api/projects/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { projectType, status, title, description } = req.body;
+    const now = new Date().toISOString();
+
+    const updates = [];
+    const values = [];
+
+    if (projectType !== undefined) {
+      updates.push('project_type = ?');
+      values.push(projectType);
+    }
+    if (status !== undefined) {
+      updates.push('status = ?');
+      values.push(status);
+    }
+    if (title !== undefined) {
+      updates.push('title = ?');
+      values.push(title);
+    }
+    if (description !== undefined) {
+      updates.push('description = ?');
+      values.push(description);
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({ error: 'Aucune modification fournie' });
+    }
+
+    updates.push('updated_at = ?');
+    values.push(now);
+    values.push(id);
+
+    db.prepare(`
+      UPDATE projects
+      SET ${updates.join(', ')}
+      WHERE id = ?
+    `).run(...values);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error updating project:', error);
+    res.status(500).json({ error: 'Erreur lors de la mise à jour du projet' });
+  }
+});
+
+app.patch('/api/projects/:id/archive', (req, res) => {
+  try {
+    const { id } = req.params;
+    const now = new Date().toISOString();
+
+    db.prepare(`
+      UPDATE projects
+      SET is_archived = 1, archived_at = ?
+      WHERE id = ?
+    `).run(now, id);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error archiving project:', error);
+    res.status(500).json({ error: 'Erreur lors de l\'archivage du projet' });
+  }
+});
+
+app.patch('/api/projects/:id/unarchive', (req, res) => {
+  try {
+    const { id } = req.params;
+
+    db.prepare(`
+      UPDATE projects
+      SET is_archived = 0, archived_at = NULL
+      WHERE id = ?
+    `).run(id);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error unarchiving project:', error);
+    res.status(500).json({ error: 'Erreur lors de la désarchivage du projet' });
+  }
+});
+
+app.delete('/api/projects/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+
+    db.prepare('DELETE FROM projects WHERE id = ?').run(id);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting project:', error);
+    res.status(500).json({ error: 'Erreur lors de la suppression du projet' });
+  }
+});
+
+app.post('/api/projects/:id/notes', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { note } = req.body;
+    const noteId = randomUUID();
+    const now = new Date().toISOString();
+
+    db.prepare(`
+      INSERT INTO project_notes (id, project_id, note, created_at)
+      VALUES (?, ?, ?, ?)
+    `).run(noteId, id, note, now);
+
+    // Update project updated_at
+    db.prepare(`
+      UPDATE projects SET updated_at = ? WHERE id = ?
+    `).run(now, id);
+
+    res.json({ id: noteId, projectId: id, note, createdAt: now });
+  } catch (error) {
+    console.error('Error adding project note:', error);
+    res.status(500).json({ error: 'Erreur lors de l\'ajout de la note' });
+  }
+});
+
+app.delete('/api/project-notes/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Get project_id before deletion to update project timestamp
+    const note = db.prepare('SELECT project_id FROM project_notes WHERE id = ?').get(id);
+    
+    if (note) {
+      db.prepare('DELETE FROM project_notes WHERE id = ?').run(id);
+      
+      // Update project updated_at
+      const now = new Date().toISOString();
+      db.prepare('UPDATE projects SET updated_at = ? WHERE id = ?').run(now, note.project_id);
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting project note:', error);
+    res.status(500).json({ error: 'Erreur lors de la suppression de la note' });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`API running on http://localhost:${PORT}`);
   console.log('Scheduled tasks:');
