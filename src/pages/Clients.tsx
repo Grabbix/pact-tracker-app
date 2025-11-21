@@ -539,9 +539,15 @@ const Clients = () => {
                           <h3 className="font-semibold text-lg">{client.name}</h3>
                           {activeContract ? (
                             <div className="flex items-center gap-2">
-                              <Badge variant="outline" className="bg-green-500/10 text-green-700 border-green-500/20">
-                                Contrat actif
-                              </Badge>
+                              {remainingHours !== null && remainingHours < 0 ? (
+                                <Badge variant="outline" className="bg-orange-500/10 text-orange-700 border-orange-500/20">
+                                  Contrat dépassé
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="bg-green-500/10 text-green-700 border-green-500/20">
+                                  Contrat actif
+                                </Badge>
+                              )}
                               {remainingHours !== null && (
                                 <div className="flex items-center gap-1 text-sm text-muted-foreground">
                                   <Clock className="h-3 w-3" />
