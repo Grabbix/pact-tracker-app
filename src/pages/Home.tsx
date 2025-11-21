@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { FileText, Settings, Building2, Receipt, TrendingUp, Bell, Shield, FolderKanban } from "lucide-react";
+import { FileText, Settings, Building2, Receipt, TrendingUp, Bell, Shield, FolderKanban, Wrench } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,6 +31,10 @@ const Home = () => {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuItem onClick={() => navigate("/config")} className="cursor-pointer">
+              <Wrench className="h-4 w-4 mr-2" />
+              Configuration
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={() => navigate("/admin")} className="cursor-pointer">
               <Shield className="h-4 w-4 mr-2" />
               Administration
