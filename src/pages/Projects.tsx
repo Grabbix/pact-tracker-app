@@ -29,6 +29,7 @@ const Projects = () => {
   const [statusFilter, setStatusFilter] = useState<ProjectStatus | "all">("all");
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
+  const [projectTasks, setProjectTasks] = useState([]);
 
   const {
     projects,
@@ -39,6 +40,10 @@ const Projects = () => {
     unarchiveProject,
     addNote,
     deleteNote,
+    addTask,
+    completeTask,
+    uncompleteTask,
+    deleteTask,
   } = useProjects(showArchived);
 
   useEffect(() => {
@@ -48,8 +53,20 @@ const Projects = () => {
       .catch(console.error);
   }, []);
 
-  const handleProjectClick = (project: Project) => {
+  const loadProjectTasks = async (projectId: string) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/projects/${projectId}/tasks`);
+      if (!response.ok) throw new Error('Failed to fetch tasks');
+      const tasks = await response.json();
+      setProjectTasks(tasks);
+    } catch (error) {
+      console.error('Error loading project tasks:', error);
+    }
+  };
+
+  const handleProjectClick = async (project: Project) => {
     setSelectedProject(project);
+    await loadProjectTasks(project.id);
     setDetailDialogOpen(true);
   };
 
@@ -87,6 +104,35 @@ const Projects = () => {
         setSelectedProject(updatedProject);
       }
     }
+  };
+
+  const handleAddTask = async (taskName: string) => {
+    if (!selectedProject) return;
+    await addTask(selectedProject.id, taskName);
+    await loadProjectTasks(selectedProject.id);
+  };
+
+  const handleCompleteTask = async (taskId: string, details: string) => {
+    if (!selectedProject) return;
+    await completeTask(taskId, details);
+    await loadProjectTasks(selectedProject.id);
+    // Refetch to update notes
+    const updatedProject = projects.find(p => p.id === selectedProject.id);
+    if (updatedProject) {
+      setSelectedProject(updatedProject);
+    }
+  };
+
+  const handleUncompleteTask = async (taskId: string) => {
+    if (!selectedProject) return;
+    await uncompleteTask(taskId);
+    await loadProjectTasks(selectedProject.id);
+  };
+
+  const handleDeleteTask = async (taskId: string) => {
+    if (!selectedProject) return;
+    await deleteTask(taskId);
+    await loadProjectTasks(selectedProject.id);
   };
 
   const handleArchiveToggle = async (projectId: string, isArchived: boolean) => {
@@ -137,7 +183,12 @@ const Projects = () => {
             </Button>
             <h1 className="text-4xl font-bold">Gestion de projets</h1>
           </div>
-          <AddProjectDialog onAdd={addProject} clients={clients} />
+          <AddProjectDialog onAdd={addProject} clients={clients} onClientCreated={() => {
+            fetch(`${API_BASE_URL}/clients`)
+              .then((res) => res.json())
+              .then(setClients)
+              .catch(console.error);
+          }} />
         </div>
 
         {/* Filtres */}
@@ -298,6 +349,11 @@ const Projects = () => {
           onUpdate={handleUpdateProject}
           onAddNote={handleAddNote}
           onDeleteNote={handleDeleteNote}
+          onAddTask={handleAddTask}
+          onCompleteTask={handleCompleteTask}
+          onUncompleteTask={handleUncompleteTask}
+          onDeleteTask={handleDeleteTask}
+          tasks={projectTasks}
         />
       </div>
     </div>

@@ -166,6 +166,78 @@ export const useProjects = (includeArchived: boolean = false) => {
     }
   };
 
+  const addTask = async (projectId: string, taskName: string) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/projects/${projectId}/tasks`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ taskName }),
+      });
+
+      if (!response.ok) throw new Error('Failed to add task');
+      
+      toast.success('Tâche ajoutée');
+      await fetchProjects();
+    } catch (error) {
+      console.error('Error adding task:', error);
+      toast.error('Erreur lors de l\'ajout de la tâche');
+      throw error;
+    }
+  };
+
+  const completeTask = async (taskId: string, completionDetails: string) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/project-tasks/${taskId}/complete`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ completionDetails }),
+      });
+
+      if (!response.ok) throw new Error('Failed to complete task');
+      
+      toast.success('Tâche complétée');
+      await fetchProjects();
+    } catch (error) {
+      console.error('Error completing task:', error);
+      toast.error('Erreur lors de la complétion de la tâche');
+      throw error;
+    }
+  };
+
+  const uncompleteTask = async (taskId: string) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/project-tasks/${taskId}/uncomplete`, {
+        method: 'PATCH',
+      });
+
+      if (!response.ok) throw new Error('Failed to uncomplete task');
+      
+      toast.success('Tâche décochée');
+      await fetchProjects();
+    } catch (error) {
+      console.error('Error uncompleting task:', error);
+      toast.error('Erreur lors de la décomplétion de la tâche');
+      throw error;
+    }
+  };
+
+  const deleteTask = async (taskId: string) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/project-tasks/${taskId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) throw new Error('Failed to delete task');
+      
+      toast.success('Tâche supprimée');
+      await fetchProjects();
+    } catch (error) {
+      console.error('Error deleting task:', error);
+      toast.error('Erreur lors de la suppression de la tâche');
+      throw error;
+    }
+  };
+
   const getProject = (projectId: string) => {
     return projects.find(p => p.id === projectId);
   };
@@ -180,6 +252,10 @@ export const useProjects = (includeArchived: boolean = false) => {
     deleteProject,
     addNote,
     deleteNote,
+    addTask,
+    completeTask,
+    uncompleteTask,
+    deleteTask,
     getProject,
     refetch: fetchProjects,
   };

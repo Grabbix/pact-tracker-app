@@ -163,9 +163,21 @@ db.exec(`
     FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
   );
 
+  CREATE TABLE IF NOT EXISTS project_tasks (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL,
+    task_name TEXT NOT NULL,
+    is_completed INTEGER DEFAULT 0,
+    completed_at TEXT,
+    completion_details TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+  );
+
   CREATE INDEX IF NOT EXISTS idx_projects_client ON projects(client_id);
   CREATE INDEX IF NOT EXISTS idx_projects_created ON projects(created_at DESC);
   CREATE INDEX IF NOT EXISTS idx_project_notes_project ON project_notes(project_id, created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_project_tasks_project ON project_tasks(project_id);
 `);
 
 // Add renewal_quote_id and linked_contract_id columns if they don't exist
