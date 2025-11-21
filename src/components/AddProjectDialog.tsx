@@ -120,6 +120,28 @@ export const AddProjectDialog = ({ onAdd, clients, onClientCreated }: AddProject
     }
   }, [open]);
 
+  // Load template tasks when project type changes
+  useEffect(() => {
+    if (projectType && open) {
+      loadTemplateTasks(projectType);
+    }
+  }, [projectType, open]);
+
+  const loadTemplateTasks = async (type: ProjectType) => {
+    try {
+      const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      const response = await fetch(`${API_BASE_URL}/api/project-templates/${type}`);
+      if (!response.ok) return;
+      
+      const template = await response.json();
+      if (template.defaultTasks && template.defaultTasks.length > 0) {
+        setTasks(template.defaultTasks);
+      }
+    } catch (error) {
+      console.error('Error loading template tasks:', error);
+    }
+  };
+
   const handleCreateClient = async (name: string): Promise<string | null> => {
     try {
       const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';

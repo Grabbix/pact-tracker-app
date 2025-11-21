@@ -16,6 +16,7 @@ import Clients from "./pages/Clients";
 import ClientDetail from "./pages/ClientDetail";
 import Admin from "./pages/Admin";
 import Billing from "./pages/Billing";
+import Config from "./pages/Config";
 import NotFound from "./pages/NotFound";
 
 const Notifications = lazy(() => import("./pages/Notifications"));
@@ -42,6 +43,7 @@ const App = () => (
             <Route path="/clients/:id" element={<ClientDetail />} />
             <Route path="/billing" element={<Billing />} />
             <Route path="/admin" element={<Admin />} />
+            <Route path="/config" element={<Config />} />
             <Route path="/notif" element={<Notifications />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />

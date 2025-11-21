@@ -3382,6 +3382,94 @@ app.delete('/api/project-tasks/:id', (req, res) => {
   }
 });
 
+// Routes pour les templates de projets
+app.get('/api/project-templates', (req, res) => {
+  try {
+    const templates = db.prepare('SELECT * FROM project_templates ORDER BY project_type').all();
+    
+    const formattedTemplates = templates.map(t => ({
+      id: t.id,
+      projectType: t.project_type,
+      defaultTasks: t.default_tasks ? JSON.parse(t.default_tasks) : [],
+      createdAt: t.created_at,
+      updatedAt: t.updated_at,
+    }));
+    
+    res.json(formattedTemplates);
+  } catch (error) {
+    console.error('Error fetching project templates:', error);
+    res.status(500).json({ error: 'Erreur lors du chargement des templates' });
+  }
+});
+
+app.get('/api/project-templates/:projectType', (req, res) => {
+  try {
+    const { projectType } = req.params;
+    const template = db.prepare('SELECT * FROM project_templates WHERE project_type = ?').get(projectType);
+    
+    if (!template) {
+      return res.json({ projectType, defaultTasks: [] });
+    }
+    
+    res.json({
+      id: template.id,
+      projectType: template.project_type,
+      defaultTasks: template.default_tasks ? JSON.parse(template.default_tasks) : [],
+      createdAt: template.created_at,
+      updatedAt: template.updated_at,
+    });
+  } catch (error) {
+    console.error('Error fetching project template:', error);
+    res.status(500).json({ error: 'Erreur lors du chargement du template' });
+  }
+});
+
+app.post('/api/project-templates', (req, res) => {
+  try {
+    const { projectType, defaultTasks } = req.body;
+    const id = randomUUID();
+    const now = new Date().toISOString();
+
+    // Check if template already exists
+    const existing = db.prepare('SELECT id FROM project_templates WHERE project_type = ?').get(projectType);
+    
+    if (existing) {
+      // Update existing
+      db.prepare(`
+        UPDATE project_templates
+        SET default_tasks = ?, updated_at = ?
+        WHERE project_type = ?
+      `).run(JSON.stringify(defaultTasks || []), now, projectType);
+      
+      res.json({ id: existing.id, projectType, defaultTasks, updatedAt: now });
+    } else {
+      // Create new
+      db.prepare(`
+        INSERT INTO project_templates (id, project_type, default_tasks, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?)
+      `).run(id, projectType, JSON.stringify(defaultTasks || []), now, now);
+      
+      res.json({ id, projectType, defaultTasks, createdAt: now });
+    }
+  } catch (error) {
+    console.error('Error saving project template:', error);
+    res.status(500).json({ error: 'Erreur lors de la sauvegarde du template' });
+  }
+});
+
+app.delete('/api/project-templates/:projectType', (req, res) => {
+  try {
+    const { projectType } = req.params;
+    
+    db.prepare('DELETE FROM project_templates WHERE project_type = ?').run(projectType);
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting project template:', error);
+    res.status(500).json({ error: 'Erreur lors de la suppression du template' });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`API running on http://localhost:${PORT}`);
   console.log('Scheduled tasks:');

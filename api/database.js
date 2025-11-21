@@ -185,6 +185,14 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_projects_created ON projects(created_at DESC);
   CREATE INDEX IF NOT EXISTS idx_project_notes_project ON project_notes(project_id, created_at DESC);
   CREATE INDEX IF NOT EXISTS idx_project_tasks_project ON project_tasks(project_id);
+
+  CREATE TABLE IF NOT EXISTS project_templates (
+    id TEXT PRIMARY KEY,
+    project_type TEXT NOT NULL UNIQUE,
+    default_tasks TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+  );
 `);
 
 // Add renewal_quote_id and linked_contract_id columns if they don't exist
