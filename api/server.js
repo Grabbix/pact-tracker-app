@@ -2940,6 +2940,13 @@ app.get('/api/projects', (req, res) => {
         isArchived: row.is_archived === 1,
         archivedAt: row.archived_at,
         notes,
+        mailinblackFields: row.mailinblack_fields ? JSON.parse(row.mailinblack_fields) : undefined,
+        esetFields: row.eset_fields ? JSON.parse(row.eset_fields) : undefined,
+        serverFields: row.server_fields ? JSON.parse(row.server_fields) : undefined,
+        auditFields: row.audit_fields ? JSON.parse(row.audit_fields) : undefined,
+        firewallFields: row.firewall_fields ? JSON.parse(row.firewall_fields) : undefined,
+        mailFields: row.mail_fields ? JSON.parse(row.mail_fields) : undefined,
+        customFields: row.custom_fields ? JSON.parse(row.custom_fields) : undefined,
       };
     });
 
@@ -3004,6 +3011,13 @@ app.get('/api/projects/:id', (req, res) => {
       isArchived: row.is_archived === 1,
       archivedAt: row.archived_at,
       notes,
+      mailinblackFields: row.mailinblack_fields ? JSON.parse(row.mailinblack_fields) : undefined,
+      esetFields: row.eset_fields ? JSON.parse(row.eset_fields) : undefined,
+      serverFields: row.server_fields ? JSON.parse(row.server_fields) : undefined,
+      auditFields: row.audit_fields ? JSON.parse(row.audit_fields) : undefined,
+      firewallFields: row.firewall_fields ? JSON.parse(row.firewall_fields) : undefined,
+      mailFields: row.mail_fields ? JSON.parse(row.mail_fields) : undefined,
+      customFields: row.custom_fields ? JSON.parse(row.custom_fields) : undefined,
     };
 
     res.json(project);
@@ -3015,14 +3029,62 @@ app.get('/api/projects/:id', (req, res) => {
 
 app.post('/api/projects', (req, res) => {
   try {
-    const { clientId, projectType, status, title, description } = req.body;
+    const { 
+      clientId, 
+      projectType, 
+      status, 
+      title, 
+      description,
+      tasks,
+      mailinblackFields,
+      esetFields,
+      serverFields,
+      auditFields,
+      firewallFields,
+      mailFields,
+      customFields
+    } = req.body;
     const id = randomUUID();
     const now = new Date().toISOString();
 
+    // Insert project
     db.prepare(`
-      INSERT INTO projects (id, client_id, project_type, status, title, description, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(id, clientId, projectType, status || 'à organiser', title, description || null, now, now);
+      INSERT INTO projects (
+        id, client_id, project_type, status, title, description, 
+        mailinblack_fields, eset_fields, server_fields, audit_fields, 
+        firewall_fields, mail_fields, custom_fields, 
+        created_at, updated_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      id, 
+      clientId, 
+      projectType, 
+      status || 'à organiser', 
+      title, 
+      description || null,
+      mailinblackFields ? JSON.stringify(mailinblackFields) : null,
+      esetFields ? JSON.stringify(esetFields) : null,
+      serverFields ? JSON.stringify(serverFields) : null,
+      auditFields ? JSON.stringify(auditFields) : null,
+      firewallFields ? JSON.stringify(firewallFields) : null,
+      mailFields ? JSON.stringify(mailFields) : null,
+      customFields ? JSON.stringify(customFields) : null,
+      now, 
+      now
+    );
+
+    // Add initial tasks if provided
+    if (tasks && Array.isArray(tasks)) {
+      const taskStmt = db.prepare(`
+        INSERT INTO project_tasks (id, project_id, task_name, created_at)
+        VALUES (?, ?, ?, ?)
+      `);
+      
+      tasks.forEach(taskName => {
+        taskStmt.run(randomUUID(), id, taskName, now);
+      });
+    }
 
     res.json({ id, clientId, projectType, status: status || 'à organiser', title, description, createdAt: now });
   } catch (error) {
