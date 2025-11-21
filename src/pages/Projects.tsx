@@ -18,7 +18,7 @@ import { Project, PROJECT_TYPES, PROJECT_STATUSES, ProjectType, ProjectStatus } 
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
-const API_BASE_URL = 'http://localhost:3001/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 const Projects = () => {
   const navigate = useNavigate();
@@ -47,7 +47,7 @@ const Projects = () => {
   } = useProjects(showArchived);
 
   useEffect(() => {
-    fetch(`${API_BASE_URL}/clients`)
+    fetch(`${API_BASE_URL}/api/clients`)
       .then((res) => res.json())
       .then(setClients)
       .catch(console.error);
@@ -55,7 +55,7 @@ const Projects = () => {
 
   const loadProjectTasks = async (projectId: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/projects/${projectId}/tasks`);
+      const response = await fetch(`${API_BASE_URL}/api/projects/${projectId}/tasks`);
       if (!response.ok) throw new Error('Failed to fetch tasks');
       const tasks = await response.json();
       setProjectTasks(tasks);
@@ -184,7 +184,7 @@ const Projects = () => {
             <h1 className="text-4xl font-bold">Gestion de projets</h1>
           </div>
           <AddProjectDialog onAdd={addProject} clients={clients} onClientCreated={() => {
-            fetch(`${API_BASE_URL}/clients`)
+            fetch(`${API_BASE_URL}/api/clients`)
               .then((res) => res.json())
               .then(setClients)
               .catch(console.error);

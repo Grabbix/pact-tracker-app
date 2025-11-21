@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Project, ProjectType, ProjectStatus } from '@/types/project';
 import { toast } from 'sonner';
 
-const API_BASE_URL = 'http://localhost:3001/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 export const useProjects = (includeArchived: boolean = false) => {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -11,7 +11,7 @@ export const useProjects = (includeArchived: boolean = false) => {
   const fetchProjects = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE_URL}/projects?includeArchived=${includeArchived}`);
+      const response = await fetch(`${API_BASE_URL}/api/projects?includeArchived=${includeArchived}`);
       if (!response.ok) throw new Error('Failed to fetch projects');
       const data = await response.json();
       setProjects(data);
@@ -35,7 +35,7 @@ export const useProjects = (includeArchived: boolean = false) => {
     description?: string;
   }) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/projects`, {
+      const response = await fetch(`${API_BASE_URL}/api/projects`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(projectData),
@@ -62,7 +62,7 @@ export const useProjects = (includeArchived: boolean = false) => {
     }
   ) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/projects/${projectId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/projects/${projectId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updates),
@@ -81,7 +81,7 @@ export const useProjects = (includeArchived: boolean = false) => {
 
   const archiveProject = async (projectId: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/projects/${projectId}/archive`, {
+      const response = await fetch(`${API_BASE_URL}/api/projects/${projectId}/archive`, {
         method: 'PATCH',
       });
 
@@ -98,7 +98,7 @@ export const useProjects = (includeArchived: boolean = false) => {
 
   const unarchiveProject = async (projectId: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/projects/${projectId}/unarchive`, {
+      const response = await fetch(`${API_BASE_URL}/api/projects/${projectId}/unarchive`, {
         method: 'PATCH',
       });
 
@@ -115,7 +115,7 @@ export const useProjects = (includeArchived: boolean = false) => {
 
   const deleteProject = async (projectId: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/projects/${projectId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/projects/${projectId}`, {
         method: 'DELETE',
       });
 
@@ -132,7 +132,7 @@ export const useProjects = (includeArchived: boolean = false) => {
 
   const addNote = async (projectId: string, note: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/projects/${projectId}/notes`, {
+      const response = await fetch(`${API_BASE_URL}/api/projects/${projectId}/notes`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ note }),
@@ -151,7 +151,7 @@ export const useProjects = (includeArchived: boolean = false) => {
 
   const deleteNote = async (noteId: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/project-notes/${noteId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/project-notes/${noteId}`, {
         method: 'DELETE',
       });
 
@@ -168,7 +168,7 @@ export const useProjects = (includeArchived: boolean = false) => {
 
   const addTask = async (projectId: string, taskName: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/projects/${projectId}/tasks`, {
+      const response = await fetch(`${API_BASE_URL}/api/projects/${projectId}/tasks`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ taskName }),
@@ -187,7 +187,7 @@ export const useProjects = (includeArchived: boolean = false) => {
 
   const completeTask = async (taskId: string, completionDetails: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/project-tasks/${taskId}/complete`, {
+      const response = await fetch(`${API_BASE_URL}/api/project-tasks/${taskId}/complete`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ completionDetails }),
@@ -206,7 +206,7 @@ export const useProjects = (includeArchived: boolean = false) => {
 
   const uncompleteTask = async (taskId: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/project-tasks/${taskId}/uncomplete`, {
+      const response = await fetch(`${API_BASE_URL}/api/project-tasks/${taskId}/uncomplete`, {
         method: 'PATCH',
       });
 
@@ -223,7 +223,7 @@ export const useProjects = (includeArchived: boolean = false) => {
 
   const deleteTask = async (taskId: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/project-tasks/${taskId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/project-tasks/${taskId}`, {
         method: 'DELETE',
       });
 
