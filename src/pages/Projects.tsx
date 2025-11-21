@@ -13,7 +13,6 @@ import { ArrowLeft, Archive, ArchiveRestore, ArrowUpDown } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useProjects } from "@/hooks/useProjects";
 import { AddProjectDialog } from "@/components/AddProjectDialog";
-import { ProjectDetailDialog } from "@/components/ProjectDetailDialog";
 import { Project, PROJECT_TYPES, PROJECT_STATUSES, ProjectType, ProjectStatus } from "@/types/project";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -27,23 +26,13 @@ const Projects = () => {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [typeFilter, setTypeFilter] = useState<ProjectType | "all">("all");
   const [statusFilter, setStatusFilter] = useState<ProjectStatus | "all">("all");
-  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-  const [detailDialogOpen, setDetailDialogOpen] = useState(false);
-  const [projectTasks, setProjectTasks] = useState([]);
 
   const {
     projects,
     loading,
     addProject,
-    updateProject,
     archiveProject,
     unarchiveProject,
-    addNote,
-    deleteNote,
-    addTask,
-    completeTask,
-    uncompleteTask,
-    deleteTask,
   } = useProjects(showArchived);
 
   useEffect(() => {
@@ -52,88 +41,6 @@ const Projects = () => {
       .then(setClients)
       .catch(console.error);
   }, []);
-
-  const loadProjectTasks = async (projectId: string) => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/projects/${projectId}/tasks`);
-      if (!response.ok) throw new Error('Failed to fetch tasks');
-      const tasks = await response.json();
-      setProjectTasks(tasks);
-    } catch (error) {
-      console.error('Error loading project tasks:', error);
-    }
-  };
-
-  const handleProjectClick = async (project: Project) => {
-    setSelectedProject(project);
-    await loadProjectTasks(project.id);
-    setDetailDialogOpen(true);
-  };
-
-  const handleUpdateProject = async (updates: {
-    projectType?: ProjectType;
-    status?: ProjectStatus;
-    title?: string;
-    description?: string;
-  }) => {
-    if (!selectedProject) return;
-    await updateProject(selectedProject.id, updates);
-    // Refetch to update the selected project
-    const updatedProject = projects.find(p => p.id === selectedProject.id);
-    if (updatedProject) {
-      setSelectedProject(updatedProject);
-    }
-  };
-
-  const handleAddNote = async (note: string) => {
-    if (!selectedProject) return;
-    await addNote(selectedProject.id, note);
-    // Refetch to update the selected project
-    const updatedProject = projects.find(p => p.id === selectedProject.id);
-    if (updatedProject) {
-      setSelectedProject(updatedProject);
-    }
-  };
-
-  const handleDeleteNote = async (noteId: string) => {
-    await deleteNote(noteId);
-    // Refetch to update the selected project
-    if (selectedProject) {
-      const updatedProject = projects.find(p => p.id === selectedProject.id);
-      if (updatedProject) {
-        setSelectedProject(updatedProject);
-      }
-    }
-  };
-
-  const handleAddTask = async (taskName: string) => {
-    if (!selectedProject) return;
-    await addTask(selectedProject.id, taskName);
-    await loadProjectTasks(selectedProject.id);
-  };
-
-  const handleCompleteTask = async (taskId: string, details: string) => {
-    if (!selectedProject) return;
-    await completeTask(taskId, details);
-    await loadProjectTasks(selectedProject.id);
-    // Refetch to update notes
-    const updatedProject = projects.find(p => p.id === selectedProject.id);
-    if (updatedProject) {
-      setSelectedProject(updatedProject);
-    }
-  };
-
-  const handleUncompleteTask = async (taskId: string) => {
-    if (!selectedProject) return;
-    await uncompleteTask(taskId);
-    await loadProjectTasks(selectedProject.id);
-  };
-
-  const handleDeleteTask = async (taskId: string) => {
-    if (!selectedProject) return;
-    await deleteTask(taskId);
-    await loadProjectTasks(selectedProject.id);
-  };
 
   const handleArchiveToggle = async (projectId: string, isArchived: boolean) => {
     if (isArchived) {
@@ -276,7 +183,7 @@ const Projects = () => {
                 <Card
                   key={project.id}
                   className="hover:shadow-md transition-shadow cursor-pointer"
-                  onClick={() => handleProjectClick(project)}
+                  onClick={() => navigate(`/projects/${project.id}`)}
                 >
                   <CardContent className="p-6">
                     <div className="flex items-start justify-between gap-4">
@@ -340,21 +247,6 @@ const Projects = () => {
             })}
           </div>
         )}
-
-        {/* Dialog de détails */}
-        <ProjectDetailDialog
-          project={selectedProject}
-          open={detailDialogOpen}
-          onOpenChange={setDetailDialogOpen}
-          onUpdate={handleUpdateProject}
-          onAddNote={handleAddNote}
-          onDeleteNote={handleDeleteNote}
-          onAddTask={handleAddTask}
-          onCompleteTask={handleCompleteTask}
-          onUncompleteTask={handleUncompleteTask}
-          onDeleteTask={handleDeleteTask}
-          tasks={projectTasks}
-        />
       </div>
     </div>
   );
