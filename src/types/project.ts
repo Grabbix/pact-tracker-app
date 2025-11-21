@@ -31,6 +31,48 @@ export interface ProjectTask {
   createdAt: string;
 }
 
+// Type-specific fields
+export interface MailinblackFields {
+  licenseType?: string;
+  licenseCount?: number;
+  domainUnderManagement?: boolean;
+}
+
+export interface EsetFields {
+  licenseType?: string;
+  licenseCount?: number;
+}
+
+export interface ServerFields {
+  isReplacement?: boolean;
+}
+
+export interface AuditFields {
+  isNewClient?: boolean;
+}
+
+export interface FirewallFields {
+  existingFirewall?: boolean;
+  firewallType?: string;
+  firewallManagement?: string;
+  vpnNeeded?: boolean;
+}
+
+export interface MailFields {
+  isCreation?: boolean;
+  addressType?: 'exchange' | '365';
+  addressCount?: number;
+  domains?: string;
+  domainsUnderManagement?: boolean;
+  mailinblackConcerned?: boolean;
+}
+
+export interface CustomField {
+  id: string;
+  label: string;
+  value: string;
+}
+
 export interface Project {
   id: string;
   clientId: string;
@@ -45,6 +87,14 @@ export interface Project {
   archivedAt?: string;
   notes: ProjectNote[];
   tasks?: ProjectTask[];
+  // Type-specific fields
+  mailinblackFields?: MailinblackFields;
+  esetFields?: EsetFields;
+  serverFields?: ServerFields;
+  auditFields?: AuditFields;
+  firewallFields?: FirewallFields;
+  mailFields?: MailFields;
+  customFields?: CustomField[];
 }
 
 export const PROJECT_TYPES: { value: ProjectType; label: string; color: string }[] = [

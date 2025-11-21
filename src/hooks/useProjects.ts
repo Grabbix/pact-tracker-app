@@ -27,13 +27,7 @@ export const useProjects = (includeArchived: boolean = false) => {
     fetchProjects();
   }, [includeArchived]);
 
-  const addProject = async (projectData: {
-    clientId: string;
-    projectType: ProjectType;
-    status: ProjectStatus;
-    title: string;
-    description?: string;
-  }) => {
+  const addProject = async (projectData: any) => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/projects`, {
         method: 'POST',
