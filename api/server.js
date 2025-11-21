@@ -3172,6 +3172,154 @@ app.delete('/api/project-notes/:id', (req, res) => {
   }
 });
 
+// Routes pour les tâches de projet
+app.get('/api/projects/:id/tasks', (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const tasks = db.prepare(`
+      SELECT * FROM project_tasks 
+      WHERE project_id = ? 
+      ORDER BY is_completed ASC, created_at ASC
+    `).all(id);
+
+    const formattedTasks = tasks.map(task => ({
+      id: task.id,
+      projectId: task.project_id,
+      taskName: task.task_name,
+      isCompleted: task.is_completed === 1,
+      completedAt: task.completed_at,
+      completionDetails: task.completion_details,
+      createdAt: task.created_at,
+    }));
+
+    res.json(formattedTasks);
+  } catch (error) {
+    console.error('Error fetching project tasks:', error);
+    res.status(500).json({ error: 'Erreur lors du chargement des tâches' });
+  }
+});
+
+app.post('/api/projects/:id/tasks', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { taskName } = req.body;
+    const taskId = randomUUID();
+    const now = new Date().toISOString();
+
+    db.prepare(`
+      INSERT INTO project_tasks (id, project_id, task_name, created_at)
+      VALUES (?, ?, ?, ?)
+    `).run(taskId, id, taskName, now);
+
+    // Update project updated_at
+    db.prepare(`
+      UPDATE projects SET updated_at = ? WHERE id = ?
+    `).run(now, id);
+
+    res.json({ id: taskId, projectId: id, taskName, isCompleted: false, createdAt: now });
+  } catch (error) {
+    console.error('Error adding project task:', error);
+    res.status(500).json({ error: 'Erreur lors de l\'ajout de la tâche' });
+  }
+});
+
+app.patch('/api/project-tasks/:id/complete', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { completionDetails } = req.body;
+    const now = new Date().toISOString();
+
+    // Get task and project info
+    const task = db.prepare('SELECT * FROM project_tasks WHERE id = ?').get(id);
+    
+    if (!task) {
+      return res.status(404).json({ error: 'Tâche non trouvée' });
+    }
+
+    // Mark task as completed
+    db.prepare(`
+      UPDATE project_tasks
+      SET is_completed = 1, completed_at = ?, completion_details = ?
+      WHERE id = ?
+    `).run(now, completionDetails || null, id);
+
+    // Add note to project
+    const noteId = randomUUID();
+    const noteText = completionDetails 
+      ? `✓ ${task.task_name}\n${completionDetails}`
+      : `✓ ${task.task_name}`;
+    
+    db.prepare(`
+      INSERT INTO project_notes (id, project_id, note, created_at)
+      VALUES (?, ?, ?, ?)
+    `).run(noteId, task.project_id, noteText, now);
+
+    // Update project updated_at
+    db.prepare(`
+      UPDATE projects SET updated_at = ? WHERE id = ?
+    `).run(now, task.project_id);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error completing task:', error);
+    res.status(500).json({ error: 'Erreur lors de la complétion de la tâche' });
+  }
+});
+
+app.patch('/api/project-tasks/:id/uncomplete', (req, res) => {
+  try {
+    const { id } = req.params;
+    const now = new Date().toISOString();
+
+    // Get task info
+    const task = db.prepare('SELECT project_id FROM project_tasks WHERE id = ?').get(id);
+    
+    if (!task) {
+      return res.status(404).json({ error: 'Tâche non trouvée' });
+    }
+
+    // Mark task as not completed
+    db.prepare(`
+      UPDATE project_tasks
+      SET is_completed = 0, completed_at = NULL, completion_details = NULL
+      WHERE id = ?
+    `).run(id);
+
+    // Update project updated_at
+    db.prepare(`
+      UPDATE projects SET updated_at = ? WHERE id = ?
+    `).run(now, task.project_id);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error uncompleting task:', error);
+    res.status(500).json({ error: 'Erreur lors de la décomplétion de la tâche' });
+  }
+});
+
+app.delete('/api/project-tasks/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Get project_id before deletion
+    const task = db.prepare('SELECT project_id FROM project_tasks WHERE id = ?').get(id);
+    
+    if (task) {
+      db.prepare('DELETE FROM project_tasks WHERE id = ?').run(id);
+      
+      // Update project updated_at
+      const now = new Date().toISOString();
+      db.prepare('UPDATE projects SET updated_at = ? WHERE id = ?').run(now, task.project_id);
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting project task:', error);
+    res.status(500).json({ error: 'Erreur lors de la suppression de la tâche' });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`API running on http://localhost:${PORT}`);
   console.log('Scheduled tasks:');

@@ -21,6 +21,16 @@ export interface ProjectNote {
   createdAt: string;
 }
 
+export interface ProjectTask {
+  id: string;
+  projectId: string;
+  taskName: string;
+  isCompleted: boolean;
+  completedAt?: string;
+  completionDetails?: string;
+  createdAt: string;
+}
+
 export interface Project {
   id: string;
   clientId: string;
@@ -34,6 +44,7 @@ export interface Project {
   isArchived: boolean;
   archivedAt?: string;
   notes: ProjectNote[];
+  tasks?: ProjectTask[];
 }
 
 export const PROJECT_TYPES: { value: ProjectType; label: string; color: string }[] = [

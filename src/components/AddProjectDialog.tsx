@@ -20,6 +20,9 @@ import {
 import { Plus } from "lucide-react";
 import { PROJECT_TYPES, PROJECT_STATUSES, ProjectType, ProjectStatus } from "@/types/project";
 import { Client } from "@/types/client";
+import { toast } from "sonner";
+
+const API_BASE_URL = 'http://localhost:3001/api';
 
 interface AddProjectDialogProps {
   onAdd: (projectData: {
@@ -30,11 +33,14 @@ interface AddProjectDialogProps {
     description?: string;
   }) => Promise<void>;
   clients: Client[];
+  onClientCreated?: () => void;
 }
 
-export const AddProjectDialog = ({ onAdd, clients }: AddProjectDialogProps) => {
+export const AddProjectDialog = ({ onAdd, clients, onClientCreated }: AddProjectDialogProps) => {
   const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState<"select" | "create">("select");
   const [clientId, setClientId] = useState("");
+  const [newClientName, setNewClientName] = useState("");
   const [projectType, setProjectType] = useState<ProjectType>("autre");
   const [status, setStatus] = useState<ProjectStatus>("à organiser");
   const [title, setTitle] = useState("");
@@ -43,7 +49,9 @@ export const AddProjectDialog = ({ onAdd, clients }: AddProjectDialogProps) => {
 
   useEffect(() => {
     if (!open) {
+      setMode("select");
       setClientId("");
+      setNewClientName("");
       setProjectType("autre");
       setStatus("à organiser");
       setTitle("");
@@ -51,17 +59,66 @@ export const AddProjectDialog = ({ onAdd, clients }: AddProjectDialogProps) => {
     }
   }, [open]);
 
+  const handleCreateClient = async (): Promise<string | null> => {
+    if (!newClientName.trim()) {
+      toast.error("Le nom du client est requis");
+      return null;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/clients`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newClientName.trim() }),
+      });
+
+      if (!response.ok) throw new Error('Failed to create client');
+      
+      const newClient = await response.json();
+      toast.success("Client créé avec succès");
+      
+      if (onClientCreated) {
+        onClientCreated();
+      }
+      
+      return newClient.id;
+    } catch (error) {
+      console.error("Error creating client:", error);
+      toast.error("Erreur lors de la création du client");
+      return null;
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!clientId || !title) {
+    if (!title) {
+      toast.error("Le titre est requis");
       return;
     }
 
     setLoading(true);
     try {
+      let finalClientId = clientId;
+
+      // If creating a new client, create it first
+      if (mode === "create") {
+        const newClientId = await handleCreateClient();
+        if (!newClientId) {
+          setLoading(false);
+          return;
+        }
+        finalClientId = newClientId;
+      }
+
+      if (!finalClientId) {
+        toast.error("Veuillez sélectionner un client");
+        setLoading(false);
+        return;
+      }
+
       await onAdd({
-        clientId,
+        clientId: finalClientId,
         projectType,
         status,
         title,
@@ -89,19 +146,46 @@ export const AddProjectDialog = ({ onAdd, clients }: AddProjectDialogProps) => {
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="client">Client *</Label>
-            <Select value={clientId} onValueChange={setClientId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Sélectionner un client" />
-              </SelectTrigger>
-              <SelectContent>
-                {clients.map((client) => (
-                  <SelectItem key={client.id} value={client.id}>
-                    {client.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label>Client *</Label>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant={mode === "select" ? "default" : "outline"}
+                onClick={() => setMode("select")}
+                className="flex-1"
+              >
+                Sélectionner
+              </Button>
+              <Button
+                type="button"
+                variant={mode === "create" ? "default" : "outline"}
+                onClick={() => setMode("create")}
+                className="flex-1"
+              >
+                Créer nouveau
+              </Button>
+            </div>
+            
+            {mode === "select" ? (
+              <Select value={clientId} onValueChange={setClientId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Sélectionner un client" />
+                </SelectTrigger>
+                <SelectContent>
+                  {clients.map((client) => (
+                    <SelectItem key={client.id} value={client.id}>
+                      {client.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <Input
+                value={newClientName}
+                onChange={(e) => setNewClientName(e.target.value)}
+                placeholder="Nom du nouveau client"
+              />
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -171,7 +255,7 @@ export const AddProjectDialog = ({ onAdd, clients }: AddProjectDialogProps) => {
             >
               Annuler
             </Button>
-            <Button type="submit" disabled={loading || !clientId || !title}>
+            <Button type="submit" disabled={loading || !title || (mode === "select" && !clientId) || (mode === "create" && !newClientName.trim())}>
               {loading ? "Création..." : "Créer le projet"}
             </Button>
           </div>
