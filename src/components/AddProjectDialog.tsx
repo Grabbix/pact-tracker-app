@@ -17,10 +17,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus } from "lucide-react";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Plus, Check, ChevronsUpDown } from "lucide-react";
 import { PROJECT_TYPES, PROJECT_STATUSES, ProjectType, ProjectStatus } from "@/types/project";
 import { Client } from "@/types/client";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 const API_BASE_URL = 'http://localhost:3001/api';
 
@@ -38,9 +52,9 @@ interface AddProjectDialogProps {
 
 export const AddProjectDialog = ({ onAdd, clients, onClientCreated }: AddProjectDialogProps) => {
   const [open, setOpen] = useState(false);
-  const [mode, setMode] = useState<"select" | "create">("select");
+  const [comboOpen, setComboOpen] = useState(false);
+  const [clientName, setClientName] = useState("");
   const [clientId, setClientId] = useState("");
-  const [newClientName, setNewClientName] = useState("");
   const [projectType, setProjectType] = useState<ProjectType>("autre");
   const [status, setStatus] = useState<ProjectStatus>("à organiser");
   const [title, setTitle] = useState("");
@@ -49,9 +63,8 @@ export const AddProjectDialog = ({ onAdd, clients, onClientCreated }: AddProject
 
   useEffect(() => {
     if (!open) {
-      setMode("select");
+      setClientName("");
       setClientId("");
-      setNewClientName("");
       setProjectType("autre");
       setStatus("à organiser");
       setTitle("");
@@ -59,17 +72,12 @@ export const AddProjectDialog = ({ onAdd, clients, onClientCreated }: AddProject
     }
   }, [open]);
 
-  const handleCreateClient = async (): Promise<string | null> => {
-    if (!newClientName.trim()) {
-      toast.error("Le nom du client est requis");
-      return null;
-    }
-
+  const handleCreateClient = async (name: string): Promise<string | null> => {
     try {
       const response = await fetch(`${API_BASE_URL}/clients`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newClientName.trim() }),
+        body: JSON.stringify({ name: name.trim() }),
       });
 
       if (!response.ok) throw new Error('Failed to create client');
@@ -92,8 +100,8 @@ export const AddProjectDialog = ({ onAdd, clients, onClientCreated }: AddProject
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!title) {
-      toast.error("Le titre est requis");
+    if (!clientName || !title) {
+      toast.error("Le client et le titre sont requis");
       return;
     }
 
@@ -101,20 +109,14 @@ export const AddProjectDialog = ({ onAdd, clients, onClientCreated }: AddProject
     try {
       let finalClientId = clientId;
 
-      // If creating a new client, create it first
-      if (mode === "create") {
-        const newClientId = await handleCreateClient();
+      // If no clientId (new client), create it first
+      if (!finalClientId) {
+        const newClientId = await handleCreateClient(clientName);
         if (!newClientId) {
           setLoading(false);
           return;
         }
         finalClientId = newClientId;
-      }
-
-      if (!finalClientId) {
-        toast.error("Veuillez sélectionner un client");
-        setLoading(false);
-        return;
       }
 
       await onAdd({
@@ -147,45 +149,63 @@ export const AddProjectDialog = ({ onAdd, clients, onClientCreated }: AddProject
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label>Client *</Label>
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant={mode === "select" ? "default" : "outline"}
-                onClick={() => setMode("select")}
-                className="flex-1"
-              >
-                Sélectionner
-              </Button>
-              <Button
-                type="button"
-                variant={mode === "create" ? "default" : "outline"}
-                onClick={() => setMode("create")}
-                className="flex-1"
-              >
-                Créer nouveau
-              </Button>
-            </div>
-            
-            {mode === "select" ? (
-              <Select value={clientId} onValueChange={setClientId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Sélectionner un client" />
-                </SelectTrigger>
-                <SelectContent>
-                  {clients.map((client) => (
-                    <SelectItem key={client.id} value={client.id}>
-                      {client.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ) : (
-              <Input
-                value={newClientName}
-                onChange={(e) => setNewClientName(e.target.value)}
-                placeholder="Nom du nouveau client"
-              />
-            )}
+            <Popover open={comboOpen} onOpenChange={setComboOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={comboOpen}
+                  className="w-full justify-between"
+                >
+                  {clientName || "Sélectionner ou créer un client..."}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-full p-0" align="start">
+                <Command>
+                  <CommandInput 
+                    placeholder="Rechercher ou taper un nouveau nom..." 
+                    value={clientName}
+                    onValueChange={(value) => {
+                      setClientName(value);
+                      setClientId("");
+                    }}
+                  />
+                  <CommandList>
+                    <CommandEmpty>
+                      <div className="text-sm text-muted-foreground p-2">
+                        Appuyez sur Entrée pour créer "{clientName}"
+                      </div>
+                    </CommandEmpty>
+                    <CommandGroup>
+                      {clients
+                        .filter((client) =>
+                          client.name.toLowerCase().includes(clientName.toLowerCase())
+                        )
+                        .map((client) => (
+                          <CommandItem
+                            key={client.id}
+                            value={client.name}
+                            onSelect={() => {
+                              setClientName(client.name);
+                              setClientId(client.id);
+                              setComboOpen(false);
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                clientName === client.name ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            {client.name}
+                          </CommandItem>
+                        ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -255,7 +275,7 @@ export const AddProjectDialog = ({ onAdd, clients, onClientCreated }: AddProject
             >
               Annuler
             </Button>
-            <Button type="submit" disabled={loading || !title || (mode === "select" && !clientId) || (mode === "create" && !newClientName.trim())}>
+            <Button type="submit" disabled={loading || !clientName || !title}>
               {loading ? "Création..." : "Créer le projet"}
             </Button>
           </div>
