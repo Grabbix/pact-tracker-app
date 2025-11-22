@@ -3470,6 +3470,36 @@ app.delete('/api/project-templates/:projectType', (req, res) => {
   }
 });
 
+// Migration endpoint
+app.post('/api/admin/run-migration', (req, res) => {
+  try {
+    const columnsToAdd = [
+      'mailinblack_fields TEXT',
+      'eset_fields TEXT',
+      'server_fields TEXT',
+      'audit_fields TEXT',
+      'firewall_fields TEXT',
+      'mail_fields TEXT',
+      'custom_fields TEXT'
+    ];
+
+    columnsToAdd.forEach(column => {
+      try {
+        const columnName = column.split(' ')[0];
+        db.exec(`ALTER TABLE projects ADD COLUMN ${column};`);
+        console.log(`Added ${columnName} column to projects table`);
+      } catch (e) {
+        console.log(`Column ${column.split(' ')[0]} already exists or error: ${e.message}`);
+      }
+    });
+
+    res.json({ success: true, message: 'Migration completed' });
+  } catch (error) {
+    console.error('Migration error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`API running on http://localhost:${PORT}`);
   console.log('Scheduled tasks:');
