@@ -81,6 +81,7 @@ export interface Project {
   status: ProjectStatus;
   title: string;
   description?: string;
+  deliveryDate?: string;
   createdAt: string;
   updatedAt: string;
   isArchived: boolean;
