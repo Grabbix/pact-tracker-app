@@ -53,6 +53,7 @@ export const useProjects = (includeArchived: boolean = false) => {
       status?: ProjectStatus;
       title?: string;
       description?: string;
+      deliveryDate?: string;
     }
   ) => {
     try {

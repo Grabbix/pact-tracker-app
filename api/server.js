@@ -3006,6 +3006,7 @@ app.get('/api/projects/:id', (req, res) => {
       status: row.status,
       title: row.title,
       description: row.description,
+      deliveryDate: row.delivery_date,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
       isArchived: row.is_archived === 1,
@@ -3035,6 +3036,7 @@ app.post('/api/projects', (req, res) => {
       status, 
       title, 
       description,
+      deliveryDate,
       tasks,
       mailinblackFields,
       esetFields,
@@ -3047,15 +3049,20 @@ app.post('/api/projects', (req, res) => {
     const id = randomUUID();
     const now = new Date().toISOString();
 
+    // Validate delivery date if status is 'calé'
+    if (status === 'calé' && !deliveryDate) {
+      return res.status(400).json({ error: 'La date de livraison est obligatoire pour un projet calé' });
+    }
+
     // Insert project
     db.prepare(`
       INSERT INTO projects (
-        id, client_id, project_type, status, title, description, 
+        id, client_id, project_type, status, title, description, delivery_date,
         mailinblack_fields, eset_fields, server_fields, audit_fields, 
         firewall_fields, mail_fields, custom_fields, 
         created_at, updated_at
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       id, 
       clientId, 
@@ -3063,6 +3070,7 @@ app.post('/api/projects', (req, res) => {
       status || 'à organiser', 
       title, 
       description || null,
+      deliveryDate || null,
       mailinblackFields ? JSON.stringify(mailinblackFields) : null,
       esetFields ? JSON.stringify(esetFields) : null,
       serverFields ? JSON.stringify(serverFields) : null,
@@ -3096,8 +3104,13 @@ app.post('/api/projects', (req, res) => {
 app.patch('/api/projects/:id', (req, res) => {
   try {
     const { id } = req.params;
-    const { projectType, status, title, description } = req.body;
+    const { projectType, status, title, description, deliveryDate } = req.body;
     const now = new Date().toISOString();
+
+    // Validate delivery date if status is 'calé'
+    if (status === 'calé' && !deliveryDate) {
+      return res.status(400).json({ error: 'La date de livraison est obligatoire pour un projet calé' });
+    }
 
     const updates = [];
     const values = [];
@@ -3117,6 +3130,10 @@ app.patch('/api/projects/:id', (req, res) => {
     if (description !== undefined) {
       updates.push('description = ?');
       values.push(description);
+    }
+    if (deliveryDate !== undefined) {
+      updates.push('delivery_date = ?');
+      values.push(deliveryDate || null);
     }
 
     if (updates.length === 0) {
@@ -3480,7 +3497,8 @@ app.post('/api/admin/run-migration', (req, res) => {
       'audit_fields TEXT',
       'firewall_fields TEXT',
       'mail_fields TEXT',
-      'custom_fields TEXT'
+      'custom_fields TEXT',
+      'delivery_date TEXT'
     ];
 
     columnsToAdd.forEach(column => {

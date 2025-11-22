@@ -16,13 +16,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Trash2, Plus } from "lucide-react";
+import { Trash2, Plus, CalendarIcon } from "lucide-react";
 import { Project, PROJECT_TYPES, PROJECT_STATUSES, ProjectType, ProjectStatus, ProjectTask } from "@/types/project";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 import { CompleteTaskDialog } from "./CompleteTaskDialog";
+import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface ProjectDetailDialogProps {
   project: Project | null;
@@ -33,6 +41,7 @@ interface ProjectDetailDialogProps {
     status?: ProjectStatus;
     title?: string;
     description?: string;
+    deliveryDate?: string;
   }) => Promise<void>;
   onAddNote: (note: string) => Promise<void>;
   onDeleteNote: (noteId: string) => Promise<void>;
@@ -61,6 +70,9 @@ export const ProjectDetailDialog = ({
   const [status, setStatus] = useState<ProjectStatus>(project?.status || "à organiser");
   const [title, setTitle] = useState(project?.title || "");
   const [description, setDescription] = useState(project?.description || "");
+  const [deliveryDate, setDeliveryDate] = useState<Date | undefined>(
+    project?.deliveryDate ? parseISO(project.deliveryDate) : undefined
+  );
   const [newNote, setNewNote] = useState("");
   const [newTask, setNewTask] = useState("");
   const [loading, setLoading] = useState(false);
@@ -72,6 +84,11 @@ export const ProjectDetailDialog = ({
   const projectTypeInfo = PROJECT_TYPES.find(t => t.value === project.projectType);
 
   const handleSave = async () => {
+    if (status === 'calé' && !deliveryDate) {
+      toast.error("La date de livraison est obligatoire pour un projet calé");
+      return;
+    }
+
     setLoading(true);
     try {
       await onUpdate({
@@ -79,6 +96,7 @@ export const ProjectDetailDialog = ({
         status,
         title,
         description,
+        deliveryDate: deliveryDate ? format(deliveryDate, 'yyyy-MM-dd') : undefined,
       });
       setEditing(false);
     } catch (error) {
@@ -192,6 +210,7 @@ export const ProjectDetailDialog = ({
                     setStatus(project.status);
                     setTitle(project.title);
                     setDescription(project.description || "");
+                    setDeliveryDate(project.deliveryDate ? parseISO(project.deliveryDate) : undefined);
                   }}>
                     Modifier
                   </Button>
@@ -255,6 +274,36 @@ export const ProjectDetailDialog = ({
                     />
                   </div>
 
+                  {status === 'calé' && (
+                    <div className="space-y-2">
+                      <Label>Date de livraison *</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "w-full justify-start text-left font-normal",
+                              !deliveryDate && "text-muted-foreground"
+                            )}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {deliveryDate ? format(deliveryDate, "PPP", { locale: fr }) : "Sélectionner une date"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={deliveryDate}
+                            onSelect={setDeliveryDate}
+                            initialFocus
+                            className="pointer-events-auto"
+                            locale={fr}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  )}
+
                   <div className="space-y-2">
                     <Label>Description</Label>
                     <Textarea
@@ -295,6 +344,15 @@ export const ProjectDetailDialog = ({
                       </p>
                     </div>
                   </div>
+
+                  {project.deliveryDate && (
+                    <div>
+                      <Label className="text-muted-foreground">Date de livraison</Label>
+                      <p className="font-medium">
+                        {format(parseISO(project.deliveryDate), "dd MMMM yyyy", { locale: fr })}
+                      </p>
+                    </div>
+                  )}
 
                   <div>
                     <Label className="text-muted-foreground">Titre</Label>

@@ -31,12 +31,15 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Check, ChevronsUpDown, X } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { Plus, Check, ChevronsUpDown, X, CalendarIcon } from "lucide-react";
 import { PROJECT_TYPES, PROJECT_STATUSES, ProjectType, ProjectStatus, CustomField } from "@/types/project";
 import { Client } from "@/types/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
 
 interface AddProjectDialogProps {
   onAdd: (projectData: any) => Promise<void>;
@@ -53,6 +56,7 @@ export const AddProjectDialog = ({ onAdd, clients, onClientCreated }: AddProject
   const [status, setStatus] = useState<ProjectStatus>("à organiser");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [deliveryDate, setDeliveryDate] = useState<Date | undefined>();
   const [loading, setLoading] = useState(false);
 
   // Tasks
@@ -96,6 +100,7 @@ export const AddProjectDialog = ({ onAdd, clients, onClientCreated }: AddProject
       setStatus("à organiser");
       setTitle("");
       setDescription("");
+      setDeliveryDate(undefined);
       setTasks([]);
       setNewTask("");
       setMailinblackLicenseType("");
@@ -205,6 +210,11 @@ export const AddProjectDialog = ({ onAdd, clients, onClientCreated }: AddProject
       return;
     }
 
+    if (status === 'calé' && !deliveryDate) {
+      toast.error("La date de livraison est obligatoire pour un projet calé");
+      return;
+    }
+
     setLoading(true);
     try {
       let finalClientId = clientId;
@@ -224,6 +234,7 @@ export const AddProjectDialog = ({ onAdd, clients, onClientCreated }: AddProject
         status,
         title,
         description: description || undefined,
+        deliveryDate: deliveryDate ? format(deliveryDate, 'yyyy-MM-dd') : undefined,
         tasks: tasks.length > 0 ? tasks : undefined,
         customFields: customFields.length > 0 ? customFields : undefined,
       };
@@ -617,6 +628,36 @@ export const AddProjectDialog = ({ onAdd, clients, onClientCreated }: AddProject
                   required
                 />
               </div>
+
+              {status === 'calé' && (
+                <div className="space-y-2">
+                  <Label>Date de livraison *</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !deliveryDate && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {deliveryDate ? format(deliveryDate, "PPP", { locale: fr }) : "Sélectionner une date"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={deliveryDate}
+                        onSelect={setDeliveryDate}
+                        initialFocus
+                        className="pointer-events-auto"
+                        locale={fr}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label htmlFor="description">Description</Label>
