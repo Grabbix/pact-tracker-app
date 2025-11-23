@@ -148,6 +148,7 @@ db.exec(`
     status TEXT NOT NULL DEFAULT 'à organiser',
     title TEXT NOT NULL,
     description TEXT,
+    delivery_date TEXT,
     mailinblack_fields TEXT,
     eset_fields TEXT,
     server_fields TEXT,
