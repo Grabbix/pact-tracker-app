@@ -269,6 +269,28 @@ const Projects = () => {
                             {project.description}
                           </p>
                         )}
+
+                        {project.notes.length > 0 && (() => {
+                          const lastNote = [...project.notes].sort((a, b) => 
+                            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+                          )[0];
+                          
+                          return (
+                            <div className="mt-3 p-3 bg-muted/50 rounded-md border border-border/50">
+                              <div className="flex items-start justify-between gap-2 mb-1">
+                                <span className="text-xs font-semibold text-primary">
+                                  Dernier suivi
+                                </span>
+                                <span className="text-xs text-muted-foreground">
+                                  {format(new Date(lastNote.createdAt), "dd/MM/yyyy à HH:mm", { locale: fr })}
+                                </span>
+                              </div>
+                              <p className="text-sm text-foreground line-clamp-2">
+                                {lastNote.note}
+                              </p>
+                            </div>
+                          );
+                        })()}
                       </div>
 
                       <Button
