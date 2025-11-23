@@ -9,12 +9,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Archive, ArchiveRestore, ArrowUpDown } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ArrowLeft, Archive, ArchiveRestore, ArrowUpDown, Calendar as CalendarIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useProjects } from "@/hooks/useProjects";
 import { AddProjectDialog } from "@/components/AddProjectDialog";
 import { Project, PROJECT_TYPES, PROJECT_STATUSES, ProjectType, ProjectStatus } from "@/types/project";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
@@ -23,9 +24,11 @@ const Projects = () => {
   const navigate = useNavigate();
   const [showArchived, setShowArchived] = useState(false);
   const [clients, setClients] = useState([]);
+  const [sortBy, setSortBy] = useState<"createdAt" | "deliveryDate">("createdAt");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [typeFilter, setTypeFilter] = useState<ProjectType | "all">("all");
   const [statusFilter, setStatusFilter] = useState<ProjectStatus | "all">("all");
+  const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
 
   const {
     projects,
@@ -59,9 +62,20 @@ const Projects = () => {
     .filter(p => typeFilter === "all" || p.projectType === typeFilter)
     .filter(p => statusFilter === "all" || p.status === statusFilter)
     .sort((a, b) => {
-      const dateA = new Date(a.createdAt).getTime();
-      const dateB = new Date(b.createdAt).getTime();
-      return sortOrder === "asc" ? dateA - dateB : dateB - dateA;
+      if (sortBy === "deliveryDate") {
+        // Projets sans date de livraison à la fin
+        if (!a.deliveryDate && !b.deliveryDate) return 0;
+        if (!a.deliveryDate) return 1;
+        if (!b.deliveryDate) return -1;
+        
+        const dateA = new Date(a.deliveryDate).getTime();
+        const dateB = new Date(b.deliveryDate).getTime();
+        return sortOrder === "asc" ? dateA - dateB : dateB - dateA;
+      } else {
+        const dateA = new Date(a.createdAt).getTime();
+        const dateB = new Date(b.createdAt).getTime();
+        return sortOrder === "asc" ? dateA - dateB : dateB - dateA;
+      }
     });
 
   const getStatusColor = (status: ProjectStatus) => {
@@ -98,73 +112,98 @@ const Projects = () => {
           }} />
         </div>
 
-        {/* Filtres */}
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>Filtres</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-4 gap-4">
-              <div>
-                <label className="text-sm font-medium mb-2 block">Type de projet</label>
-                <Select value={typeFilter} onValueChange={(value) => setTypeFilter(value as ProjectType | "all")}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Tous les types</SelectItem>
-                    {PROJECT_TYPES.map((type) => (
-                      <SelectItem key={type.value} value={type.value}>
-                        <div className="flex items-center gap-2">
-                          <div className={`w-3 h-3 rounded-full ${type.color}`} />
-                          {type.label}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+        {/* Vue et Filtres */}
+        <div className="mb-6 space-y-4">
+          <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "list" | "calendar")}>
+            <TabsList>
+              <TabsTrigger value="list">Liste</TabsTrigger>
+              <TabsTrigger value="calendar">
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                Calendrier
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
 
-              <div>
-                <label className="text-sm font-medium mb-2 block">Statut</label>
-                <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as ProjectStatus | "all")}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Tous les statuts</SelectItem>
-                    {PROJECT_STATUSES.map((s) => (
-                      <SelectItem key={s.value} value={s.value}>
-                        {s.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+          <Card>
+            <CardHeader>
+              <CardTitle>Filtres</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-5 gap-4">
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Type de projet</label>
+                  <Select value={typeFilter} onValueChange={(value) => setTypeFilter(value as ProjectType | "all")}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Tous les types</SelectItem>
+                      {PROJECT_TYPES.map((type) => (
+                        <SelectItem key={type.value} value={type.value}>
+                          <div className="flex items-center gap-2">
+                            <div className={`w-3 h-3 rounded-full ${type.color}`} />
+                            {type.label}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-              <div>
-                <label className="text-sm font-medium mb-2 block">Ordre</label>
-                <Button variant="outline" onClick={toggleSortOrder} className="w-full">
-                  <ArrowUpDown className="mr-2 h-4 w-4" />
-                  {sortOrder === "asc" ? "Plus ancien" : "Plus récent"}
-                </Button>
-              </div>
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Statut</label>
+                  <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as ProjectStatus | "all")}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Tous les statuts</SelectItem>
+                      {PROJECT_STATUSES.map((s) => (
+                        <SelectItem key={s.value} value={s.value}>
+                          {s.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-              <div>
-                <label className="text-sm font-medium mb-2 block">Archivés</label>
-                <Button
-                  variant="outline"
-                  onClick={() => setShowArchived(!showArchived)}
-                  className="w-full"
-                >
-                  {showArchived ? "Masquer" : "Afficher"} archivés
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Trier par</label>
+                  <Select value={sortBy} onValueChange={(value) => setSortBy(value as "createdAt" | "deliveryDate")}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="createdAt">Date de création</SelectItem>
+                      <SelectItem value="deliveryDate">Date de livraison</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
-        {/* Liste des projets */}
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Ordre</label>
+                  <Button variant="outline" onClick={toggleSortOrder} className="w-full">
+                    <ArrowUpDown className="mr-2 h-4 w-4" />
+                    {sortOrder === "asc" ? "Plus ancien" : "Plus récent"}
+                  </Button>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Archivés</label>
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowArchived(!showArchived)}
+                    className="w-full"
+                  >
+                    {showArchived ? "Masquer" : "Afficher"} archivés
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Contenu selon le mode de vue */}
         {loading ? (
           <p className="text-center text-muted-foreground">Chargement...</p>
         ) : filteredProjects.length === 0 ? (
@@ -173,7 +212,7 @@ const Projects = () => {
               Aucun projet trouvé
             </CardContent>
           </Card>
-        ) : (
+        ) : viewMode === "list" ? (
           <div className="grid gap-4">
             {filteredProjects.map((project) => {
               const projectTypeInfo = PROJECT_TYPES.find(t => t.value === project.projectType);
@@ -212,6 +251,12 @@ const Projects = () => {
                             <strong>Créé le:</strong>{" "}
                             {format(new Date(project.createdAt), "dd MMMM yyyy", { locale: fr })}
                           </span>
+                          {project.deliveryDate && (
+                            <span className="text-blue-600 font-medium">
+                              <strong>Livraison:</strong>{" "}
+                              {format(parseISO(project.deliveryDate), "dd MMMM yyyy", { locale: fr })}
+                            </span>
+                          )}
                           {project.notes.length > 0 && (
                             <span>
                               <strong>Notes:</strong> {project.notes.length}
@@ -246,8 +291,106 @@ const Projects = () => {
               );
             })}
           </div>
+        ) : (
+          <CalendarView projects={filteredProjects} onProjectClick={(id) => navigate(`/projects/${id}`)} />
         )}
       </div>
+    </div>
+  );
+};
+
+// Composant Vue Calendrier
+const CalendarView = ({ projects, onProjectClick }: { projects: Project[], onProjectClick: (id: string) => void }) => {
+  const projectsWithDates = projects.filter(p => p.deliveryDate);
+  
+  // Grouper par mois
+  const projectsByMonth = projectsWithDates.reduce((acc, project) => {
+    const monthKey = format(parseISO(project.deliveryDate!), "MMMM yyyy", { locale: fr });
+    if (!acc[monthKey]) acc[monthKey] = [];
+    acc[monthKey].push(project);
+    return acc;
+  }, {} as Record<string, Project[]>);
+
+  const sortedMonths = Object.keys(projectsByMonth).sort((a, b) => {
+    const dateA = parseISO(projectsByMonth[a][0].deliveryDate!);
+    const dateB = parseISO(projectsByMonth[b][0].deliveryDate!);
+    return dateA.getTime() - dateB.getTime();
+  });
+
+  if (projectsWithDates.length === 0) {
+    return (
+      <Card>
+        <CardContent className="py-12 text-center text-muted-foreground">
+          Aucun projet avec date de livraison
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {sortedMonths.map((monthKey) => {
+        const monthProjects = projectsByMonth[monthKey].sort((a, b) => {
+          const dateA = parseISO(a.deliveryDate!);
+          const dateB = parseISO(b.deliveryDate!);
+          return dateA.getTime() - dateB.getTime();
+        });
+
+        return (
+          <Card key={monthKey}>
+            <CardHeader>
+              <CardTitle className="capitalize">{monthKey}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {monthProjects.map((project) => {
+                  const projectTypeInfo = PROJECT_TYPES.find(t => t.value === project.projectType);
+                  const statusInfo = PROJECT_STATUSES.find(s => s.value === project.status);
+                  const deliveryDate = parseISO(project.deliveryDate!);
+                  const isOverdue = deliveryDate < new Date() && project.status !== "état projet";
+
+                  return (
+                    <div
+                      key={project.id}
+                      className="flex items-center gap-4 p-4 border rounded-lg hover:bg-accent cursor-pointer transition-colors"
+                      onClick={() => onProjectClick(project.id)}
+                    >
+                      <div className="text-center min-w-[60px]">
+                        <div className={`text-2xl font-bold ${isOverdue ? "text-red-600" : "text-blue-600"}`}>
+                          {format(deliveryDate, "dd")}
+                        </div>
+                        <div className="text-xs text-muted-foreground uppercase">
+                          {format(deliveryDate, "EEE", { locale: fr })}
+                        </div>
+                      </div>
+                      
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <div className={`w-3 h-3 rounded-full ${projectTypeInfo?.color}`} />
+                          <span className="font-semibold">{project.title}</span>
+                          <Badge variant="outline" className={`${isOverdue ? "bg-red-500/10 text-red-700 border-red-500/20" : ""}`}>
+                            {statusInfo?.label}
+                          </Badge>
+                          {isOverdue && (
+                            <Badge variant="outline" className="bg-red-500/10 text-red-700 border-red-500/20">
+                              En retard
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                          <span>{project.clientName}</span>
+                          <span>•</span>
+                          <span>{projectTypeInfo?.label}</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })}
     </div>
   );
 };
