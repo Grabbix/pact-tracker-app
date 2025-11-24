@@ -360,6 +360,7 @@ app.get('/api/clients', (req, res) => {
         eset: client.eset === 1,
         esetVersion: client.eset_version,
         fortinet: client.fortinet === 1,
+        fortinetSerialNumber: client.fortinet_serial_number,
         createdAt: client.created_at,
         updatedAt: client.updated_at,
         activeContractsCount: client.active_contracts_count,
@@ -410,6 +411,7 @@ app.get('/api/clients/by-name/:name', (req, res) => {
       eset: client.eset === 1,
       esetVersion: client.eset_version,
       fortinet: client.fortinet === 1,
+      fortinetSerialNumber: client.fortinet_serial_number,
       createdAt: client.created_at,
       updatedAt: client.updated_at,
       activeContractsCount: activeContracts.count,
@@ -456,6 +458,7 @@ app.get('/api/clients/:id', (req, res) => {
       eset: client.eset === 1,
       esetVersion: client.eset_version,
       fortinet: client.fortinet === 1,
+      fortinetSerialNumber: client.fortinet_serial_number,
       createdAt: client.created_at,
       updatedAt: client.updated_at,
       activeContractsCount: activeContracts.count,
@@ -476,13 +479,13 @@ app.get('/api/clients/:id', (req, res) => {
 
 app.post('/api/clients', (req, res) => {
   try {
-    const { name, address, phoneStandard, internalNotes, fai, domains, emailType, mailinblack, arx, arxQuota, eset, esetVersion, fortinet, contacts } = req.body;
+    const { name, address, phoneStandard, internalNotes, fai, domains, emailType, mailinblack, arx, arxQuota, eset, esetVersion, fortinet, fortinetSerialNumber, contacts } = req.body;
     const id = randomUUID();
     const createdAt = new Date().toISOString();
     
     db.prepare(`
-      INSERT INTO clients (id, name, address, phone_standard, internal_notes, fai, domains, email_type, mailinblack, arx, arx_quota, eset, eset_version, fortinet, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO clients (id, name, address, phone_standard, internal_notes, fai, domains, email_type, mailinblack, arx, arx_quota, eset, eset_version, fortinet, fortinet_serial_number, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       id, 
       name, 
@@ -498,6 +501,7 @@ app.post('/api/clients', (req, res) => {
       eset ? 1 : 0,
       esetVersion || null,
       fortinet ? 1 : 0,
+      fortinetSerialNumber || null,
       createdAt, 
       createdAt
     );
@@ -524,12 +528,12 @@ app.post('/api/clients', (req, res) => {
 app.patch('/api/clients/:id', (req, res) => {
   try {
     const { id } = req.params;
-    const { name, address, phoneStandard, internalNotes, fai, domains, emailType, mailinblack, arx, arxQuota, eset, esetVersion, fortinet, contacts } = req.body;
+    const { name, address, phoneStandard, internalNotes, fai, domains, emailType, mailinblack, arx, arxQuota, eset, esetVersion, fortinet, fortinetSerialNumber, contacts } = req.body;
     const updatedAt = new Date().toISOString();
     
     db.prepare(`
       UPDATE clients 
-      SET name = ?, address = ?, phone_standard = ?, internal_notes = ?, fai = ?, domains = ?, email_type = ?, mailinblack = ?, arx = ?, arx_quota = ?, eset = ?, eset_version = ?, fortinet = ?, updated_at = ?
+      SET name = ?, address = ?, phone_standard = ?, internal_notes = ?, fai = ?, domains = ?, email_type = ?, mailinblack = ?, arx = ?, arx_quota = ?, eset = ?, eset_version = ?, fortinet = ?, fortinet_serial_number = ?, updated_at = ?
       WHERE id = ?
     `).run(
       name, 
@@ -545,6 +549,7 @@ app.patch('/api/clients/:id', (req, res) => {
       eset ? 1 : 0,
       esetVersion || null,
       fortinet ? 1 : 0,
+      fortinetSerialNumber || null,
       updatedAt, 
       id
     );

@@ -446,6 +446,15 @@ const ProjectDetail = () => {
                   </p>
                 </div>
 
+                {project.deliveryDate && (
+                  <div>
+                    <Label className="text-muted-foreground">Date de livraison</Label>
+                    <p className="font-medium text-blue-600">
+                      {format(new Date(project.deliveryDate), "dd MMMM yyyy", { locale: fr })}
+                    </p>
+                  </div>
+                )}
+
                 {project.description && (
                   <div>
                     <Label className="text-muted-foreground">Description</Label>
