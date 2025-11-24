@@ -2940,6 +2940,7 @@ app.get('/api/projects', (req, res) => {
         status: row.status,
         title: row.title,
         description: row.description,
+        deliveryDate: row.delivery_date,
         createdAt: row.created_at,
         updatedAt: row.updated_at,
         isArchived: row.is_archived === 1,
