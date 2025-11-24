@@ -20,6 +20,7 @@ db.exec(`
     eset INTEGER DEFAULT 0,
     eset_version TEXT,
     fortinet INTEGER DEFAULT 0,
+    fortinet_serial_number TEXT,
     created_at TEXT DEFAULT (datetime('now')),
     updated_at TEXT DEFAULT (datetime('now'))
   );

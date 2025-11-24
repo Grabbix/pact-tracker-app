@@ -62,6 +62,7 @@ const ClientDetail = () => {
     eset: false,
     esetVersion: "",
     fortinet: false,
+    fortinetSerialNumber: "",
     contacts: [{ name: "", email: "", phone: "" } as { name: string; email?: string; phone?: string }]
   });
 
@@ -118,6 +119,7 @@ const ClientDetail = () => {
         eset: client.eset || false,
         esetVersion: client.esetVersion || "",
         fortinet: client.fortinet || false,
+        fortinetSerialNumber: client.fortinetSerialNumber || "",
         contacts: client.contacts.length > 0 ? client.contacts.map(c => ({ name: c.name, email: c.email, phone: c.phone })) : [{ name: "", email: "", phone: "" }]
       });
     }
@@ -382,6 +384,12 @@ const ClientDetail = () => {
                 {client.eset && <Badge>ESET {client.esetVersion && `(${client.esetVersion})`}</Badge>}
                 {client.fortinet && <Badge>Fortinet</Badge>}
               </div>
+              {client.fortinet && client.fortinetSerialNumber && (
+                <div className="pt-2">
+                  <p className="text-xs font-medium text-muted-foreground">Fortinet S/N</p>
+                  <p className="text-sm font-mono">{client.fortinetSerialNumber}</p>
+                </div>
+              )}
               {client.arx && (() => {
                 const quotaVendu = parseFloat(client.arxQuota || "0");
                 const totalUtilise = arxAccounts.reduce((sum, acc) => sum + (acc.usedSpaceGb || 0), 0);
@@ -442,15 +450,16 @@ const ClientDetail = () => {
           </CardContent>
         </Card>
 
-        {/* ARXONE - Sauvegardes */}
-        {client.arx && actualClientId && (
-          <div className="mb-6">
-            <ArxAccountsSection clientId={actualClientId} />
-          </div>
-        )}
+        {/* Onglets pour le reste du contenu */}
+        <Tabs defaultValue="contracts" className="w-full">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="contracts">Contrats</TabsTrigger>
+            <TabsTrigger value="billing">Facturation</TabsTrigger>
+            {client.arx && actualClientId && <TabsTrigger value="arx">ARX</TabsTrigger>}
+          </TabsList>
 
-        {/* Contrats */}
-        <Card>
+          <TabsContent value="contracts" className="mt-6">
+            <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Contrats</CardTitle>
             <div className="flex gap-2">
@@ -553,16 +562,17 @@ const ClientDetail = () => {
             </Tabs>
           </CardContent>
         </Card>
+          </TabsContent>
 
-          {/* Facturation Section */}
-          <Card className="hover:shadow-lg transition-shadow">
-            <CardHeader className="border-b bg-muted/30">
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5 text-primary" />
-                Facturation
-              </CardTitle>
-            </CardHeader>
-          <CardContent>
+          <TabsContent value="billing" className="mt-6">
+            <Card className="hover:shadow-lg transition-shadow">
+              <CardHeader className="border-b bg-muted/30">
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-primary" />
+                  Facturation
+                </CardTitle>
+              </CardHeader>
+            <CardContent>
             <Tabs defaultValue="pending" className="w-full">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="pending">
@@ -622,6 +632,14 @@ const ClientDetail = () => {
             </Tabs>
           </CardContent>
         </Card>
+          </TabsContent>
+
+          {client.arx && actualClientId && (
+            <TabsContent value="arx" className="mt-6">
+              <ArxAccountsSection clientId={actualClientId} />
+            </TabsContent>
+          )}
+        </Tabs>
       </div>
 
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
@@ -796,6 +814,17 @@ const ClientDetail = () => {
                 />
                 <Label htmlFor="fortinet">Fortinet</Label>
               </div>
+              {formData.fortinet && (
+                <div className="ml-6">
+                  <Label htmlFor="fortinetSerialNumber">Numéro de série</Label>
+                  <Input
+                    id="fortinetSerialNumber"
+                    value={formData.fortinetSerialNumber || ""}
+                    onChange={(e) => setFormData({ ...formData, fortinetSerialNumber: e.target.value })}
+                    placeholder="S/N Fortinet"
+                  />
+                </div>
+              )}
             </div>
 
             <div className="border-t pt-4">

@@ -21,6 +21,7 @@ export interface Client {
   eset?: boolean;
   esetVersion?: string;
   fortinet?: boolean;
+  fortinetSerialNumber?: string;
   createdAt?: string;
   updatedAt?: string;
   activeContractsCount?: number;
