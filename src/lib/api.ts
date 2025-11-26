@@ -317,4 +317,11 @@ export const api = {
     if (!response.ok) throw new Error('Failed to fetch client billing items');
     return response.json();
   },
+
+  async getProjectsByClient(clientName: string) {
+    const response = await fetch(`${API_BASE_URL}/api/projects?clientName=${encodeURIComponent(clientName)}`);
+    if (!response.ok) throw new Error('Failed to fetch projects');
+    return response.json();
+  },
 };
+

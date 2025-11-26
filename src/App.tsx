@@ -11,6 +11,7 @@ import ContractDetail from "./pages/ContractDetail";
 import ArchivedContracts from "./pages/ArchivedContracts";
 import Management from "./pages/Management";
 import Projects from "./pages/Projects";
+import ArchivedProjects from "./pages/ArchivedProjects";
 import ProjectDetail from "./pages/ProjectDetail";
 import Clients from "./pages/Clients";
 import ClientDetail from "./pages/ClientDetail";
@@ -38,6 +39,7 @@ const App = () => (
             <Route path="/contract/:id" element={<ContractDetail />} />
             <Route path="/management" element={<Management />} />
             <Route path="/projects" element={<Projects />} />
+            <Route path="/projects/archived" element={<ArchivedProjects />} />
             <Route path="/projects/:id" element={<ProjectDetail />} />
             <Route path="/clients" element={<Clients />} />
             <Route path="/clients/:id" element={<ClientDetail />} />

@@ -47,6 +47,7 @@ const ClientDetail = () => {
   const [contractTypeToCreate, setContractTypeToCreate] = useState<"signed" | "quote">("signed");
   const [arxAccounts, setArxAccounts] = useState<ArxAccount[]>([]);
   const [billingItems, setBillingItems] = useState<any[]>([]);
+  const [projects, setProjects] = useState<any[]>([]);
   
   const [formData, setFormData] = useState({
     name: "",
@@ -86,15 +87,17 @@ const ClientDetail = () => {
       const clientId = clientData.id;
       setActualClientId(clientId);
       
-      const [allContractsData, arxAccountsData, billingItemsData] = await Promise.all([
+      const [allContractsData, arxAccountsData, billingItemsData, projectsData] = await Promise.all([
         api.getContracts(true), // Include archived
         api.getArxAccounts(clientId).catch(() => []), // Fetch ARX accounts, fallback to empty array
-        api.getClientBillingItems(clientData.name).catch(() => []) // Fetch billing items
+        api.getClientBillingItems(clientData.name).catch(() => []), // Fetch billing items
+        api.getProjectsByClient(clientData.name).catch(() => []) // Fetch projects
       ]);
       setClient(clientData);
       setContracts(allContractsData.filter(c => c.clientId === clientId));
       setArxAccounts(arxAccountsData);
       setBillingItems(billingItemsData);
+      setProjects(projectsData);
     } catch (error) {
       console.error("Error fetching client data:", error);
       toast.error("Erreur lors du chargement des données");
@@ -452,8 +455,9 @@ const ClientDetail = () => {
 
         {/* Onglets pour le reste du contenu */}
         <Tabs defaultValue="contracts" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="contracts">Contrats</TabsTrigger>
+            <TabsTrigger value="projects">Projets</TabsTrigger>
             <TabsTrigger value="billing">Facturation</TabsTrigger>
             {client.arx && actualClientId && <TabsTrigger value="arx">ARX</TabsTrigger>}
           </TabsList>
@@ -564,6 +568,63 @@ const ClientDetail = () => {
         </Card>
           </TabsContent>
 
+          <TabsContent value="projects" className="mt-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Projets</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Tabs defaultValue="active" className="w-full">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="active">En cours ({projects.filter(p => !p.isArchived).length})</TabsTrigger>
+                    <TabsTrigger value="archived">Archivés ({projects.filter(p => p.isArchived).length})</TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="active" className="mt-4">
+                    {projects.filter(p => !p.isArchived).length === 0 ? (
+                      <p className="text-muted-foreground text-center py-8">Aucun projet en cours</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {projects.filter(p => !p.isArchived).map((project: any) => (
+                          <div
+                            key={project.id}
+                            onClick={() => navigate(`/projects/${project.id}`)}
+                            className="p-4 border rounded-lg hover:shadow-md transition-shadow cursor-pointer"
+                          >
+                            <h3 className="font-medium mb-1">{project.title}</h3>
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                              <Badge variant="outline">{project.status}</Badge>
+                              {project.deliveryDate && <span>Livraison: {format(new Date(project.deliveryDate), "dd MMM yyyy", { locale: fr })}</span>}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </TabsContent>
+
+                  <TabsContent value="archived" className="mt-4">
+                    {projects.filter(p => p.isArchived).length === 0 ? (
+                      <p className="text-muted-foreground text-center py-8">Aucun projet archivé</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {projects.filter(p => p.isArchived).map((project: any) => (
+                          <div
+                            key={project.id}
+                            onClick={() => navigate(`/projects/${project.id}`)}
+                            className="p-4 border rounded-lg hover:shadow-md transition-shadow cursor-pointer opacity-75"
+                          >
+                            <h3 className="font-medium mb-1">{project.title}</h3>
+                            <Badge variant="secondary">Archivé</Badge>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </TabsContent>
+                </Tabs>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           <TabsContent value="billing" className="mt-6">
             <Card className="hover:shadow-lg transition-shadow">
               <CardHeader className="border-b bg-muted/30">
@@ -583,7 +644,7 @@ const ClientDetail = () => {
                 </TabsTrigger>
               </TabsList>
 
-              <TabsContent value="pending" className="mt-4">
+               <TabsContent value="pending" className="mt-4">
                 {billingItems.filter(item => !item.isProcessed).length === 0 ? (
                   <p className="text-muted-foreground text-center py-8">Aucun élément à facturer</p>
                 ) : (
@@ -595,6 +656,21 @@ const ClientDetail = () => {
                       >
                         <div className="flex items-center justify-between mb-2">
                           <h3 className="font-medium">{item.description}</h3>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={async () => {
+                              try {
+                                await api.markBillingItemProcessed(item.id);
+                                toast.success("Marqué comme traité");
+                                fetchClientData();
+                              } catch (error) {
+                                toast.error("Erreur lors de la mise à jour");
+                              }
+                            }}
+                          >
+                            Marquer comme traité
+                          </Button>
                         </div>
                         <div className="flex items-center gap-4 text-sm text-muted-foreground">
                           <span>Technicien: {item.technician}</span>
