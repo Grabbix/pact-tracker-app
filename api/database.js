@@ -195,6 +195,17 @@ db.exec(`
     created_at TEXT DEFAULT (datetime('now')),
     updated_at TEXT DEFAULT (datetime('now'))
   );
+
+  CREATE TABLE IF NOT EXISTS overtime_hours (
+    id TEXT PRIMARY KEY,
+    technician TEXT NOT NULL,
+    date DATE NOT NULL,
+    client TEXT NOT NULL,
+    description TEXT NOT NULL,
+    hours REAL NOT NULL,
+    type TEXT NOT NULL DEFAULT 'add',
+    created_at TEXT DEFAULT (datetime('now'))
+  );
 `);
 
 // Add renewal_quote_id and linked_contract_id columns if they don't exist

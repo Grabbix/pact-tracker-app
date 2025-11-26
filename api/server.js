@@ -60,7 +60,8 @@ if (!fs.existsSync(backupDir)) {
 }
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // Helper function to log cron jobs
 function logCronJob(type, message, status = 'info', details = null, triggerType = 'cron') {
@@ -3520,6 +3521,48 @@ app.post('/api/admin/run-migration', (req, res) => {
     res.json({ success: true, message: 'Migration completed' });
   } catch (error) {
     console.error('Migration error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Overtime hours routes
+app.get('/api/overtime-hours', (req, res) => {
+  try {
+    const entries = db.prepare(`
+      SELECT * FROM overtime_hours
+      ORDER BY date DESC, created_at DESC
+    `).all();
+    res.json(entries);
+  } catch (error) {
+    console.error('Error fetching overtime hours:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/overtime-hours', (req, res) => {
+  try {
+    const { technician, date, client, description, hours, type } = req.body;
+    const id = randomUUID();
+    
+    db.prepare(`
+      INSERT INTO overtime_hours (id, technician, date, client, description, hours, type)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(id, technician, date, client, description, hours, type);
+    
+    const entry = db.prepare('SELECT * FROM overtime_hours WHERE id = ?').get(id);
+    res.status(201).json(entry);
+  } catch (error) {
+    console.error('Error creating overtime entry:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.delete('/api/overtime-hours/:id', (req, res) => {
+  try {
+    db.prepare('DELETE FROM overtime_hours WHERE id = ?').run(req.params.id);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting overtime entry:', error);
     res.status(500).json({ error: error.message });
   }
 });

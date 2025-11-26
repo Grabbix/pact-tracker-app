@@ -22,7 +22,6 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 const Projects = () => {
   const navigate = useNavigate();
-  const [showArchived, setShowArchived] = useState(false);
   const [clients, setClients] = useState([]);
   const [sortBy, setSortBy] = useState<"createdAt" | "deliveryDate">("createdAt");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
@@ -35,8 +34,7 @@ const Projects = () => {
     loading,
     addProject,
     archiveProject,
-    unarchiveProject,
-  } = useProjects(showArchived);
+  } = useProjects(false);
 
   useEffect(() => {
     fetch(`${API_BASE_URL}/api/clients`)
@@ -45,20 +43,17 @@ const Projects = () => {
       .catch(console.error);
   }, []);
 
-  const handleArchiveToggle = async (projectId: string, isArchived: boolean) => {
-    if (isArchived) {
-      await unarchiveProject(projectId);
-    } else {
-      await archiveProject(projectId);
-    }
+  const handleArchive = async (projectId: string) => {
+    await archiveProject(projectId);
   };
 
   const toggleSortOrder = () => {
     setSortOrder(prev => prev === "asc" ? "desc" : "asc");
   };
 
-  // Filtrer et trier les projets
+  // Filtrer et trier les projets (seulement actifs)
   const filteredProjects = projects
+    .filter(p => !p.isArchived)
     .filter(p => typeFilter === "all" || p.projectType === typeFilter)
     .filter(p => statusFilter === "all" || p.status === statusFilter)
     .sort((a, b) => {
@@ -192,10 +187,11 @@ const Projects = () => {
                   <label className="text-sm font-medium mb-2 block">Archivés</label>
                   <Button
                     variant="outline"
-                    onClick={() => setShowArchived(!showArchived)}
-                    className="w-full"
+                    onClick={() => navigate("/projects/archived")}
+                    className="w-full gap-2"
                   >
-                    {showArchived ? "Masquer" : "Afficher"} archivés
+                    <Archive className="h-4 w-4" />
+                    Voir les archives
                   </Button>
                 </div>
               </div>
@@ -298,14 +294,11 @@ const Projects = () => {
                         size="icon"
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleArchiveToggle(project.id, project.isArchived);
+                          handleArchive(project.id);
                         }}
+                        title="Archiver"
                       >
-                        {project.isArchived ? (
-                          <ArchiveRestore className="h-4 w-4" />
-                        ) : (
-                          <Archive className="h-4 w-4" />
-                        )}
+                        <Archive className="h-4 w-4" />
                       </Button>
                     </div>
                   </CardContent>
