@@ -10,7 +10,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Archive, ArchiveRestore, ArrowUpDown, Calendar as CalendarIcon } from "lucide-react";
+import { ArrowLeft, Archive, ArchiveRestore, ArrowUpDown, Calendar as CalendarIcon, Clock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useProjects } from "@/hooks/useProjects";
 import { AddProjectDialog } from "@/components/AddProjectDialog";
@@ -118,6 +118,17 @@ const Projects = () => {
               </TabsTrigger>
             </TabsList>
           </Tabs>
+
+          <div className="flex justify-end">
+            <Button
+              variant="outline"
+              onClick={() => navigate("/timeline")}
+              className="gap-2"
+            >
+              <Clock className="h-4 w-4" />
+              Timeline globale
+            </Button>
+          </div>
 
           <Card>
             <CardHeader>

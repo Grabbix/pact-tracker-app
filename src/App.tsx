@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { lazy, Suspense } from "react";
+import { ThemeProvider } from "@/components/ThemeProvider";
 import Home from "./pages/Home";
 import Dashboard from "./pages/Dashboard";
 import Contracts from "./pages/Contracts";
@@ -19,6 +20,7 @@ import Admin from "./pages/Admin";
 import Billing from "./pages/Billing";
 import Config from "./pages/Config";
 import Technicians from "./pages/Technicians";
+import Timeline from "./pages/Timeline";
 import NotFound from "./pages/NotFound";
 
 const Notifications = lazy(() => import("./pages/Notifications"));
@@ -27,10 +29,11 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
+    <ThemeProvider defaultTheme="light" storageKey="app-theme">
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
         <Suspense fallback={<div className="p-4 text-sm text-muted-foreground">Chargement…</div>}>
           <Routes>
             <Route path="/" element={<Home />} />
@@ -48,13 +51,15 @@ const App = () => (
             <Route path="/admin" element={<Admin />} />
             <Route path="/config" element={<Config />} />
             <Route path="/technicians" element={<Technicians />} />
+            <Route path="/timeline" element={<Timeline />} />
             <Route path="/notif" element={<Notifications />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
       </BrowserRouter>
-    </TooltipProvider>
+      </TooltipProvider>
+    </ThemeProvider>
   </QueryClientProvider>
 );
 

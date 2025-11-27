@@ -1,12 +1,14 @@
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { FileText, Settings, Building2, Receipt, TrendingUp, Bell, Shield, FolderKanban, Wrench } from "lucide-react";
+import { FileText, Settings, Building2, Receipt, TrendingUp, Bell, Shield, FolderKanban, Wrench, Users } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { NotificationBadge } from "@/components/NotificationBadge";
 
 const Home = () => {
   const navigate = useNavigate();
@@ -24,6 +26,9 @@ const Home = () => {
           Dashboard
         </Button>
         
+        <NotificationBadge />
+        <ThemeToggle />
+        
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" size="icon" className="rounded-full shadow-lg">
@@ -34,6 +39,10 @@ const Home = () => {
             <DropdownMenuItem onClick={() => navigate("/config")} className="cursor-pointer">
               <Wrench className="h-4 w-4 mr-2" />
               Configuration
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => navigate("/technicians")} className="cursor-pointer">
+              <Users className="h-4 w-4 mr-2" />
+              Techniciens
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => navigate("/admin")} className="cursor-pointer">
               <Shield className="h-4 w-4 mr-2" />
