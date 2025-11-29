@@ -1,18 +1,8 @@
 import { useNavigate } from "react-router-dom";
-import { useEffect, useMemo } from "react";
-import { Button } from "@/components/ui/button";
+import { useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Settings, TrendingUp, Shield, Wrench, Users, Calendar, BarChart3, Bell, AlertCircle } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { ThemeToggle } from "@/components/ThemeToggle";
-import { NotificationBadge } from "@/components/NotificationBadge";
 import { useContracts } from "@/hooks/useContracts";
 import { useProjects } from "@/hooks/useProjects";
 import { format } from "date-fns";
@@ -115,70 +105,6 @@ const Home = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background/95 to-muted/30">
-      {/* Top Bar */}
-      <div className="border-b bg-background/50 backdrop-blur-sm sticky top-0 z-10">
-        <div className="container mx-auto px-6 py-4 flex items-center justify-between">
-          <Tabs defaultValue="home" className="w-auto">
-            <TabsList>
-              <TabsTrigger value="home" onClick={() => navigate("/")}>Accueil</TabsTrigger>
-              <TabsTrigger value="billing" onClick={() => navigate("/billing")}>Facturation</TabsTrigger>
-              <TabsTrigger value="contracts" onClick={() => navigate("/contracts")}>Contrats</TabsTrigger>
-              <TabsTrigger value="clients" onClick={() => navigate("/clients")}>Clients</TabsTrigger>
-              <TabsTrigger value="projects" onClick={() => navigate("/projects")}>Projets</TabsTrigger>
-            </TabsList>
-          </Tabs>
-
-          <div className="flex gap-2">
-            <Button 
-              variant="outline" 
-              onClick={() => navigate("/dashboard")}
-              className="gap-2"
-            >
-              <TrendingUp className="h-4 w-4" />
-              Dashboard
-            </Button>
-            
-            <NotificationBadge />
-            <ThemeToggle />
-            
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="icon">
-                  <Settings className="h-5 w-5" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem onClick={() => navigate("/reports")} className="cursor-pointer">
-                  <BarChart3 className="h-4 w-4 mr-2" />
-                  Rapports
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate("/timeline")} className="cursor-pointer">
-                  <Calendar className="h-4 w-4 mr-2" />
-                  Timeline
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate("/config")} className="cursor-pointer">
-                  <Wrench className="h-4 w-4 mr-2" />
-                  Configuration
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate("/technicians")} className="cursor-pointer">
-                  <Users className="h-4 w-4 mr-2" />
-                  Techniciens
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate("/admin")} className="cursor-pointer">
-                  <Shield className="h-4 w-4 mr-2" />
-                  Administration
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate("/notif")} className="cursor-pointer">
-                  <Bell className="h-4 w-4 mr-2" />
-                  Notifications
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content */}
       <div className="container mx-auto px-6 py-8">
         <div className="mb-8">
           <h1 className="text-4xl font-bold mb-2">Tableau de bord</h1>

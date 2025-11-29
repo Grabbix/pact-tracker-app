@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { lazy, Suspense } from "react";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import { Navigation } from "@/components/Navigation";
 import Home from "./pages/Home";
 import Dashboard from "./pages/Dashboard";
 import Contracts from "./pages/Contracts";
@@ -35,31 +36,32 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
-        <Suspense fallback={<div className="p-4 text-sm text-muted-foreground">Chargement…</div>}>
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/contracts" element={<Contracts />} />
-            <Route path="/archives" element={<ArchivedContracts />} />
-            <Route path="/contract/:id" element={<ContractDetail />} />
-            <Route path="/management" element={<Management />} />
-            <Route path="/projects" element={<Projects />} />
-            <Route path="/projects/archived" element={<ArchivedProjects />} />
-            <Route path="/projects/:id" element={<ProjectDetail />} />
-            <Route path="/clients" element={<Clients />} />
-            <Route path="/clients/:id" element={<ClientDetail />} />
-            <Route path="/billing" element={<Billing />} />
-            <Route path="/admin" element={<Admin />} />
-            <Route path="/config" element={<Config />} />
-            <Route path="/technicians" element={<Technicians />} />
-            <Route path="/timeline" element={<Timeline />} />
-            <Route path="/reports" element={<Reports />} />
-            <Route path="/notif" element={<Notifications />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </Suspense>
-      </BrowserRouter>
+          <Navigation />
+          <Suspense fallback={<div className="p-4 text-sm text-muted-foreground">Chargement…</div>}>
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/contracts" element={<Contracts />} />
+              <Route path="/archives" element={<ArchivedContracts />} />
+              <Route path="/contract/:id" element={<ContractDetail />} />
+              <Route path="/management" element={<Management />} />
+              <Route path="/projects" element={<Projects />} />
+              <Route path="/projects/archived" element={<ArchivedProjects />} />
+              <Route path="/projects/:id" element={<ProjectDetail />} />
+              <Route path="/clients" element={<Clients />} />
+              <Route path="/clients/:id" element={<ClientDetail />} />
+              <Route path="/billing" element={<Billing />} />
+              <Route path="/admin" element={<Admin />} />
+              <Route path="/config" element={<Config />} />
+              <Route path="/technicians" element={<Technicians />} />
+              <Route path="/timeline" element={<Timeline />} />
+              <Route path="/reports" element={<Reports />} />
+              <Route path="/notif" element={<Notifications />} />
+              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Suspense>
+        </BrowserRouter>
       </TooltipProvider>
     </ThemeProvider>
   </QueryClientProvider>
