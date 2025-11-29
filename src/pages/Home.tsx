@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Settings, TrendingUp, Shield, Wrench, Users, Calendar, BarChart3, Bell, AlertCircle } from "lucide-react";
+import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -85,6 +86,32 @@ const Home = () => {
       })
       .slice(0, 5);
   }, [projects]);
+
+  const chartColors = [
+    'hsl(var(--primary))',
+    'hsl(var(--secondary))',
+    'hsl(var(--accent))',
+    'hsl(var(--muted))',
+    'hsl(var(--chart-1))',
+  ];
+
+  const topClientsChartData = useMemo(() => 
+    topClients.map((client, index) => ({
+      name: client.clientName,
+      hours: client.usedHours,
+      fill: chartColors[index % chartColors.length],
+    })), [topClients]
+  );
+
+  const nearExpiryChartData = useMemo(() =>
+    nearExpiryClients.map((client, index) => ({
+      name: client.clientName,
+      remaining: Math.round(client.remainingPercent),
+      fill: client.remainingPercent < 10 ? 'hsl(var(--destructive))' :
+            client.remainingPercent < 25 ? 'hsl(var(--warning))' :
+            'hsl(var(--chart-3))',
+    })), [nearExpiryClients]
+  );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background/95 to-muted/30">
@@ -171,27 +198,51 @@ const Home = () => {
               ) : topClients.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Aucun client</p>
               ) : (
-                <div className="space-y-3">
-                  {topClients.map((client, index) => (
-                    <div
-                      key={client.clientName}
-                      className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors cursor-pointer"
-                      onClick={() => {
-                        const contract = contracts.find(c => c.clientName === client.clientName);
-                        if (contract?.clientId) navigate(`/clients/${contract.clientId}`);
-                      }}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground font-semibold text-sm">
-                          {index + 1}
+                <div className="space-y-6">
+                  <ResponsiveContainer width="100%" height={250}>
+                    <BarChart data={topClientsChartData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                      <XAxis 
+                        dataKey="name" 
+                        angle={-45}
+                        textAnchor="end"
+                        height={80}
+                        stroke="hsl(var(--muted-foreground))"
+                      />
+                      <YAxis stroke="hsl(var(--muted-foreground))" />
+                      <Tooltip 
+                        contentStyle={{
+                          backgroundColor: 'hsl(var(--popover))',
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '6px',
+                        }}
+                      />
+                      <Bar dataKey="hours" radius={[8, 8, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                  <div className="space-y-2">
+                    {topClients.map((client, index) => (
+                      <div
+                        key={client.clientName}
+                        className="flex items-center justify-between p-2 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer"
+                        onClick={() => {
+                          const contract = contracts.find(c => c.clientName === client.clientName);
+                          if (contract?.clientId) navigate(`/clients/${contract.clientId}`);
+                        }}
+                      >
+                        <div className="flex items-center gap-2">
+                          <div 
+                            className="w-3 h-3 rounded-full" 
+                            style={{ backgroundColor: chartColors[index % chartColors.length] }}
+                          />
+                          <span className="font-medium text-sm">{client.clientName}</span>
                         </div>
-                        <span className="font-medium">{client.clientName}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {client.usedHours}h / {client.totalHours}h
+                        </span>
                       </div>
-                      <span className="text-sm text-muted-foreground">
-                        {client.usedHours}h / {client.totalHours}h
-                      </span>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               )}
             </CardContent>
@@ -204,7 +255,7 @@ const Home = () => {
                 <AlertCircle className="h-5 w-5 text-destructive" />
                 Clients bientôt terminés
               </CardTitle>
-              <CardDescription>Par heures restantes</CardDescription>
+              <CardDescription>Par heures restantes (%)</CardDescription>
             </CardHeader>
             <CardContent>
               {contractsLoading ? (
@@ -212,33 +263,61 @@ const Home = () => {
               ) : nearExpiryClients.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Aucun client proche de l'expiration</p>
               ) : (
-                <div className="space-y-3">
-                  {nearExpiryClients.map((client) => (
-                    <div
-                      key={client.clientName}
-                      className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors cursor-pointer"
-                      onClick={() => {
-                        const contract = contracts.find(c => c.clientName === client.clientName);
-                        if (contract?.clientId) navigate(`/clients/${contract.clientId}`);
-                      }}
-                    >
-                      <div>
-                        <span className="font-medium">{client.clientName}</span>
-                        <p className="text-sm text-muted-foreground">
-                          {client.totalHours - client.usedHours}h restantes
-                        </p>
+                <div className="space-y-6">
+                  <div className="flex justify-center">
+                    <ResponsiveContainer width="100%" height={250}>
+                      <PieChart>
+                        <Pie
+                          data={nearExpiryChartData}
+                          cx="50%"
+                          cy="50%"
+                          labelLine={false}
+                          label={({ name, remaining }) => `${name}: ${remaining}%`}
+                          outerRadius={80}
+                          dataKey="remaining"
+                        >
+                          {nearExpiryChartData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.fill} />
+                          ))}
+                        </Pie>
+                        <Tooltip 
+                          contentStyle={{
+                            backgroundColor: 'hsl(var(--popover))',
+                            border: '1px solid hsl(var(--border))',
+                            borderRadius: '6px',
+                          }}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="space-y-2">
+                    {nearExpiryClients.map((client) => (
+                      <div
+                        key={client.clientName}
+                        className="flex items-center justify-between p-2 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer"
+                        onClick={() => {
+                          const contract = contracts.find(c => c.clientName === client.clientName);
+                          if (contract?.clientId) navigate(`/clients/${contract.clientId}`);
+                        }}
+                      >
+                        <div>
+                          <span className="font-medium text-sm">{client.clientName}</span>
+                          <p className="text-xs text-muted-foreground">
+                            {client.totalHours - client.usedHours}h restantes
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <span className={`text-sm font-semibold ${
+                            client.remainingPercent < 10 ? "text-destructive" :
+                            client.remainingPercent < 25 ? "text-orange-500" :
+                            "text-yellow-500"
+                          }`}>
+                            {client.remainingPercent.toFixed(0)}%
+                          </span>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <span className={`text-sm font-semibold ${
-                          client.remainingPercent < 10 ? "text-destructive" :
-                          client.remainingPercent < 25 ? "text-orange-500" :
-                          "text-yellow-500"
-                        }`}>
-                          {client.remainingPercent.toFixed(0)}%
-                        </span>
-                      </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               )}
             </CardContent>
