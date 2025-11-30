@@ -3,8 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Building2, Search, ArrowLeft, Plus, Trash2, Clock } from "lucide-react";
+import { Building2, Search, ArrowLeft, Plus, Trash2, Clock, LayoutGrid, List } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { api } from "@/lib/api";
 import { Client } from "@/types/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -32,6 +33,7 @@ const Clients = () => {
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [filters, setFilters] = useState({
     activeContract: false,
     mailinblack: false,
@@ -463,14 +465,37 @@ const Clients = () => {
         </div>
 
         <div className="space-y-4 mb-6">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-            <Input
-              placeholder="Rechercher un client..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
+          <div className="flex items-center justify-between gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+              <Input
+                placeholder="Rechercher un client..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            
+            <div className="flex items-center gap-2 border rounded-md">
+              <Button
+                variant={viewMode === "grid" ? "default" : "ghost"}
+                size="sm"
+                onClick={() => setViewMode("grid")}
+                className="gap-2"
+              >
+                <LayoutGrid className="h-4 w-4" />
+                Cartes
+              </Button>
+              <Button
+                variant={viewMode === "list" ? "default" : "ghost"}
+                size="sm"
+                onClick={() => setViewMode("list")}
+                className="gap-2"
+              >
+                <List className="h-4 w-4" />
+                Liste
+              </Button>
+            </div>
           </div>
           
           <div className="flex flex-wrap gap-2">
@@ -518,7 +543,7 @@ const Clients = () => {
           <div className="text-center py-12 text-muted-foreground">
             Aucun client trouvé
           </div>
-        ) : (
+        ) : viewMode === "grid" ? (
           <div className="space-y-4">
             {filteredClients.map((client) => {
               const activeContract = getClientActiveContract(client.name);
@@ -596,6 +621,82 @@ const Clients = () => {
               );
             })}
           </div>
+        ) : (
+          <Card>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nom</TableHead>
+                  <TableHead>Statut contrat</TableHead>
+                  <TableHead>Heures restantes</TableHead>
+                  <TableHead>Technologies</TableHead>
+                  <TableHead className="w-[50px]"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredClients.map((client) => {
+                  const activeContract = getClientActiveContract(client.name);
+                  const remainingHours = activeContract 
+                    ? activeContract.totalHours - activeContract.usedHours 
+                    : null;
+                  
+                  return (
+                    <TableRow 
+                      key={client.id}
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => navigate(`/clients/${client.name}`)}
+                    >
+                      <TableCell className="font-medium">{client.name}</TableCell>
+                      <TableCell>
+                        {activeContract ? (
+                          remainingHours !== null && remainingHours < 0 ? (
+                            <Badge variant="outline" className="bg-orange-500/10 text-orange-700 border-orange-500/20">
+                              Dépassé
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="bg-green-500/10 text-green-700 border-green-500/20">
+                              Actif
+                            </Badge>
+                          )
+                        ) : (
+                          <Badge variant="outline" className="bg-muted text-muted-foreground">
+                            Aucun
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {remainingHours !== null && activeContract ? (
+                          <div className="flex items-center gap-1 text-sm">
+                            <Clock className="h-3 w-3 text-muted-foreground" />
+                            <span>{remainingHours}h / {activeContract.totalHours}h</span>
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1 flex-wrap">
+                          {client.arx && <Badge variant="secondary" className="text-xs">ARX</Badge>}
+                          {client.eset && <Badge variant="secondary" className="text-xs">ESET</Badge>}
+                          {client.mailinblack && <Badge variant="secondary" className="text-xs">MB</Badge>}
+                          {client.fortinet && <Badge variant="secondary" className="text-xs">FTN</Badge>}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => openDeleteDialog(client, e)}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </Card>
         )}
       </div>
 
