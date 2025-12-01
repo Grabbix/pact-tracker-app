@@ -10,13 +10,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Archive, ArchiveRestore, ArrowUpDown, Calendar as CalendarIcon, Clock } from "lucide-react";
+import { ArrowLeft, Archive, ArchiveRestore, ArrowUpDown, Calendar as CalendarIcon, Clock, Kanban } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useProjects } from "@/hooks/useProjects";
 import { AddProjectDialog } from "@/components/AddProjectDialog";
 import { Project, PROJECT_TYPES, PROJECT_STATUSES, ProjectType, ProjectStatus } from "@/types/project";
 import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
+import { KanbanView } from "@/components/KanbanView";
+import { toast } from "sonner";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
@@ -27,12 +29,13 @@ const Projects = () => {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [typeFilter, setTypeFilter] = useState<ProjectType | "all">("all");
   const [statusFilter, setStatusFilter] = useState<ProjectStatus | "all">("all");
-  const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
+  const [viewMode, setViewMode] = useState<"list" | "calendar" | "kanban">("list");
 
   const {
     projects,
     loading,
     addProject,
+    updateProject,
     archiveProject,
   } = useProjects(false);
 
@@ -45,6 +48,16 @@ const Projects = () => {
 
   const handleArchive = async (projectId: string) => {
     await archiveProject(projectId);
+  };
+
+  const handleStatusChange = async (projectId: string, newStatus: ProjectStatus) => {
+    try {
+      await updateProject(projectId, { status: newStatus });
+      toast.success("Statut du projet mis à jour");
+    } catch (error) {
+      console.error("Erreur lors de la mise à jour du statut:", error);
+      toast.error("Impossible de mettre à jour le statut");
+    }
   };
 
   const toggleSortOrder = () => {
@@ -109,12 +122,16 @@ const Projects = () => {
 
         {/* Vue et Filtres */}
         <div className="mb-6 space-y-4">
-          <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "list" | "calendar")}>
+          <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "list" | "calendar" | "kanban")}>
             <TabsList>
               <TabsTrigger value="list">Liste</TabsTrigger>
               <TabsTrigger value="calendar">
                 <CalendarIcon className="mr-2 h-4 w-4" />
                 Calendrier
+              </TabsTrigger>
+              <TabsTrigger value="kanban">
+                <Kanban className="mr-2 h-4 w-4" />
+                Kanban
               </TabsTrigger>
             </TabsList>
           </Tabs>
@@ -317,8 +334,14 @@ const Projects = () => {
               );
             })}
           </div>
-        ) : (
+        ) : viewMode === "calendar" ? (
           <CalendarView projects={filteredProjects} onProjectClick={(id) => navigate(`/projects/${id}`)} />
+        ) : (
+          <KanbanView 
+            projects={filteredProjects} 
+            onProjectClick={(id) => navigate(`/projects/${id}`)}
+            onStatusChange={handleStatusChange}
+          />
         )}
       </div>
     </div>
