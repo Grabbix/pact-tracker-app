@@ -44,10 +44,8 @@ export const Navigation = () => {
   useEffect(() => {
     const fetchPendingBilling = async () => {
       try {
-        const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-        const res = await fetch(`${API_BASE_URL}/api/billing`);
-        const billingItems = await res.json();
-        const pending = billingItems.filter((item: any) => !item.is_processed).length;
+        const billingItems = await api.getBillingItems();
+        const pending = billingItems.filter((item: any) => !item.isProcessed).length;
         setPendingBillingCount(pending);
       } catch (error) {
         console.error("Error fetching billing count:", error);
