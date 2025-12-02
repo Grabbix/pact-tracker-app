@@ -7,8 +7,8 @@ import { AddInterventionDialog } from "@/components/AddInterventionDialog";
 import { EditInterventionDialog } from "@/components/EditInterventionDialog";
 import { RenewContractDialog } from "@/components/RenewContractDialog";
 import { EditClientNameDialog } from "@/components/EditClientNameDialog";
-import { SendPdfDialog } from "@/components/SendPdfDialog";
-import { exportContractToPDF, downloadContractPDF } from "@/utils/pdfExport";
+import { PdfPreviewDialog } from "@/components/PdfPreviewDialog";
+import { downloadContractPDF } from "@/utils/pdfExport";
 import { exportContractToExcel } from "@/utils/excelExport";
 import { 
   ArrowLeft, 
@@ -23,6 +23,7 @@ import {
   FileSpreadsheet,
   ChevronDown,
   FileText,
+  Eye,
   Info,
   RefreshCw
 } from "lucide-react";
@@ -315,9 +316,15 @@ const ContractDetail = () => {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-              <SendPdfDialog 
+              <PdfPreviewDialog 
                 contract={contract}
                 clientContacts={clientData?.contacts || []}
+                trigger={
+                  <Button variant="outline" className="gap-2">
+                    <Eye className="h-4 w-4" />
+                    Aperçu PDF
+                  </Button>
+                }
               />
             </div>
           </div>
