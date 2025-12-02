@@ -27,13 +27,20 @@ export const ContractListItem = ({ contract }: ContractListItemProps) => {
     return `${months}m ${daysAfterMonths}j`;
   }, [contract.createdDate]);
 
-  const lastInterventionDate = useMemo(() => {
-    if (!contract.interventions || contract.interventions.length === 0) return null;
+  const lastInterventionInfo = useMemo(() => {
+    if (!contract.interventions || contract.interventions.length === 0) {
+      return { date: null, isInactive: true };
+    }
     const latest = contract.interventions.reduce((latest, intervention) => {
       const date = new Date(intervention.date);
       return date > latest ? date : latest;
     }, new Date(contract.interventions[0].date));
-    return format(latest, "dd/MM", { locale: fr });
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    return { 
+      date: format(latest, "dd/MM", { locale: fr }),
+      isInactive: latest < sixMonthsAgo
+    };
   }, [contract.interventions]);
 
   const getStatusColor = () => {
@@ -73,6 +80,11 @@ export const ContractListItem = ({ contract }: ContractListItemProps) => {
               {statusBadge.label}
             </Badge>
           )}
+          {lastInterventionInfo.isInactive && (
+            <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-muted-foreground/50 text-muted-foreground">
+              Inactif
+            </Badge>
+          )}
         </div>
         <p className="text-xs text-muted-foreground">
           #{contract.contractNumber || contract.id} · {contractAge}
@@ -83,8 +95,8 @@ export const ContractListItem = ({ contract }: ContractListItemProps) => {
       <div className="flex items-center gap-3 text-xs text-muted-foreground">
         <span className="whitespace-nowrap">{contract.totalHours}h total</span>
         <span className="whitespace-nowrap">{contract.usedHours.toFixed(1)}h utilisées</span>
-        {lastInterventionDate && (
-          <span className="whitespace-nowrap text-foreground/70">Dern. interv. {lastInterventionDate}</span>
+        {lastInterventionInfo.date && (
+          <span className="whitespace-nowrap text-foreground/70">Dern. interv. {lastInterventionInfo.date}</span>
         )}
       </div>
       

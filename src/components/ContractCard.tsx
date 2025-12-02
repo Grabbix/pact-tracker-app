@@ -39,13 +39,20 @@ export const ContractCard = ({ contract, isArchived = false }: ContractCardProps
     return `il y a ${months} mois et ${days} jour${days > 1 ? 's' : ''}`;
   }, [contract.createdDate]);
 
-  const lastInterventionDate = useMemo(() => {
-    if (!contract.interventions || contract.interventions.length === 0) return null;
+  const lastInterventionInfo = useMemo(() => {
+    if (!contract.interventions || contract.interventions.length === 0) {
+      return { date: null, isInactive: true };
+    }
     const latest = contract.interventions.reduce((latest, intervention) => {
       const date = new Date(intervention.date);
       return date > latest ? date : latest;
     }, new Date(contract.interventions[0].date));
-    return format(latest, "dd MMM yyyy", { locale: fr });
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    return { 
+      date: format(latest, "dd MMM yyyy", { locale: fr }),
+      isInactive: latest < sixMonthsAgo
+    };
   }, [contract.interventions]);
 
   const handleArchiveClick = (e: React.MouseEvent) => {
@@ -117,6 +124,11 @@ export const ContractCard = ({ contract, isArchived = false }: ContractCardProps
             <Badge variant={statusBadge.variant} className={statusBadge.className}>
               {statusBadge.label}
             </Badge>
+            {lastInterventionInfo.isInactive && (
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-muted-foreground/50 text-muted-foreground">
+                Inactif
+              </Badge>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -164,9 +176,9 @@ export const ContractCard = ({ contract, isArchived = false }: ContractCardProps
           <p className="text-xs text-muted-foreground">
             Créé le {new Date(contract.createdDate).toLocaleDateString('fr-FR')} <span className="text-muted-foreground/70">({contractAge})</span>
           </p>
-          {lastInterventionDate && (
+          {lastInterventionInfo.date && (
             <p className="text-xs text-muted-foreground">
-              Dernière intervention : <span className="font-medium text-foreground">{lastInterventionDate}</span>
+              Dernière intervention : <span className="font-medium text-foreground">{lastInterventionInfo.date}</span>
             </p>
           )}
         </div>
