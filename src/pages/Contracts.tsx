@@ -5,7 +5,7 @@ import { AddContractDialog } from "@/components/AddContractDialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, FileText, Archive, Download, ArrowLeft, CheckCircle, TrendingUp, FileSpreadsheet, AlertTriangle, ArrowUpDown, LayoutGrid, List } from "lucide-react";
+import { Search, FileText, Archive, Download, ArrowLeft, CheckCircle, TrendingUp, FileSpreadsheet, AlertTriangle, ArrowUpDown, LayoutGrid, List, Clock } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,6 +24,7 @@ const Contracts = () => {
   const [filterNearExpiry, setFilterNearExpiry] = useState(false);
   const [filterOverage, setFilterOverage] = useState(false);
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [sortBy, setSortBy] = useState<"progression" | "age">("progression");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const navigate = useNavigate();
 
@@ -57,15 +58,16 @@ const Contracts = () => {
       return matchesSearch && matchesFilter;
     });
 
-    // Sort by progression percentage
+    // Sort by selected criteria
     return filtered.sort((a, b) => {
-      const percentageA = (a.usedHours / a.totalHours) * 100;
-      const percentageB = (b.usedHours / b.totalHours) * 100;
-      
-      if (sortOrder === "asc") {
-        return percentageA - percentageB;
+      if (sortBy === "age") {
+        const dateA = new Date(a.createdDate).getTime();
+        const dateB = new Date(b.createdDate).getTime();
+        return sortOrder === "asc" ? dateB - dateA : dateA - dateB;
       } else {
-        return percentageB - percentageA;
+        const percentageA = (a.usedHours / a.totalHours) * 100;
+        const percentageB = (b.usedHours / b.totalHours) * 100;
+        return sortOrder === "asc" ? percentageA - percentageB : percentageB - percentageA;
       }
     });
   };
@@ -181,14 +183,34 @@ const Contracts = () => {
             />
           </div>
           
-          <Button
-            variant={sortOrder === "desc" ? "default" : "outline"}
-            onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
-            className="whitespace-nowrap"
-          >
-            <ArrowUpDown className="mr-2 h-4 w-4" />
-            {sortOrder === "desc" ? "Plus pleins d'abord" : "Plus vides d'abord"}
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="whitespace-nowrap">
+                <ArrowUpDown className="mr-2 h-4 w-4" />
+                {sortBy === "progression" 
+                  ? (sortOrder === "desc" ? "Plus pleins d'abord" : "Plus vides d'abord")
+                  : (sortOrder === "desc" ? "Plus vieux d'abord" : "Plus récents d'abord")}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => { setSortBy("progression"); setSortOrder("desc"); }}>
+                <TrendingUp className="h-4 w-4 mr-2" />
+                Plus pleins d'abord
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => { setSortBy("progression"); setSortOrder("asc"); }}>
+                <TrendingUp className="h-4 w-4 mr-2" />
+                Plus vides d'abord
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => { setSortBy("age"); setSortOrder("desc"); }}>
+                <Clock className="h-4 w-4 mr-2" />
+                Plus vieux d'abord
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => { setSortBy("age"); setSortOrder("asc"); }}>
+                <Clock className="h-4 w-4 mr-2" />
+                Plus récents d'abord
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           
           <Button
             variant={viewMode === "grid" ? "default" : "outline"}

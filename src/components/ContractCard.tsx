@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Contract } from "@/types/contract";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -8,6 +8,7 @@ import { Clock, AlertCircle, CheckCircle, Archive, ArchiveRestore, Pencil } from
 import { useNavigate } from "react-router-dom";
 import { useContracts } from "@/hooks/useContracts";
 import { EditClientNameDialog } from "./EditClientNameDialog";
+import { differenceInMonths, differenceInDays } from "date-fns";
 
 interface ContractCardProps {
   contract: Contract;
@@ -20,6 +21,22 @@ export const ContractCard = ({ contract, isArchived = false }: ContractCardProps
   const [editingName, setEditingName] = useState(false);
   const percentage = (contract.usedHours / contract.totalHours) * 100;
   const remainingHours = contract.totalHours - contract.usedHours;
+
+  const contractAge = useMemo(() => {
+    const createdDate = new Date(contract.createdDate);
+    const now = new Date();
+    const totalDays = differenceInDays(now, createdDate);
+    const months = differenceInMonths(now, createdDate);
+    const days = totalDays - (months * 30);
+    
+    if (months === 0) {
+      return `il y a ${days} jour${days > 1 ? 's' : ''}`;
+    }
+    if (days <= 0) {
+      return `il y a ${months} mois`;
+    }
+    return `il y a ${months} mois et ${days} jour${days > 1 ? 's' : ''}`;
+  }, [contract.createdDate]);
 
   const handleArchiveClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -135,7 +152,7 @@ export const ContractCard = ({ contract, isArchived = false }: ContractCardProps
 
         <div className="pt-1.5 border-t border-border">
           <p className="text-xs text-muted-foreground">
-            Créé le {new Date(contract.createdDate).toLocaleDateString('fr-FR')}
+            Créé le {new Date(contract.createdDate).toLocaleDateString('fr-FR')} <span className="text-muted-foreground/70">({contractAge})</span>
           </p>
         </div>
       </div>
