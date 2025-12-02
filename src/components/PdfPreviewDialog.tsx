@@ -14,6 +14,7 @@ import { exportContractToPDF, downloadContractPDF } from "@/utils/pdfExport";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 
@@ -30,6 +31,7 @@ export const PdfPreviewDialog = ({ contract, clientContacts = [], trigger }: Pdf
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [email, setEmail] = useState("");
+  const [comment, setComment] = useState("");
   const [showEmailInput, setShowEmailInput] = useState(false);
 
   // Generate PDF when dialog opens or option changes
@@ -44,6 +46,7 @@ export const PdfPreviewDialog = ({ contract, clientContacts = [], trigger }: Pdf
       }
       setShowEmailInput(false);
       setEmail("");
+      setComment("");
     }
   }, [open, includeNonBillable]);
 
@@ -77,10 +80,11 @@ export const PdfPreviewDialog = ({ contract, clientContacts = [], trigger }: Pdf
     try {
       const doc = exportContractToPDF(contract, includeNonBillable);
       const pdfBase64 = doc.output('datauristring').split(',')[1];
-      await api.sendContractPdf(contract.id, email, pdfBase64);
+      await api.sendContractPdf(contract.id, email, pdfBase64, comment || undefined);
       toast.success("Email envoyé avec succès");
       setShowEmailInput(false);
       setEmail("");
+      setComment("");
     } catch (error: any) {
       console.error("Error sending PDF:", error);
       toast.error(error.message || "Erreur lors de l'envoi");
@@ -141,32 +145,40 @@ export const PdfPreviewDialog = ({ contract, clientContacts = [], trigger }: Pdf
 
         {/* Email input */}
         {showEmailInput && (
-          <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
-            <Input
-              type="email"
-              placeholder="Adresse email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="flex-1"
-              list="contact-emails"
+          <div className="space-y-3 p-3 bg-muted/50 rounded-lg">
+            <div className="flex items-center gap-2">
+              <Input
+                type="email"
+                placeholder="Adresse email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="flex-1"
+                list="contact-emails"
+              />
+              <datalist id="contact-emails">
+                {contactsWithEmail.map((contact, i) => (
+                  <option key={i} value={contact.email}>
+                    {contact.name}
+                  </option>
+                ))}
+              </datalist>
+              <Button onClick={handleSendEmail} disabled={isSending} size="sm">
+                {isSending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Envoi...
+                  </>
+                ) : (
+                  "Envoyer"
+                )}
+              </Button>
+            </div>
+            <Textarea
+              placeholder="Commentaire personnalisé (optionnel) - sera inclus dans l'email"
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              className="min-h-[60px] text-sm"
             />
-            <datalist id="contact-emails">
-              {contactsWithEmail.map((contact, i) => (
-                <option key={i} value={contact.email}>
-                  {contact.name}
-                </option>
-              ))}
-            </datalist>
-            <Button onClick={handleSendEmail} disabled={isSending} size="sm">
-              {isSending ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Envoi...
-                </>
-              ) : (
-                "Envoyer"
-              )}
-            </Button>
           </div>
         )}
 
