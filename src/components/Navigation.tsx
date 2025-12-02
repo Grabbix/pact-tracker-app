@@ -39,6 +39,24 @@ export const Navigation = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchError, setSearchError] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
+  const [pendingBillingCount, setPendingBillingCount] = useState(0);
+
+  useEffect(() => {
+    const fetchPendingBilling = async () => {
+      try {
+        const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+        const res = await fetch(`${API_BASE_URL}/api/billing`);
+        const billingItems = await res.json();
+        const pending = billingItems.filter((item: any) => !item.is_processed).length;
+        setPendingBillingCount(pending);
+      } catch (error) {
+        console.error("Error fetching billing count:", error);
+      }
+    };
+    fetchPendingBilling();
+    const interval = setInterval(fetchPendingBilling, 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   const getCurrentTab = () => {
     const path = location.pathname;
@@ -122,7 +140,14 @@ export const Navigation = () => {
           <Tabs value={getCurrentTab()} className="w-auto">
             <TabsList>
               <TabsTrigger value="home" onClick={() => navigate("/")}>Accueil</TabsTrigger>
-              <TabsTrigger value="billing" onClick={() => navigate("/billing")}>Facturation</TabsTrigger>
+              <TabsTrigger value="billing" onClick={() => navigate("/billing")} className="relative">
+                Facturation
+                {pendingBillingCount > 0 && (
+                  <span className="absolute -top-1 -right-1 h-4 min-w-4 flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[10px] font-medium px-1">
+                    {pendingBillingCount > 99 ? "99+" : pendingBillingCount}
+                  </span>
+                )}
+              </TabsTrigger>
               <TabsTrigger value="contracts" onClick={() => navigate("/contracts")}>Contrats</TabsTrigger>
               <TabsTrigger value="clients" onClick={() => navigate("/clients")}>Clients</TabsTrigger>
               <TabsTrigger value="projects" onClick={() => navigate("/projects")}>Projets</TabsTrigger>
