@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useContracts } from "@/hooks/useContracts";
 import { useNavigate } from "react-router-dom";
-import { exportContractToPDF } from "@/utils/pdfExport";
+import { downloadContractPDF } from "@/utils/pdfExport";
 import { exportAllContractsToExcelBackup } from "@/utils/excelExport";
 import { toast } from "sonner";
 
@@ -83,7 +83,7 @@ const Contracts = () => {
 
   const handleExportAllPDF = () => {
     signedContracts.forEach(contract => {
-      exportContractToPDF(contract);
+      downloadContractPDF(contract);
     });
     toast.success(`${signedContracts.length} PDF(s) exporté(s) avec succès`);
   };
