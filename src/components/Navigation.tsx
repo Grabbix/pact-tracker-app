@@ -140,10 +140,10 @@ export const Navigation = () => {
           <Tabs value={getCurrentTab()} className="w-auto">
             <TabsList>
               <TabsTrigger value="home" onClick={() => navigate("/")}>Accueil</TabsTrigger>
-              <TabsTrigger value="billing" onClick={() => navigate("/billing")} className="relative">
+              <TabsTrigger value="billing" onClick={() => navigate("/billing")} className="gap-1.5">
                 Facturation
                 {pendingBillingCount > 0 && (
-                  <span className="absolute -top-1 -right-1 h-4 min-w-4 flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[10px] font-medium px-1">
+                  <span className="h-5 min-w-5 flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold px-1.5">
                     {pendingBillingCount > 99 ? "99+" : pendingBillingCount}
                   </span>
                 )}
