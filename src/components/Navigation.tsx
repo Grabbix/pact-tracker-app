@@ -37,6 +37,8 @@ export const Navigation = () => {
     projects: any[];
   }>({ clients: [], contracts: [], projects: [] });
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchError, setSearchError] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
 
   const getCurrentTab = () => {
     const path = location.pathname;
@@ -62,6 +64,8 @@ export const Navigation = () => {
   useEffect(() => {
     if (searchQuery.length > 0) {
       const fetchResults = async () => {
+        setIsSearching(true);
+        setSearchError(false);
         try {
           const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
           const [clients, contracts, projectsRes] = await Promise.all([
@@ -85,11 +89,16 @@ export const Navigation = () => {
           });
         } catch (error) {
           console.error("Search error:", error);
+          setSearchError(true);
+          setSearchResults({ clients: [], contracts: [], projects: [] });
+        } finally {
+          setIsSearching(false);
         }
       };
       fetchResults();
     } else {
       setSearchResults({ clients: [], contracts: [], projects: [] });
+      setSearchError(false);
     }
   }, [searchQuery]);
 
@@ -194,48 +203,61 @@ export const Navigation = () => {
               onValueChange={setSearchQuery}
             />
             <CommandList>
-              <CommandEmpty>Aucun résultat trouvé.</CommandEmpty>
-              
-              {searchResults.clients.length > 0 && (
-                <CommandGroup heading="Clients">
-                  {searchResults.clients.map((client) => (
-                    <CommandItem
-                      key={client.id}
-                      onSelect={() => handleSelect("client", client.id)}
-                    >
-                      <Users className="mr-2 h-4 w-4" />
-                      <span>{client.name}</span>
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              )}
+              {searchError ? (
+                <div className="py-6 text-center text-sm text-muted-foreground">
+                  <p className="font-medium text-destructive">Impossible de se connecter au serveur</p>
+                  <p className="mt-1">Vérifiez que l'API locale est démarrée</p>
+                </div>
+              ) : isSearching ? (
+                <div className="py-6 text-center text-sm text-muted-foreground">
+                  Recherche en cours...
+                </div>
+              ) : (
+                <>
+                  <CommandEmpty>Aucun résultat trouvé.</CommandEmpty>
+                  
+                  {searchResults.clients.length > 0 && (
+                    <CommandGroup heading="Clients">
+                      {searchResults.clients.map((client) => (
+                        <CommandItem
+                          key={client.id}
+                          onSelect={() => handleSelect("client", client.id)}
+                        >
+                          <Users className="mr-2 h-4 w-4" />
+                          <span>{client.name}</span>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  )}
 
-              {searchResults.contracts.length > 0 && (
-                <CommandGroup heading="Contrats">
-                  {searchResults.contracts.map((contract) => (
-                    <CommandItem
-                      key={contract.id}
-                      onSelect={() => handleSelect("contract", contract.id)}
-                    >
-                      <BarChart3 className="mr-2 h-4 w-4" />
-                      <span>{contract.clientName} - {contract.totalHours}h</span>
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              )}
+                  {searchResults.contracts.length > 0 && (
+                    <CommandGroup heading="Contrats">
+                      {searchResults.contracts.map((contract) => (
+                        <CommandItem
+                          key={contract.id}
+                          onSelect={() => handleSelect("contract", contract.id)}
+                        >
+                          <BarChart3 className="mr-2 h-4 w-4" />
+                          <span>{contract.clientName} - {contract.totalHours}h</span>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  )}
 
-              {searchResults.projects.length > 0 && (
-                <CommandGroup heading="Projets">
-                  {searchResults.projects.map((project) => (
-                    <CommandItem
-                      key={project.id}
-                      onSelect={() => handleSelect("project", project.id)}
-                    >
-                      <Calendar className="mr-2 h-4 w-4" />
-                      <span>{project.title} - {project.clientName}</span>
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
+                  {searchResults.projects.length > 0 && (
+                    <CommandGroup heading="Projets">
+                      {searchResults.projects.map((project) => (
+                        <CommandItem
+                          key={project.id}
+                          onSelect={() => handleSelect("project", project.id)}
+                        >
+                          <Calendar className="mr-2 h-4 w-4" />
+                          <span>{project.title} - {project.clientName}</span>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  )}
+                </>
               )}
             </CommandList>
           </Command>
