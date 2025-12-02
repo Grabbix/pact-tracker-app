@@ -3,7 +3,8 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
 import { useMemo } from "react";
-import { differenceInMonths, differenceInDays, subMonths } from "date-fns";
+import { differenceInMonths, differenceInDays, subMonths, format } from "date-fns";
+import { fr } from "date-fns/locale";
 
 interface ContractListItemProps {
   contract: Contract;
@@ -25,6 +26,15 @@ export const ContractListItem = ({ contract }: ContractListItemProps) => {
     }
     return `${months}m ${daysAfterMonths}j`;
   }, [contract.createdDate]);
+
+  const lastInterventionDate = useMemo(() => {
+    if (!contract.interventions || contract.interventions.length === 0) return null;
+    const latest = contract.interventions.reduce((latest, intervention) => {
+      const date = new Date(intervention.date);
+      return date > latest ? date : latest;
+    }, new Date(contract.interventions[0].date));
+    return format(latest, "dd/MM", { locale: fr });
+  }, [contract.interventions]);
 
   const getStatusColor = () => {
     if (percentage >= 90) return "text-destructive";
@@ -70,9 +80,12 @@ export const ContractListItem = ({ contract }: ContractListItemProps) => {
       </div>
       
       {/* Hours info */}
-      <div className="flex items-center gap-4 text-xs text-muted-foreground">
+      <div className="flex items-center gap-3 text-xs text-muted-foreground">
         <span className="whitespace-nowrap">{contract.totalHours}h total</span>
         <span className="whitespace-nowrap">{contract.usedHours.toFixed(1)}h utilisées</span>
+        {lastInterventionDate && (
+          <span className="whitespace-nowrap text-foreground/70">Dern. interv. {lastInterventionDate}</span>
+        )}
       </div>
       
       {/* Progress */}
