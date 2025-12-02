@@ -8,7 +8,14 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Eye, Download, Mail, Loader2 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Eye, Download, Mail, Loader2, FileText } from "lucide-react";
 import { Contract } from "@/types/contract";
 import { exportContractToPDF, downloadContractPDF } from "@/utils/pdfExport";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -17,6 +24,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
+import { getMessageTemplates, MessageTemplate } from "@/components/MessageTemplatesConfig";
 
 interface PdfPreviewDialogProps {
   contract: Contract;
@@ -33,11 +41,13 @@ export const PdfPreviewDialog = ({ contract, clientContacts = [], trigger }: Pdf
   const [email, setEmail] = useState("");
   const [comment, setComment] = useState("");
   const [showEmailInput, setShowEmailInput] = useState(false);
+  const [messageTemplates, setMessageTemplates] = useState<MessageTemplate[]>([]);
 
-  // Generate PDF when dialog opens or option changes
+  // Load templates and generate PDF when dialog opens
   useEffect(() => {
     if (open) {
       generatePreview();
+      setMessageTemplates(getMessageTemplates());
     } else {
       // Clean up blob URL when dialog closes
       if (pdfUrl) {
@@ -49,6 +59,14 @@ export const PdfPreviewDialog = ({ contract, clientContacts = [], trigger }: Pdf
       setComment("");
     }
   }, [open, includeNonBillable]);
+
+  const applyTemplate = (templateId: string) => {
+    const template = messageTemplates.find((t) => t.id === templateId);
+    if (template) {
+      const content = template.content.replace(/{client}/gi, contract.clientName);
+      setComment(content);
+    }
+  };
 
   const generatePreview = () => {
     setIsGenerating(true);
@@ -173,11 +191,31 @@ export const PdfPreviewDialog = ({ contract, clientContacts = [], trigger }: Pdf
                 )}
               </Button>
             </div>
+            
+            {/* Template selector */}
+            {messageTemplates.length > 0 && (
+              <div className="flex items-center gap-2">
+                <FileText className="h-4 w-4 text-muted-foreground" />
+                <Select onValueChange={applyTemplate}>
+                  <SelectTrigger className="flex-1">
+                    <SelectValue placeholder="Utiliser un modèle..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {messageTemplates.map((template) => (
+                      <SelectItem key={template.id} value={template.id}>
+                        {template.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
             <Textarea
               placeholder="Commentaire personnalisé (optionnel) - sera inclus dans l'email"
               value={comment}
               onChange={(e) => setComment(e.target.value)}
-              className="min-h-[60px] text-sm"
+              className="min-h-[80px] text-sm"
             />
           </div>
         )}
