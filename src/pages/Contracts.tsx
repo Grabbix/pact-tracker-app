@@ -24,7 +24,7 @@ const Contracts = () => {
   const [filterNearExpiry, setFilterNearExpiry] = useState(false);
   const [filterOverage, setFilterOverage] = useState(false);
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
-  const [sortBy, setSortBy] = useState<"progression" | "age">("progression");
+  const [sortBy, setSortBy] = useState<"progression" | "age" | "size">("progression");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const navigate = useNavigate();
 
@@ -64,6 +64,8 @@ const Contracts = () => {
         const dateA = new Date(a.createdDate).getTime();
         const dateB = new Date(b.createdDate).getTime();
         return sortOrder === "asc" ? dateB - dateA : dateA - dateB;
+      } else if (sortBy === "size") {
+        return sortOrder === "asc" ? a.totalHours - b.totalHours : b.totalHours - a.totalHours;
       } else {
         const percentageA = (a.usedHours / a.totalHours) * 100;
         const percentageB = (b.usedHours / b.totalHours) * 100;
@@ -189,7 +191,9 @@ const Contracts = () => {
                 <ArrowUpDown className="mr-2 h-4 w-4" />
                 {sortBy === "progression" 
                   ? (sortOrder === "desc" ? "Plus pleins d'abord" : "Plus vides d'abord")
-                  : (sortOrder === "desc" ? "Plus vieux d'abord" : "Plus récents d'abord")}
+                  : sortBy === "age"
+                  ? (sortOrder === "desc" ? "Plus vieux d'abord" : "Plus récents d'abord")
+                  : (sortOrder === "desc" ? "Plus gros d'abord" : "Plus petits d'abord")}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
@@ -208,6 +212,14 @@ const Contracts = () => {
               <DropdownMenuItem onClick={() => { setSortBy("age"); setSortOrder("asc"); }}>
                 <Clock className="h-4 w-4 mr-2" />
                 Plus récents d'abord
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => { setSortBy("size"); setSortOrder("desc"); }}>
+                <FileText className="h-4 w-4 mr-2" />
+                Plus gros d'abord
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => { setSortBy("size"); setSortOrder("asc"); }}>
+                <FileText className="h-4 w-4 mr-2" />
+                Plus petits d'abord
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
