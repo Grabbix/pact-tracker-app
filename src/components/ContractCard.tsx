@@ -8,7 +8,8 @@ import { Clock, AlertCircle, CheckCircle, Archive, ArchiveRestore, Pencil } from
 import { useNavigate } from "react-router-dom";
 import { useContracts } from "@/hooks/useContracts";
 import { EditClientNameDialog } from "./EditClientNameDialog";
-import { differenceInMonths, differenceInDays } from "date-fns";
+import { differenceInMonths, differenceInDays, format } from "date-fns";
+import { fr } from "date-fns/locale";
 
 interface ContractCardProps {
   contract: Contract;
@@ -37,6 +38,15 @@ export const ContractCard = ({ contract, isArchived = false }: ContractCardProps
     }
     return `il y a ${months} mois et ${days} jour${days > 1 ? 's' : ''}`;
   }, [contract.createdDate]);
+
+  const lastInterventionDate = useMemo(() => {
+    if (!contract.interventions || contract.interventions.length === 0) return null;
+    const latest = contract.interventions.reduce((latest, intervention) => {
+      const date = new Date(intervention.date);
+      return date > latest ? date : latest;
+    }, new Date(contract.interventions[0].date));
+    return format(latest, "dd MMM yyyy", { locale: fr });
+  }, [contract.interventions]);
 
   const handleArchiveClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -150,10 +160,15 @@ export const ContractCard = ({ contract, isArchived = false }: ContractCardProps
           </p>
         </div>
 
-        <div className="pt-1.5 border-t border-border">
+        <div className="pt-1.5 border-t border-border space-y-0.5">
           <p className="text-xs text-muted-foreground">
             Créé le {new Date(contract.createdDate).toLocaleDateString('fr-FR')} <span className="text-muted-foreground/70">({contractAge})</span>
           </p>
+          {lastInterventionDate && (
+            <p className="text-xs text-muted-foreground">
+              Dernière intervention : <span className="font-medium text-foreground">{lastInterventionDate}</span>
+            </p>
+          )}
         </div>
       </div>
 

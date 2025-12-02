@@ -5,7 +5,7 @@ import { AddContractDialog } from "@/components/AddContractDialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, FileText, Archive, Download, ArrowLeft, CheckCircle, TrendingUp, FileSpreadsheet, AlertTriangle, ArrowUpDown, LayoutGrid, List, Clock } from "lucide-react";
+import { Search, FileText, Archive, Download, ArrowLeft, CheckCircle, TrendingUp, FileSpreadsheet, AlertTriangle, ArrowUpDown, LayoutGrid, List, Clock, Calendar } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,7 +24,7 @@ const Contracts = () => {
   const [filterNearExpiry, setFilterNearExpiry] = useState(false);
   const [filterOverage, setFilterOverage] = useState(false);
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
-  const [sortBy, setSortBy] = useState<"progression" | "age" | "size">("progression");
+  const [sortBy, setSortBy] = useState<"progression" | "age" | "size" | "lastIntervention">("progression");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const navigate = useNavigate();
 
@@ -58,6 +58,15 @@ const Contracts = () => {
       return matchesSearch && matchesFilter;
     });
 
+    // Helper to get last intervention date
+    const getLastInterventionDate = (contract: typeof contracts[0]) => {
+      if (!contract.interventions || contract.interventions.length === 0) return null;
+      return contract.interventions.reduce((latest, intervention) => {
+        const date = new Date(intervention.date);
+        return date > latest ? date : latest;
+      }, new Date(contract.interventions[0].date));
+    };
+
     // Sort by selected criteria
     return filtered.sort((a, b) => {
       if (sortBy === "age") {
@@ -66,6 +75,13 @@ const Contracts = () => {
         return sortOrder === "asc" ? dateB - dateA : dateA - dateB;
       } else if (sortBy === "size") {
         return sortOrder === "asc" ? a.totalHours - b.totalHours : b.totalHours - a.totalHours;
+      } else if (sortBy === "lastIntervention") {
+        const dateA = getLastInterventionDate(a);
+        const dateB = getLastInterventionDate(b);
+        if (!dateA && !dateB) return 0;
+        if (!dateA) return sortOrder === "asc" ? -1 : 1;
+        if (!dateB) return sortOrder === "asc" ? 1 : -1;
+        return sortOrder === "asc" ? dateA.getTime() - dateB.getTime() : dateB.getTime() - dateA.getTime();
       } else {
         const percentageA = (a.usedHours / a.totalHours) * 100;
         const percentageB = (b.usedHours / b.totalHours) * 100;
@@ -193,7 +209,9 @@ const Contracts = () => {
                   ? (sortOrder === "desc" ? "Plus pleins d'abord" : "Plus vides d'abord")
                   : sortBy === "age"
                   ? (sortOrder === "desc" ? "Plus vieux d'abord" : "Plus récents d'abord")
-                  : (sortOrder === "desc" ? "Plus gros d'abord" : "Plus petits d'abord")}
+                  : sortBy === "size"
+                  ? (sortOrder === "desc" ? "Plus gros d'abord" : "Plus petits d'abord")
+                  : (sortOrder === "desc" ? "Dernière intervention récente" : "Dernière intervention ancienne")}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
@@ -220,6 +238,14 @@ const Contracts = () => {
               <DropdownMenuItem onClick={() => { setSortBy("size"); setSortOrder("asc"); }}>
                 <FileText className="h-4 w-4 mr-2" />
                 Plus petits d'abord
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => { setSortBy("lastIntervention"); setSortOrder("desc"); }}>
+                <Calendar className="h-4 w-4 mr-2" />
+                Dernière intervention récente
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => { setSortBy("lastIntervention"); setSortOrder("asc"); }}>
+                <Calendar className="h-4 w-4 mr-2" />
+                Dernière intervention ancienne
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
